@@ -64,11 +64,12 @@ AIが動画の面白い部分を自動で分析・カットし、縦型のショ
 文字起こしデータを元に、AIが動画を分析し、クリップを生成します。
 
 -   **コマンド:**
+    -   出力先 (`--out`) には、Remotionとの連携のため `apps/remotion/public/out_clips` を指定することを推奨します。
     ```powershell
     python -m apps.cli.generate_clips `
       --transcript tmp/transcript.json `
       --video tmp/video.mp4 `
-      --out out_clips
+      --out apps/remotion/public/out_clips
     ```
 
 -   **💡 AIの精度を上げるには (動画コンセプトの指定):**
@@ -78,24 +79,42 @@ AIが動画の面白い部分を自動で分析・カットし、縦型のショ
     python -m apps.cli.generate_clips `
       --transcript tmp/transcript.json `
       --video tmp/video.mp4 `
-      --out out_clips `
+      --out apps/remotion/public/out_clips `
       --concept-file configs/video_concept.md
     ```
 
 ### Step 3: レンダリング (縦型動画の作成)
 
-生成されたクリップを、上下にテキストが入った最終的な縦型動画に仕上げます。
+生成されたクリップを、上下にテキストが入った最終的な縦型動画に仕上げます。このプロセスは2つのステップで構成されます。
 
--   **全自動レンダリング (推奨):**
-    -   `generate_clips.py` に `--render` オプションを追加すると、クリップ生成からレンダリングまで一括で行います。
+**1. レンダリングの準備**
+
+-   まず、AIが生成したクリップをRemotionで扱えるように、動画の最適化と設定ファイルの生成を行います。
+-   `generate_clips.py`を実行する際に`--render`オプションを付けると、この準備ステップまでが自動的に実行されます。
+
     ```powershell
+    # クリップ生成からレンダリング準備までを一括で実行
     python -m apps.cli.generate_clips `
       --transcript tmp/transcript.json `
       --video tmp/video.mp4 `
-      --out out_clips `
-      --render
+      --out apps/remotion/public/out_clips `
+      --render 
     ```
-    -   完了後、ルートディレクトリに `rendered` フォルダが作成されます。
+-   もしクリップ生成と準備を分けて行う場合は、以下のコマンドを実行します。
+    ```powershell
+    python -m apps.cli.render_clips --input-dir apps/remotion/public/out_clips
+    ```
+
+**2. 最終レンダリングの実行**
+
+-   準備が完了したら、Remotionのスクリプトを実行して、最終的な `.mp4` ファイルを生成します。
+-   以下のコマンドを**プロジェクトのルートディレクトリで**実行してください。
+
+    ```powershell
+    cd apps/remotion
+    ./render_all.ps1
+    ```
+-   完了後、`apps/remotion/rendered` フォルダに完成した動画が保存されます。
 
 ---
 

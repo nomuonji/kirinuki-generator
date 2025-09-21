@@ -132,11 +132,9 @@ def main():
         print(f"  Timestamps: Start={p.start:.2f}, Raw End={original_end:.2f} -> Refined End={p.end:.2f}")
         print("------------------------------------------------------------------------")
 
-    project_root = pathlib.Path(__file__).parent.parent.parent
-    public_dir = project_root / "public"
-    public_dir.mkdir(parents=True, exist_ok=True) # Ensure public dir exists
-    outdir = public_dir / "out_clips"
-    outdir.mkdir(parents=True, exist_ok=True) # Ensure out_clips dir exists
+    # --out引数で指定されたディレクトリをPathオブジェクトとして扱う
+    outdir = pathlib.Path(args.out)
+    outdir.mkdir(parents=True, exist_ok=True)
 
     json_path = outdir / "clip_candidates.json"
     json_path.write_text(json.dumps([p.model_dump() for p in props], ensure_ascii=False, indent=2), encoding="utf-8")
@@ -162,13 +160,13 @@ def main():
     for i, p in enumerate(props, start=1):
         print(f"\nProcessing clip {i}/{len(props)}: {p.title}")
 
-        details_path = outdir / f"clip_{{i:03d}}_details.txt"
+        details_path = outdir / f"clip_{i:03d}_details.txt"
         details_content = f"Title: {p.title}\nReason: {p.reason}\nConfidence: {p.confidence:.2f}"
         details_path.write_text(details_content, encoding="utf-8")
         print(f"  -> Saved details to {details_path}")
 
         hooks = hooks_map.get(i, HookText(upper="", lower=""))
-        hooks_path = outdir / f"clip_{{i:03d}}_hooks.txt"
+        hooks_path = outdir / f"clip_{i:03d}_hooks.txt"
         hooks_content = f"UPPER:\n{hooks.upper}\n\nLOWER:\n{hooks.lower}"
         hooks_path.write_text(hooks_content, encoding="utf-8")
         print(f"  -> Saved hooks to {hooks_path}")
@@ -176,11 +174,11 @@ def main():
         subs_path = None
         if args.subs or args.burn:
             events = clip_events_from_transcript(items, start=p.start, end=p.end)
+            subs_filename = f"clip_{i:03d}.{args.subs_format}"
+            subs_path = str((outdir / subs_filename).resolve())
             if args.subs_format == "srt":
-                subs_path = str((outdir / f"clip_{{i:03d}}.srt").resolve())
                 write_srt(events, pathlib.Path(subs_path))
             else:
-                subs_path = str((outdir / f"clip_{{i:03d}}.ass").resolve())
                 write_ass(events, pathlib.Path(subs_path))
 
         clip_specs.append(ClipSpec(
