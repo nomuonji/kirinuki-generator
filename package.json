@@ -1,0 +1,10 @@
+{
+  "name": "clipcut-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/remotion"
+  ],
+  "scripts": {
+    "render:demo": "cd apps/remotion && npx remotion render VideoWithBands ../../rendered/rendered_clip_001_84-125.mp4 --config remotion.config.ts --props=temp_props.json"
+  }
+}
