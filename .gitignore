@@ -1,2 +1,9 @@
 node_modules
 build
+
+# Gemini CLI added
+.env
+tmp/
+out_clips/
+rendered/
+apps/remotion/public/out_clips/

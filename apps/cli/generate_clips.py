@@ -66,9 +66,24 @@ def main():
     ap.add_argument("--subs-format", choices=["srt","ass"], default="srt", help="subtitle format")
     ap.add_argument("--render", action="store_true", help="Render clips with Remotion after cutting.")
     ap.add_argument("--dry-run", action="store_true", help="only output JSON proposals")
+    ap.add_argument("--concept", type=str, default="", help="Concept of the video to guide Gemini's generation")
+    ap.add_argument("--concept-file", type=str, default=None, help="Path to a file containing the concept of the video")
     args = ap.parse_args()
 
     load_dotenv()
+
+    concept = args.concept
+    if args.concept_file:
+        try:
+            concept_path = pathlib.Path(args.concept_file)
+            if concept_path.is_file():
+                concept = concept_path.read_text(encoding="utf-8")
+                print(f"Loaded concept from: {args.concept_file}")
+            else:
+                print(f"Warning: Concept file not found at {args.concept_file}")
+        except Exception as e:
+            print(f"Warning: Failed to read concept file: {e}")
+
     items = load_transcript(args.transcript)
 
     if isinstance(items, dict) and 'segments' in items:
@@ -100,7 +115,7 @@ def main():
         return
 
     props = propose_clips_from_transcript(items, preset=args.platform,
-                                          min_gap=args.min_gap, min_sec=args.min_sec, max_sec=args.max_sec)
+                                          min_gap=args.min_gap, min_sec=args.min_sec, max_sec=args.max_sec, concept=concept)
 
     print("\n--- Verifying Gemini's Raw Proposals and Refining End Times ---")
     for i, p in enumerate(props, start=1):
@@ -141,7 +156,7 @@ def main():
     hooks_map: dict[int, HookText] = {}
     if any(per_clip_transcript.values()):
         print(f"Generating hook texts in bulk for {len(bulk_inputs)} clips...")
-        hooks_map = generate_hooks_bulk(bulk_inputs)
+        hooks_map = generate_hooks_bulk(bulk_inputs, concept=concept)
 
     clip_specs = []
     for i, p in enumerate(props, start=1):

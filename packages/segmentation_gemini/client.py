@@ -34,7 +34,7 @@ def _chunks(items, max_chars=12000):
     if buf:
         yield "\n".join(buf)
 
-def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30.0, min_sec=20.0, max_sec=90.0) -> List[ClipCandidate]:
+def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30.0, min_sec=20.0, max_sec=90.0, concept: str = "") -> List[ClipCandidate]:
     from google.generativeai import protos
 
     clip_schema = protos.Schema(
@@ -52,7 +52,8 @@ def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30
         ),
     )
 
-    sys = f"""You are a master video editor, specializing in creating viral short-form content. Your task is to analyze a timestamped transcript and identify the most compelling, self-contained clips.
+    concept_prompt = f"**Video Concept:**\n{concept}\n\n" if concept else ""
+    sys = f"""{concept_prompt}You are a master video editor, specializing in creating viral short-form content. Your task is to analyze a timestamped transcript and identify the most compelling, self-contained clips.
 
 **Your Goal:** Propose clips that are high-impact and feel complete.
 
@@ -152,7 +153,7 @@ def generate_hook_text(clip_transcript: str) -> HookText:
     return HookText(**parsed)
 
 
-def generate_hooks_bulk(clip_items: List[Dict]) -> Dict[int, HookText]:
+def generate_hooks_bulk(clip_items: List[Dict], concept: str = "") -> Dict[int, HookText]:
     """
     Generate hook texts for multiple clips in a single Gemini call.
     clip_items: [{"index": int, "transcript": str}]
@@ -173,8 +174,9 @@ def generate_hooks_bulk(clip_items: List[Dict]) -> Dict[int, HookText]:
         ),
     )
 
+    concept_prompt = f"The overall concept of the video is: {concept}. " if concept else ""
     sys = (
-        "You are a viral video producer. For each item, create two short, punchy hooks.\n"
+        f"You are a viral video producer. {concept_prompt}For each item, create two short, punchy hooks.\n"
         "Return an array aligning 1:1 with input items by 'index'. Output JSON only."
     )
 
@@ -199,6 +201,7 @@ def generate_hooks_bulk(clip_items: List[Dict]) -> Dict[int, HookText]:
         except Exception:
             continue
     return out
+
 
 
 def _safe_parsed(resp, expect_array: bool = False):

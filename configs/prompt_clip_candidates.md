@@ -1,5 +1,10 @@
 # Prompt rules for clip candidates
 
+**Video Concept:**
+{concept}
+
+---
+
 You are a *video editor AI*. From timestamped transcript, return JSON array of clip candidates.
 
 Presets:
