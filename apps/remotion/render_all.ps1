@@ -10,7 +10,6 @@ $ProjectRoot = "../.."
 $PublicDir = ".\public"
 $RenderedDir = "$ProjectRoot\rendered"
 $PropsDir = "$PublicDir\props"
-$StyledPropsDir = "$PublicDir\styled_props"
 
 # Determine which video directory to use (optimized or original)
 $OptimizedVideosDir = "$PublicDir\re_encoded_clips"
@@ -61,19 +60,13 @@ try {
     # Loop through each video and render it
     foreach ($videoFile in $videoFiles) {
         $baseName = $videoFile.BaseName
-        $propsFilePlain = "$PropsDir\${baseName}.json"
-        $propsFileStyled = "$StyledPropsDir\${baseName}.json"
-        $propsForRender = if (Test-Path $propsFileStyled) { $propsFileStyled } else { $propsFilePlain }
+        $propsPath = "$PropsDir\${baseName}.json"
 
         Write-Host "`nProcessing $($videoFile.Name)..."
 
-        if (-not (Test-Path $propsForRender)) {
-            Write-Warning "Props file not found for $($videoFile.Name) at $propsForRender. Skipping."
+        if (-not (Test-Path $propsPath)) {
+            Write-Warning "Props file not found for $($videoFile.Name) at $propsPath. Skipping."
             continue
-        }
-
-        if (($propsForRender -ne $propsFilePlain) -and -not (Test-Path $propsFilePlain)) {
-            Write-Warning "Plain props not found for $($videoFile.Name). Rendering will use styled props only."
         }
 
         $outputFile = "$RenderedDir\rendered_$($videoFile.Name)"
@@ -86,16 +79,13 @@ try {
             "VideoWithBands",
             $outputFile,
             "--props",
-            $propsForRender,
+            $propsPath,
             "--timeout",
             "90000"
         )
 
-        # Join the array into a single string to be executed
         $cmdString = $cmdArray -join ' '
         Write-Host "  -> Running command: $cmdString"
-        
-        # Execute the command via cmd.exe to ensure npx is found, similar to shell=True
         cmd /c $cmdString
 
         if ($LASTEXITCODE -ne 0) {
@@ -104,7 +94,6 @@ try {
             Write-Host "  -> Successfully rendered: $outputFile" -ForegroundColor Green
         }
     }
-
     Write-Host "`n--- Batch Remotion Rendering Complete ---"
 } finally {
     $env:TEMP = $OriginalTemp

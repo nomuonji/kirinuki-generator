@@ -12,9 +12,16 @@ YouTube動画IDを指定するだけで、ダウンロードから最終的な�
 # <YouTubeのビデオID> を置き換えて実行
 python run_all.py <YouTubeのビデオID>
 ```
+字幕を焼き付けたい場合は、`--subs` を付けて実行します。
+
+```bash
+python run_all.py <YouTubeのビデオID> --subs
+```
+
 
 - AIの分析精度を上げるため、事前に `configs/video_concept.md` に動画のコンセプトを記述しておくことを強く推奨します。
 - 処理が完了すると、`rendered` に完成した動画が出力されます。
+- Remotion の props JSON は `apps/remotion/public/props` に保存され、レンダリング結果と共に成果物となります。各ファイルにはオーバーレイ文言とハッシュタグ情報が含まれます。
 - 途中で作られた作業ファイルは、次回の実行時に自動でクリーンアップされます。
 
 ---
@@ -137,18 +144,29 @@ python run_all.py <YouTubeのビデオID>
 
 ---
 
-## オプション機能: 字幕の生成
+## オプション機能: 字幕生成
 
-`generate_clips.py` 実行時に以下のオプションを追加すると、字幕を生成できます。
+`generate_clips.py` に以下のオプションを付けると、字幕付きでクリップを作成できます。
 
--   `--subs`: 字幕ファイル (`.srt`または`.ass`) を別途生成します (ソフトサブ)。
--   `--burn`: 動画に字幕を直接焼き付けます (ハードサブ)。
+-   `--subs`: 字幕を動画に焼き付けた状態で書き出します（ハードサブ）。
+-   `--soft-subs`: 字幕ファイル（`.srt` または `.ass`）を出力し、動画本体には焼き付けません（ソフトサブ）。
+-   `--subs-format`: 生成する字幕ファイルの形式。ハードサブでも内部的にこの形式が使用されます。
 
-**例 (ハードサブ):**
+**例: ハードサブを付けてクリップを生成**
 ```powershell
 python -m apps.cli.generate_clips `
   --transcript tmp/transcript.json `
   --video tmp/video.mp4 `
   --out out_clips `
-  --burn --subs-format ass
+  --subs --subs-format ass
 ```
+
+**例: ソフトサブのみ出力する**
+```powershell
+python -m apps.cli.generate_clips `
+  --transcript tmp/transcript.json `
+  --video tmp/video.mp4 `
+  --out out_clips `
+  --soft-subs --subs-format srt
+```
+

@@ -1,5 +1,5 @@
 import os, json, time, re
-from typing import List, Dict
+from typing import List, Dict, Iterable
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -33,6 +33,28 @@ def _strip_markup(text: str) -> str:
 def _sanitize_plain_text(candidate: str, fallback: str = "") -> str:
     base = candidate if candidate else fallback
     return _strip_markup(base)
+
+def _normalize_hashtags(raw) -> List[str]:
+    if isinstance(raw, str):
+        candidates = [raw]
+    elif isinstance(raw, Iterable):
+        candidates = list(raw)
+    else:
+        candidates = []
+    hashtags: List[str] = []
+    for tag in candidates:
+        if not tag:
+            continue
+        tag_str = str(tag).strip()
+        if not tag_str:
+            continue
+        if not tag_str.startswith('#'):
+            tag_str = '#' + tag_str.lstrip('#').strip()
+        if tag_str and tag_str not in hashtags:
+            hashtags.append(tag_str)
+        if len(hashtags) >= 5:
+            break
+    return hashtags
 
 def _chunks(items, max_chars=12000):
     buf, size = [], 0
@@ -130,7 +152,51 @@ class HookText(BaseModel):
     lower: str = Field(..., description="Plain text for the bottom of the video (no markup).")
     upper_decorated: str = Field("", description="Decorated rich text for the top (youth slang with **highlight** markup and optional line breaks).")
     lower_decorated: str = Field("", description="Decorated rich text for the bottom (youth slang with **highlight** markup and optional line breaks).")
+    hashtags: List[str] = Field(default_factory=list, description="Hashtags (3-5) relevant to the clip.")
 
+
+
+def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
+    """Clean up subtitle lines via Gemini while preserving alignment."""
+    non_empty = [line for line in lines if isinstance(line, str) and line.strip()]
+    if not non_empty:
+        return lines
+
+    from google.generativeai import protos
+
+    schema = protos.Schema(
+        type=protos.Type.ARRAY,
+        items=protos.Schema(type=protos.Type.STRING),
+    )
+
+    concept_prompt = f"Clip concept: {concept}. " if concept else ""
+    sys = (
+        f"You are a professional Japanese subtitle editor. {concept_prompt}"
+        "You receive an ordered list of subtitle lines for a single video clip. "
+        "For each line, fix typos, normalize punctuation and spacing, and keep meaning intact. "
+        "Convert ambiguous or unreadable words to clear katakana renderings. "
+        "Do NOT merge or split lines, and maintain the same number of entries in the same order. "
+        "Avoid adding speaker labels or timestamps. Return JSON array of strings only."
+    )
+
+    payload = json.dumps(lines, ensure_ascii=False)
+    model = genai.GenerativeModel(GEMINI_MODEL)
+    try:
+        resp = model.generate_content(
+            [sys, 'INPUT:', payload],
+            generation_config={
+                'response_mime_type': 'application/json',
+                'response_schema': schema,
+                'temperature': 0.2,
+            },
+        )
+        cleaned = _safe_parsed(resp, expect_array=True)
+        cleaned_lines = [str(x) for x in cleaned]
+        if len(cleaned_lines) == len(lines):
+            return cleaned_lines
+    except Exception as exc:
+        print(f"  -> Warning: Subtitle polishing failed: {exc}")
+    return lines
 def generate_hook_text(clip_transcript: str) -> HookText:
     """
     Generates catchy hook texts for a video clip based on its transcript.
@@ -144,6 +210,7 @@ def generate_hook_text(clip_transcript: str) -> HookText:
             "lowerDecorated": protos.Schema(type=protos.Type.STRING),
             "upperPlain": protos.Schema(type=protos.Type.STRING),
             "lowerPlain": protos.Schema(type=protos.Type.STRING),
+            "hashtags": protos.Schema(type=protos.Type.ARRAY, items=protos.Schema(type=protos.Type.STRING)),
         },
         required=["upperDecorated", "lowerDecorated"],
     )
@@ -155,7 +222,8 @@ def generate_hook_text(clip_transcript: str) -> HookText:
         "2) Use \\n (newline) to break the copy into at most two short lines that read naturally. "
         "3) Avoid any markup besides the **emphasis** markers. No emojis that break encoding. "
         "4) Also supply a plain version with no markup, replacing newlines by spaces, for metadata storage. "
-        "Return JSON with fields upperDecorated, lowerDecorated, upperPlain, lowerPlain."
+        "5) Provide 3-5 concise Japanese hashtags relevant to the clip in the \"hashtags\" field (each should start with #, no spaces). "
+        "Return JSON with fields upperDecorated, lowerDecorated, upperPlain, lowerPlain, hashtags."
     )
 
     model = genai.GenerativeModel(HOOK_MODEL)
@@ -172,11 +240,13 @@ def generate_hook_text(clip_transcript: str) -> HookText:
     lower_decorated = str(parsed.get("lowerDecorated", ""))
     upper_plain = _sanitize_plain_text(str(parsed.get("upperPlain", "")), upper_decorated)
     lower_plain = _sanitize_plain_text(str(parsed.get("lowerPlain", "")), lower_decorated)
+    hashtags = _normalize_hashtags(parsed.get("hashtags"))
     return HookText(
         upper=upper_plain,
         lower=lower_plain,
         upper_decorated=upper_decorated,
         lower_decorated=lower_decorated,
+        hashtags=hashtags,
     )
 
 
@@ -198,6 +268,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "") -> Dict[int, 
                 "lowerDecorated": protos.Schema(type=protos.Type.STRING),
                 "upperPlain": protos.Schema(type=protos.Type.STRING),
                 "lowerPlain": protos.Schema(type=protos.Type.STRING),
+                "hashtags": protos.Schema(type=protos.Type.ARRAY, items=protos.Schema(type=protos.Type.STRING)),
             },
             required=["index", "upperDecorated", "lowerDecorated"],
         ),
@@ -207,7 +278,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "") -> Dict[int, 
     sys = (
         f"You are a viral video producer. {concept_prompt}For each item, craft youth-slang overlay text for the top and bottom bands."
         "Follow the same formatting rules for decorated text as above (wrap highlights with **, use at most two lines separated by \n, and avoid other markup)."
-        "Always include plain copies with markup removed so they can be stored safely."
+        "Always include plain copies with markup removed so they can be stored safely, and provide 3-5 Japanese hashtags (starting with #) that match the clip."
         "Return an array aligning 1:1 with input items by 'index'. Output JSON only."
     )
 
@@ -232,11 +303,13 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "") -> Dict[int, 
             lower_decorated = str(obj.get("lowerDecorated", ""))
             upper_plain = _sanitize_plain_text(str(obj.get("upperPlain", "")), upper_decorated)
             lower_plain = _sanitize_plain_text(str(obj.get("lowerPlain", "")), lower_decorated)
+            hashtags = _normalize_hashtags(obj.get("hashtags"))
             out[idx] = HookText(
                 upper=upper_plain,
                 lower=lower_plain,
                 upper_decorated=upper_decorated,
                 lower_decorated=lower_decorated,
+                hashtags=hashtags,
             )
         except Exception:
             continue

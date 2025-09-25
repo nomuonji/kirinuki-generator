@@ -10,15 +10,29 @@ def _fmt_time_srt(sec: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 def clip_events_from_transcript(items: List[dict], start: float, end: float) -> List[dict]:
-    """Return transcript segments overlapping [start,end], shifted so clip 0 is start."""
-    out = []
+    """Return transcript segments overlapping [start,end], shifted so clip 0 is start, with adjusted durations."""
+    clip_duration = max(0.0, end - start)
+    out: List[dict] = []
     for it in items:
         s, e = float(it["start"]), float(it["end"])
         if e <= start or s >= end:
             continue
         s_clip = max(0.0, s - start)
         e_clip = max(0.0, e - start)
-        out.append({"start": s_clip, "end": e_clip, "text": it["text"]})
+        out.append({"start": s_clip, "end": e_clip, "text": it.get("text", "")})
+
+    for idx, ev in enumerate(out):
+        text = str(ev.get("text", ""))
+        base_end = ev["end"]
+        next_start = out[idx + 1]["start"] if idx + 1 < len(out) else clip_duration
+        reading_extend = 0.0
+        if text:
+            reading_extend = min(1.8, max(0.4, len(text) * 0.045))
+        desired_end = max(base_end, ev["start"] + reading_extend)
+        margin = 0.12
+        limit = next_start - margin if idx + 1 < len(out) else clip_duration
+        ev["end"] = max(ev["start"] + 0.15, min(desired_end, limit))
+
     return out
 
 def write_srt(events: List[dict], path: pathlib.Path) -> None:
@@ -30,7 +44,7 @@ def write_srt(events: List[dict], path: pathlib.Path) -> None:
         lines.append("")  # blank line
     path.write_text("\n".join(lines), encoding="utf-8")
 
-ASS_HEADER = "; Script generated\n[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\nScaledBorderAndShadow: yes\nYCbCr Matrix: TV.601\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Sub, Noto Sans JP, 52, &H00FFFFFF, &H000000FF, &H00000000, &H64000000, -1, 0, 0, 0, 100, 100, 0, 0, 1, 3, 0, 2, 60, 60, 180, 1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+ASS_HEADER = "; Script generated\n[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\nScaledBorderAndShadow: yes\nYCbCr Matrix: TV.601\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Sub, Noto Sans JP, 64, &H00FFFFFF, &H00FFD700, &H00202020, &H80000000, -1, 0, 0, 0, 100, 100, 0, 0, 1, 4.5, 2, 2, 60, 60, 160, 1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
 
 def _fmt_time_ass(sec: float) -> str:
     h = int(sec // 3600)

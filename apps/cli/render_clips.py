@@ -2,6 +2,7 @@ import argparse
 import json
 import pathlib
 import re
+from typing import Iterable
 import ffmpeg
 
 
@@ -11,13 +12,37 @@ def _normalize_plain_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def parse_hooks(hooks_path: pathlib.Path) -> dict[str, str]:
+def _normalize_hashtags(raw) -> list[str]:
+    if isinstance(raw, str):
+        candidates = [raw]
+    elif isinstance(raw, (list, tuple, set)):
+        candidates = list(raw)
+    else:
+        candidates = []
+    hashtags: list[str] = []
+    for tag in candidates:
+        if not tag:
+            continue
+        tag_str = str(tag).strip()
+        if not tag_str:
+            continue
+        if not tag_str.startswith('#'):
+            tag_str = '#' + tag_str.lstrip('#').strip()
+        if tag_str and tag_str not in hashtags:
+            hashtags.append(tag_str)
+        if len(hashtags) >= 5:
+            break
+    return hashtags
+
+
+def parse_hooks(hooks_path: pathlib.Path) -> dict[str, object]:
     """Parses the _hooks.txt file to get decorated and plain overlay text."""
     defaults = {
         'upper_plain': '',
         'lower_plain': '',
         'upper_decorated': '',
         'lower_decorated': '',
+        'hashtags': [],
     }
     try:
         content = hooks_path.read_text(encoding="utf-8")
@@ -47,11 +72,13 @@ def parse_hooks(hooks_path: pathlib.Path) -> dict[str, str]:
             upper_plain = _normalize_plain_text(upper_decorated)
         if not lower_plain:
             lower_plain = _normalize_plain_text(lower_decorated)
+        hashtags = _normalize_hashtags(data.get('hashtags') or data.get('hashTags'))
         return {
             'upper_plain': upper_plain,
             'lower_plain': lower_plain,
             'upper_decorated': upper_decorated,
             'lower_decorated': lower_decorated,
+            'hashtags': hashtags,
         }
     except json.JSONDecodeError:
         pass
@@ -68,6 +95,7 @@ def parse_hooks(hooks_path: pathlib.Path) -> dict[str, str]:
         'lower_plain': lower_plain,
         'upper_decorated': upper_text,
         'lower_decorated': lower_text,
+        'hashtags': [],
     }
 
 
@@ -93,10 +121,8 @@ def main():
 
     remotion_public_dir = project_root / "apps" / "remotion" / "public"
     props_dir = remotion_public_dir / "props"
-    styled_props_dir = remotion_public_dir / "styled_props"
     re_encoded_dir = remotion_public_dir / "re_encoded_clips"
     props_dir.mkdir(exist_ok=True)
-    styled_props_dir.mkdir(exist_ok=True)
     re_encoded_dir.mkdir(exist_ok=True)
 
     clip_files = sorted(input_dir.glob("clip_*.mp4"))
@@ -150,12 +176,16 @@ def main():
         lower_plain = hooks_data['lower_plain']
         upper_decorated = hooks_data['upper_decorated'] or upper_plain
         lower_decorated = hooks_data['lower_decorated'] or lower_plain
+        hashtags = hooks_data.get('hashtags', [])
         video_filename_prop = (pathlib.Path(video_dir_in_public) / clip_path.name).as_posix()
 
         props_dict = {
             "videoFileName": video_filename_prop,
             "topText": upper_plain,
             "bottomText": lower_plain,
+            "topRichText": upper_decorated,
+            "bottomRichText": lower_decorated,
+            "hashtags": hashtags,
             "durationInFrames": duration_frames
         }
 
@@ -163,17 +193,7 @@ def main():
         with open(props_json_path, 'w', encoding='utf-8') as f:
             json.dump(props_dict, f, ensure_ascii=False, indent=2)
 
-        styled_props_dict = {
-            **props_dict,
-            "topRichText": upper_decorated,
-            "bottomRichText": lower_decorated
-        }
-        styled_props_path = styled_props_dir / f"{clip_path.stem}.json"
-        with open(styled_props_path, 'w', encoding='utf-8') as f:
-            json.dump(styled_props_dict, f, ensure_ascii=False, indent=2)
-
         print(f"  -> Created: {props_json_path} (Duration: {duration_frames} frames)")
-        print(f"     Styled props -> {styled_props_path}")
 
     print("\n--- Preparation complete. ---")
     print("Next, run the rendering script: cd apps/remotion && .\render_all.ps1")

@@ -7,6 +7,7 @@ from packages.segmentation_gemini.client import (
     generate_hooks_bulk,
     HookText,
     ClipCandidate,
+    polish_subtitles,
 )
 from packages.cutter_ffmpeg.cutter import cut_many, ClipSpec
 from packages.subtitles.builder import clip_events_from_transcript, write_srt, write_ass
@@ -61,14 +62,19 @@ def main():
     ap.add_argument("--min-sec", type=float, default=30.0)
     ap.add_argument("--max-sec", type=float, default=120.0)
     ap.add_argument("--min-gap", type=float, default=30.0)
-    ap.add_argument("--subs", action="store_true", help="generate per-clip subtitles (soft file)")
-    ap.add_argument("--burn", action="store_true", help="burn-in subtitles into video (implies --subs)")
-    ap.add_argument("--subs-format", choices=["srt","ass"], default="srt", help="subtitle format")
+    ap.add_argument("--subs", action="store_true", help="Burn subtitles into the output clips (hard subtitles).")
+    ap.add_argument("--soft-subs", action="store_true", help="Generate external subtitle files without burning them.")
+    ap.add_argument("--subs-format", choices=["srt","ass"], default="srt", help="Subtitle format to generate when subtitles are enabled")
     ap.add_argument("--render", action="store_true", help="Render clips with Remotion after cutting.")
     ap.add_argument("--dry-run", action="store_true", help="only output JSON proposals")
     ap.add_argument("--concept", type=str, default="", help="Concept of the video to guide Gemini's generation")
     ap.add_argument("--concept-file", type=str, default=None, help="Path to a file containing the concept of the video")
     args = ap.parse_args()
+    if args.subs and args.soft_subs:
+        ap.error("--subs and --soft-subs cannot be used together.")
+    burn_subs = args.subs
+    soft_subs = args.soft_subs
+    needs_subs = burn_subs or soft_subs
 
     load_dotenv()
 
@@ -160,25 +166,35 @@ def main():
     for i, p in enumerate(props, start=1):
         print(f"\nProcessing clip {i}/{len(props)}: {p.title}")
 
-        details_path = outdir / f"clip_{i:03d}_details.txt"
-        details_content = f"Title: {p.title}\nReason: {p.reason}\nConfidence: {p.confidence:.2f}"
-        details_path.write_text(details_content, encoding="utf-8")
-        print(f"  -> Saved details to {details_path}")
-
         hooks = hooks_map.get(i, HookText(upper="", lower=""))
-        hooks_path = outdir / f"clip_{i:03d}_hooks.txt"
         hooks_payload = {
             "upper_plain": getattr(hooks, 'upper', ''),
             "lower_plain": getattr(hooks, 'lower', ''),
             "upper_decorated": getattr(hooks, 'upper_decorated', '') or getattr(hooks, 'upper', ''),
             "lower_decorated": getattr(hooks, 'lower_decorated', '') or getattr(hooks, 'lower', ''),
+            "hashtags": list(getattr(hooks, 'hashtags', []) or []),
         }
+
+        details_path = outdir / f"clip_{i:03d}_details.txt"
+        details_content = f"Title: {p.title}\nReason: {p.reason}\nConfidence: {p.confidence:.2f}"
+        if hooks_payload['hashtags']:
+            details_content += f"\nHashtags: {' '.join(hooks_payload['hashtags'])}"
+        details_path.write_text(details_content, encoding="utf-8")
+        print(f"  -> Saved details to {details_path}")
+
+        hooks_path = outdir / f"clip_{i:03d}_hooks.txt"
         hooks_path.write_text(json.dumps(hooks_payload, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"  -> Saved hooks to {hooks_path}")
-
         subs_path = None
-        if args.subs or args.burn:
+        if needs_subs:
             events = clip_events_from_transcript(items, start=p.start, end=p.end)
+            try:
+                cleaned_lines = polish_subtitles([ev['text'] for ev in events], concept=concept)
+                if len(cleaned_lines) == len(events):
+                    for ev, cleaned in zip(events, cleaned_lines):
+                        ev['text'] = cleaned
+            except Exception as exc:
+                print(f"  -> Warning: Subtitle polishing skipped ({exc})")
             subs_filename = f"clip_{i:03d}.{args.subs_format}"
             subs_path = str((outdir / subs_filename).resolve())
             if args.subs_format == "srt":
@@ -188,7 +204,7 @@ def main():
 
         clip_specs.append(ClipSpec(
             start=p.start, end=p.end, index=i, title=p.title,
-            subs_path=subs_path, burn=args.burn
+            subs_path=subs_path, burn=burn_subs
         ))
 
     cut_many(args.video, clip_specs, args.out)

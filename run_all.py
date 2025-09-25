@@ -25,12 +25,17 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("video_id", help="The YouTube video ID.")
+    parser.add_argument("--subs", action="store_true", help="Burn subtitles into the generated clips.")
+    parser.add_argument("--soft-subs", action="store_true", help="Export subtitle files without burning them.")
+    parser.add_argument("--subs-format", choices=["srt", "ass"], default="srt", help="Subtitle format to use when subtitles are generated.")
     parser.add_argument(
         "--concept-file", 
         default="configs/video_concept.md", 
         help="Path to the video concept file. Defaults to configs/video_concept.md"
     )
     args = parser.parse_args()
+    if args.subs and args.soft_subs:
+        parser.error("--subs and --soft-subs cannot be used together.")
 
     # --- 1. Path Definitions ---
     tmp_dir = Path("tmp")
@@ -50,11 +55,14 @@ def main():
     # Clean up directories from previous runs
     styled_props_dir = remotion_public_dir / "styled_props"
 
-    paths_to_clean = [tmp_dir, clips_dir, props_dir, re_encoded_dir, styled_props_dir, remotion_temp_dir]
+    paths_to_clean = [tmp_dir, clips_dir, props_dir, re_encoded_dir, remotion_temp_dir]
     for path in paths_to_clean:
         if path.exists():
             print(f"Removing old directory: {path}")
             shutil.rmtree(path)
+    if styled_props_dir.exists():
+        print(f"Removing legacy directory: {styled_props_dir}")
+        shutil.rmtree(styled_props_dir)
     print("--- Pre-run cleanup complete ---\n")
     
     # Recreate tmp_dir for the current run
@@ -81,6 +89,12 @@ def main():
             "--out", str(clips_dir),
             "--concept-file", args.concept_file
         ]
+        if args.subs:
+            cmd_generate.append("--subs")
+        if args.soft_subs:
+            cmd_generate.append("--soft-subs")
+        if args.subs or args.soft_subs:
+            cmd_generate.extend(["--subs-format", args.subs_format])
         run_command(cmd_generate, "Generating Clips with AI")
         
         # --- 6. Prepare for Rendering ---
@@ -104,18 +118,14 @@ def main():
 
         # --- Cleanup 2: Remotion work files ---
         print("--- Cleaning up Remotion work files ---")
-        if props_dir.exists():
-            print(f"Removing directory: {props_dir}")
-            shutil.rmtree(props_dir)
         if re_encoded_dir.exists():
             print(f"Removing directory: {re_encoded_dir}")
             shutil.rmtree(re_encoded_dir)
-        if styled_props_dir.exists():
-            print(f"Removing directory: {styled_props_dir}")
-            shutil.rmtree(styled_props_dir)
         if remotion_temp_dir.exists():
             print(f"Removing directory: {remotion_temp_dir}")
             shutil.rmtree(remotion_temp_dir)
+        if props_dir.exists():
+            print(f"Preserving directory: {props_dir}")
         print("--- Cleanup complete ---\n")
 
         print("\n[32m[1m✨✨✨ All steps completed successfully! ✨✨✨[0m")
