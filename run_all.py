@@ -41,13 +41,16 @@ def main():
     clips_dir = remotion_public_dir / "out_clips"
     props_dir = remotion_public_dir / "props"
     re_encoded_dir = remotion_public_dir / "re_encoded_clips"
+    remotion_temp_dir = Path("remotion_tmp")
     
     final_output_dir = Path("rendered")
 
     # --- 2. Pre-run Cleanup --- 
     print("--- Starting pre-run cleanup --- ")
     # Clean up directories from previous runs
-    paths_to_clean = [tmp_dir, clips_dir, props_dir, re_encoded_dir]
+    styled_props_dir = remotion_public_dir / "styled_props"
+
+    paths_to_clean = [tmp_dir, clips_dir, props_dir, re_encoded_dir, styled_props_dir, remotion_temp_dir]
     for path in paths_to_clean:
         if path.exists():
             print(f"Removing old directory: {path}")
@@ -61,6 +64,10 @@ def main():
         # --- 3. Download Video ---
         cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
         run_command(cmd_download, "Downloading YouTube Video")
+        if not video_path.exists() or video_path.stat().st_size == 0:
+            raise RuntimeError(
+                f"Video download failed; expected file at {video_path} but nothing was saved."
+            )
 
         # --- 4. Transcribe Video ---
         cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id]
@@ -82,6 +89,9 @@ def main():
             "--input-dir", str(clips_dir)
         ]
         run_command(cmd_prepare, "Preparing for Remotion Rendering")
+        clip_outputs = list(clips_dir.glob("clip_*.mp4"))
+        if not clip_outputs:
+            raise RuntimeError("No clips were generated; check the transcript and Gemini output.")
 
         # --- Cleanup 1: Original clips ---
         print(f"--- Cleaning up original clips directory: {clips_dir} ---")
@@ -100,15 +110,21 @@ def main():
         if re_encoded_dir.exists():
             print(f"Removing directory: {re_encoded_dir}")
             shutil.rmtree(re_encoded_dir)
+        if styled_props_dir.exists():
+            print(f"Removing directory: {styled_props_dir}")
+            shutil.rmtree(styled_props_dir)
+        if remotion_temp_dir.exists():
+            print(f"Removing directory: {remotion_temp_dir}")
+            shutil.rmtree(remotion_temp_dir)
         print("--- Cleanup complete ---\n")
 
         print("\n[32m[1m✨✨✨ All steps completed successfully! ✨✨✨[0m")
         print(f"Your final videos are ready in: \033[4m{final_output_dir.resolve()}\033[0m\n")
 
     except (subprocess.CalledProcessError, FileNotFoundError, Exception) as e:
-        print(f"\n\033[91m\033[1m❌ An error occurred. ❌\033[0m")
+        print("\n[ERROR] The pipeline did not finish successfully.")
         if isinstance(e, subprocess.CalledProcessError):
-             print(f"  - Step failed: '{e.cmd}'")
+            print(f"  - Step failed: '{e.cmd}'")
         else:
             print(f"  - Error: {e}")
         print("\nIntermediate files are kept in their respective directories for debugging.")

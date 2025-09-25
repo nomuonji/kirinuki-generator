@@ -58,8 +58,8 @@ def main():
     ap.add_argument("--video", required=True, help="source video file")
     ap.add_argument("--out", required=True, help="output directory for clips")
     ap.add_argument("--platform", default="shorts", help="shorts|talk|educ (affects min/max)")
-    ap.add_argument("--min-sec", type=float, default=20.0)
-    ap.add_argument("--max-sec", type=float, default=90.0)
+    ap.add_argument("--min-sec", type=float, default=30.0)
+    ap.add_argument("--max-sec", type=float, default=120.0)
     ap.add_argument("--min-gap", type=float, default=30.0)
     ap.add_argument("--subs", action="store_true", help="generate per-clip subtitles (soft file)")
     ap.add_argument("--burn", action="store_true", help="burn-in subtitles into video (implies --subs)")
@@ -167,8 +167,13 @@ def main():
 
         hooks = hooks_map.get(i, HookText(upper="", lower=""))
         hooks_path = outdir / f"clip_{i:03d}_hooks.txt"
-        hooks_content = f"UPPER:\n{hooks.upper}\n\nLOWER:\n{hooks.lower}"
-        hooks_path.write_text(hooks_content, encoding="utf-8")
+        hooks_payload = {
+            "upper_plain": getattr(hooks, 'upper', ''),
+            "lower_plain": getattr(hooks, 'lower', ''),
+            "upper_decorated": getattr(hooks, 'upper_decorated', '') or getattr(hooks, 'upper', ''),
+            "lower_decorated": getattr(hooks, 'lower_decorated', '') or getattr(hooks, 'lower', ''),
+        }
+        hooks_path.write_text(json.dumps(hooks_payload, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"  -> Saved hooks to {hooks_path}")
 
         subs_path = None

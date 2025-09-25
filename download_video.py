@@ -14,9 +14,13 @@ def download_youtube_video(video_url_or_id, output_path):
     # -o <path>: Specify output path template
     # --merge-output-format mp4: Merge video and audio into an mp4 container
     ydl_opts = {
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-        'outtmpl': output_path,
+        'format': 'bv*+ba/b',
+        'noplaylist': True,
         'merge_output_format': 'mp4',
+        'concurrent_fragment_downloads': 1,
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+        'outtmpl': output_path,
+        'ignoreerrors': False,
     }
 
     video_url = video_url_or_id
@@ -32,6 +36,7 @@ def download_youtube_video(video_url_or_id, output_path):
         print("\nDownload complete!")
     except Exception as e:
         print(f"\nAn error occurred during download: {e}")
+        raise
 
 def main():
     parser = argparse.ArgumentParser(description="Download a YouTube video for the Kirinuki Generator.")

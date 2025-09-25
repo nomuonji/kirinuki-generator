@@ -1,4 +1,4 @@
-import os, json, time
+import os, json, time, re
 from typing import List, Dict
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -20,6 +20,20 @@ class ClipCandidate(BaseModel):
     reason: str = ""
     confidence: float = 0.5
 
+def _strip_markup(text: str) -> str:
+    """Remove **markers** and collapse whitespace for plain storage."""
+    if not text:
+        return ""
+    plain = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    plain = plain.replace("\r\n", "\n").replace("\r", "\n")
+    plain = plain.replace("\n", " ")
+    plain = re.sub(r"\s+", " ", plain).strip()
+    return plain
+
+def _sanitize_plain_text(candidate: str, fallback: str = "") -> str:
+    base = candidate if candidate else fallback
+    return _strip_markup(base)
+
 def _chunks(items, max_chars=12000):
     buf, size = [], 0
     for it in items:
@@ -34,7 +48,7 @@ def _chunks(items, max_chars=12000):
     if buf:
         yield "\n".join(buf)
 
-def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30.0, min_sec=20.0, max_sec=90.0, concept: str = "") -> List[ClipCandidate]:
+def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30.0, min_sec=30.0, max_sec=120.0, concept: str = "") -> List[ClipCandidate]:
     from google.generativeai import protos
 
     clip_schema = protos.Schema(
@@ -58,14 +72,12 @@ def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30
 **Your Goal:** Propose clips that are high-impact and feel complete.
 
 **Key Principles:**
-1.  **Content:** Focus on clear topic shifts, insightful Q&A, emotional peaks, strong opinions, or surprising moments (punchlines).
-2.  **Pacing and Flow:** Each clip must represent a complete thought or a full thematic unit. It should not feel like it's cut off abruptly.
-3.  **Natural Endings:** To achieve a professional feel, the end of a clip is critical. Prioritize ending a clip on a transcript segment that:
-    - Concludes a sentence, marked by punctuation (e.g., '。', '！', '？', '.').
-    - Is immediately followed by a noticeable pause or silence in the conversation.
-    - Represents the end of a speaker's main point.
-    - **Speaker Transitions:** Pay close attention to conversational turns. A point where one speaker finishes and another begins is an ideal clip boundary.
-4.  **AVOID:** Do not end a clip mid-sentence, on a conjunction (like 'and', 'but', 'so'), or right before a person finishes their thought.
+1.  **Content Awareness:** Read the surrounding context carefully. Track topic boundaries and speaker identities so you never cut a clip while a thought or exchange is still unfolding.
+2.  **Pacing and Flow:** Each clip must represent a complete thematic unit. It should not feel like it's cut off abruptly, even if the smoothest boundary lands slightly outside the duration target.
+3.  **Speaker & Context Boundaries:** Ideal boundaries occur when a speaker concludes their point, a new topic or speaker begins, or there is a natural pause. Never break in the middle of a punchline or key explanation.
+4.  **Length Guidance:** Aim for clips that feel perfectly timed around 30-120 seconds. Prioritize a clean conversational break over rigid timing, and go shorter/longer only when it keeps the story intact.
+5.  **Natural Endings:** Prioritize ending on transcript segments that finish a sentence or idea, are followed by a noticeable pause, or clearly close a conversational beat.
+6.  **AVOID:** Do not end on conjunctions, filler, or before a reveal lands.
 
 **Constraints:**
 - Preset: {preset}
@@ -114,8 +126,10 @@ Output JSON only."""
 
 
 class HookText(BaseModel):
-    upper: str = Field(..., description="Text to display at the top of the video. Should be a catchy, title-like hook.")
-    lower: str = Field(..., description="Text to display at the bottom of the video. Should be a supplementary, engaging hook.")
+    upper: str = Field(..., description="Plain text for the top of the video (no markup).")
+    lower: str = Field(..., description="Plain text for the bottom of the video (no markup).")
+    upper_decorated: str = Field("", description="Decorated rich text for the top (youth slang with **highlight** markup and optional line breaks).")
+    lower_decorated: str = Field("", description="Decorated rich text for the bottom (youth slang with **highlight** markup and optional line breaks).")
 
 def generate_hook_text(clip_transcript: str) -> HookText:
     """
@@ -126,18 +140,22 @@ def generate_hook_text(clip_transcript: str) -> HookText:
     hook_schema = protos.Schema(
         type=protos.Type.OBJECT,
         properties={
-            "upper": protos.Schema(type=protos.Type.STRING),
-            "lower": protos.Schema(type=protos.Type.STRING),
+            "upperDecorated": protos.Schema(type=protos.Type.STRING),
+            "lowerDecorated": protos.Schema(type=protos.Type.STRING),
+            "upperPlain": protos.Schema(type=protos.Type.STRING),
+            "lowerPlain": protos.Schema(type=protos.Type.STRING),
         },
-        required=["upper", "lower"],
+        required=["upperDecorated", "lowerDecorated"],
     )
 
     sys = (
-        "You are a viral video producer. Based on the following transcript of a short video clip, "
-        "generate two catchy hook texts to maximize viewer engagement. "
-        "One text for the top of the video (a title-like hook) and one for the bottom (a supplementary hook). "
-        "The texts should be short, impactful, and create curiosity. "
-        "Output JSON only."
+        "You are a viral video producer crafting overlay text for short-form clips. "
+        "Write in energetic Japanese youth slang. Follow these formatting rules strictly: "
+        "1) Provide decorated text using **double asterisks** around up to three key phrases that must pop. "
+        "2) Use \\n (newline) to break the copy into at most two short lines that read naturally. "
+        "3) Avoid any markup besides the **emphasis** markers. No emojis that break encoding. "
+        "4) Also supply a plain version with no markup, replacing newlines by spaces, for metadata storage. "
+        "Return JSON with fields upperDecorated, lowerDecorated, upperPlain, lowerPlain."
     )
 
     model = genai.GenerativeModel(HOOK_MODEL)
@@ -150,7 +168,16 @@ def generate_hook_text(clip_transcript: str) -> HookText:
         },
     )
     parsed = _safe_parsed(resp)
-    return HookText(**parsed)
+    upper_decorated = str(parsed.get("upperDecorated", ""))
+    lower_decorated = str(parsed.get("lowerDecorated", ""))
+    upper_plain = _sanitize_plain_text(str(parsed.get("upperPlain", "")), upper_decorated)
+    lower_plain = _sanitize_plain_text(str(parsed.get("lowerPlain", "")), lower_decorated)
+    return HookText(
+        upper=upper_plain,
+        lower=lower_plain,
+        upper_decorated=upper_decorated,
+        lower_decorated=lower_decorated,
+    )
 
 
 def generate_hooks_bulk(clip_items: List[Dict], concept: str = "") -> Dict[int, HookText]:
@@ -167,16 +194,20 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "") -> Dict[int, 
             type=protos.Type.OBJECT,
             properties={
                 "index": protos.Schema(type=protos.Type.NUMBER),
-                "upper": protos.Schema(type=protos.Type.STRING),
-                "lower": protos.Schema(type=protos.Type.STRING),
+                "upperDecorated": protos.Schema(type=protos.Type.STRING),
+                "lowerDecorated": protos.Schema(type=protos.Type.STRING),
+                "upperPlain": protos.Schema(type=protos.Type.STRING),
+                "lowerPlain": protos.Schema(type=protos.Type.STRING),
             },
-            required=["index", "upper", "lower"],
+            required=["index", "upperDecorated", "lowerDecorated"],
         ),
     )
 
     concept_prompt = f"The overall concept of the video is: {concept}. " if concept else ""
     sys = (
-        f"You are a viral video producer. {concept_prompt}For each item, create two short, punchy hooks.\n"
+        f"You are a viral video producer. {concept_prompt}For each item, craft youth-slang overlay text for the top and bottom bands."
+        "Follow the same formatting rules for decorated text as above (wrap highlights with **, use at most two lines separated by \n, and avoid other markup)."
+        "Always include plain copies with markup removed so they can be stored safely."
         "Return an array aligning 1:1 with input items by 'index'. Output JSON only."
     )
 
@@ -197,7 +228,16 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "") -> Dict[int, 
     for obj in parsed:
         try:
             idx = int(obj.get("index"))
-            out[idx] = HookText(upper=str(obj.get("upper", "")), lower=str(obj.get("lower", "")))
+            upper_decorated = str(obj.get("upperDecorated", ""))
+            lower_decorated = str(obj.get("lowerDecorated", ""))
+            upper_plain = _sanitize_plain_text(str(obj.get("upperPlain", "")), upper_decorated)
+            lower_plain = _sanitize_plain_text(str(obj.get("lowerPlain", "")), lower_decorated)
+            out[idx] = HookText(
+                upper=upper_plain,
+                lower=lower_plain,
+                upper_decorated=upper_decorated,
+                lower_decorated=lower_decorated,
+            )
         except Exception:
             continue
     return out
