@@ -2,6 +2,13 @@ import {Composition} from 'remotion';
 import {VideoWithBands} from './VideoWithBands';
 import {z} from 'zod';
 
+const reactionTimelineSchema = z.object({
+	startFrame: z.number().int().nonnegative(),
+	durationInFrames: z.number().int().positive(),
+	text: z.string(),
+	emotion: z.string().optional(),
+});
+
 // Define the schema for the input props
 export const inputPropsSchema = z.object({
 	videoFileName: z.string(),
@@ -11,6 +18,7 @@ export const inputPropsSchema = z.object({
 	bottomRichText: z.string().optional(),
 	// The duration is now passed as a prop
 	durationInFrames: z.number().positive(),
+	reactionTimeline: z.array(reactionTimelineSchema).optional(),
 });
 
 export const RemotionRoot: React.FC = () => {
@@ -32,6 +40,7 @@ export const RemotionRoot: React.FC = () => {
 					topRichText: undefined,
 					bottomRichText: undefined,
 					durationInFrames: 1200, // Default to 40 seconds
+					reactionTimeline: [],
 				}}
 				// Use calculateMetadata to dynamically set the duration from props
 				calculateMetadata={async ({props}) => {

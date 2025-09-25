@@ -1,6 +1,8 @@
 import React from "react";
 import {AbsoluteFill, Video, staticFile, useVideoConfig} from "remotion";
 
+import {ReactionOverlay, ReactionTimelineEntry} from "./ReactionOverlay";
+
 type VideoWithBandsProps = {
   videoFileName: string;
   topText: string;
@@ -9,6 +11,7 @@ type VideoWithBandsProps = {
   bottomRichText?: string;
   /** e.g. 16/9, 4/3. Defaults to 16/9 when omitted. */
   sourceAspect?: number;
+  reactionTimeline?: ReactionTimelineEntry[];
 };
 
 const textBase: React.CSSProperties = {
@@ -20,7 +23,7 @@ const textBase: React.CSSProperties = {
   lineHeight: 1.08,
   width: "100%",
   wordBreak: "break-word",
-  whiteSpace: "normal",
+  whiteSpace: "pre-wrap",
   letterSpacing: 0.3,
   paddingLeft: 60,
   paddingRight: 60,
@@ -32,13 +35,23 @@ const highlightStyle: React.CSSProperties = {
   textShadow: "0 0 28px rgba(0,0,0,0.9)",
 };
 
+const normalizeRichSource = (value: string): string =>
+  value
+    .replace(/\r\n?/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\u2028/g, "\n")
+    .replace(/\u2029/g, "\n")
+    .trim();
+
 const renderRichText = (richText?: string, fallback?: string): React.ReactNode => {
-  const source = (richText && richText.trim()) || (fallback && fallback.trim());
+  const candidateRich = typeof richText === "string" ? normalizeRichSource(richText) : "";
+  const candidateFallback = typeof fallback === "string" ? normalizeRichSource(fallback) : "";
+  const source = candidateRich || candidateFallback;
   if (!source) {
     return "";
   }
 
-  return source.split(/\r?\n/).map((line, lineIndex) => (
+  return source.split("\n").map((line, lineIndex) => (
     <span key={`line-${lineIndex}`} style={{display: "block"}}>
       {line.split(/(\*\*[^*]+\*\*)/g).map((chunk, chunkIndex) => {
         if (/^\*\*[^*]+\*\*$/.test(chunk)) {
@@ -66,6 +79,7 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
   topRichText,
   bottomRichText,
   sourceAspect = 16 / 9,
+  reactionTimeline = [],
 }) => {
   const {width: W, height: H} = useVideoConfig();
 
@@ -88,6 +102,11 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
 
   const topContent = renderRichText(topRichText, topText);
   const bottomContent = renderRichText(bottomRichText, bottomText);
+
+  const hasReactions = reactionTimeline.length > 0;
+  const reactionBottomOffset = hasReactions
+    ? Math.max(120, bandH + Math.max(36, Math.round(bandH * 0.1)))
+    : 0;
 
   return (
     <AbsoluteFill style={{backgroundColor: "black"}}>
@@ -122,6 +141,10 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
       >
         <Video src={videoSrc} style={{width: "100%", height: "100%", objectFit: "contain"}} />
       </div>
+
+      {hasReactions ? (
+        <ReactionOverlay bottomOffset={reactionBottomOffset} timeline={reactionTimeline} />
+      ) : null}
 
       {/* Bottom overlay aligned with the bottom band */}
       <div

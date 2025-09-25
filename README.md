@@ -18,6 +18,12 @@ python run_all.py <YouTubeのビデオID>
 python run_all.py <YouTubeのビデオID> --subs
 ```
 
+リアクション付きでレンダリングしたい場合は `--reaction` を付けて実行します。
+
+```bash
+python run_all.py <YouTubeのビデオID> --reaction
+```
+
 
 - AIの分析精度を上げるため、事前に `configs/video_concept.md` に動画のコンセプトを記述しておくことを強く推奨します。
 - 処理が完了すると、`rendered` に完成した動画が出力されます。
@@ -108,6 +114,24 @@ python run_all.py <YouTubeのビデオID> --subs
       --out apps/remotion/public/out_clips `
       --concept-file configs/video_concept.md
     ```
+
+
+### Step 2.5: リアクションタイムラインの生成 (任意)
+
+-   リアクション付きの吹き出しを一括で作成する場合は `apps/cli/generate_reactions.py` を実行します。Gemini へのリクエストは 1 回で全クリップ分を返すようにしています。
+
+    ```powershell
+    python -m apps.cli.generate_reactions `
+      --transcript tmp/transcript.json `
+      --clip-candidates apps/remotion/public/out_clips/clip_candidates.json `
+      --output-dir apps/remotion/public/out_clips `
+      --character-name "Kirinuki Friend" `
+      --max-reactions 6
+    ```
+
+-   `GEMINI_API_KEY` を `.env` に書いておけば自動で読み込まれます。生成された `clip_XXX_reactions.json` は `render_clips.py` が props に取り込みます。
+-   特定のクリップだけを調整したいときは `--start-sec` `--end-sec` `--output` を付けて単体モードで実行してください。
+-   `run_all.py --reaction` も同じ一括モードを使うので、追加の操作は不要です。
 
 ### Step 3: レンダリング (縦型動画の作成)
 

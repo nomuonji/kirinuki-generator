@@ -33,6 +33,22 @@ def main():
         default="configs/video_concept.md", 
         help="Path to the video concept file. Defaults to configs/video_concept.md"
     )
+    parser.add_argument(
+        "--reaction",
+        action="store_true",
+        help="Generate reaction timelines and assets for each clip before rendering.",
+    )
+    parser.add_argument(
+        "--reaction-character",
+        default="Kirinuki Friend",
+        help="Character name passed to the Gemini reaction generator (used with --reaction).",
+    )
+    parser.add_argument(
+        "--reaction-max",
+        type=int,
+        default=6,
+        help="Maximum reactions per clip when --reaction is enabled.",
+    )
     args = parser.parse_args()
     if args.subs and args.soft_subs:
         parser.error("--subs and --soft-subs cannot be used together.")
@@ -97,6 +113,32 @@ def main():
             cmd_generate.extend(["--subs-format", args.subs_format])
         run_command(cmd_generate, "Generating Clips with AI")
         
+        # --- 5.5 Generate Reaction Timelines (optional) ---
+        if args.reaction:
+            candidates_path = clips_dir / "clip_candidates.json"
+            if not candidates_path.exists():
+                raise RuntimeError(
+                    "Requested --reaction but clip_candidates.json is missing. Did clip generation succeed?"
+                )
+
+            print("--- Generating reaction timelines ---")
+            cmd_reaction = [
+                sys.executable,
+                "-m",
+                "apps.cli.generate_reactions",
+                "--transcript",
+                str(transcript_path),
+                "--clip-candidates",
+                str(candidates_path),
+                "--output-dir",
+                str(clips_dir),
+                "--max-reactions",
+                str(max(1, args.reaction_max)),
+                "--character-name",
+                args.reaction_character,
+            ]
+            run_command(cmd_reaction, "Generating reactions for all clips")
+
         # --- 6. Prepare for Rendering ---
         cmd_prepare = [
             sys.executable, "-m", "apps.cli.render_clips",

@@ -11,6 +11,41 @@ $PublicDir = ".\public"
 $RenderedDir = "$ProjectRoot\rendered"
 $PropsDir = "$PublicDir\props"
 
+
+# Load optional overrides from .env (e.g. REMOTION_CHROMIUM_EXECUTABLE)
+$EnvFile = Join-Path $ProjectRoot ".env"
+if (Test-Path $EnvFile) {
+    try {
+        foreach ($line in Get-Content -Path $EnvFile -Encoding UTF8) {
+            if ([string]::IsNullOrWhiteSpace($line) -or $line.TrimStart().StartsWith('#')) {
+                continue
+            }
+            $pair = $line -split '=', 2
+            if ($pair.Length -ne 2) { continue }
+            $key = $pair[0].Trim()
+            $value = $pair[1].Trim()
+            if (-not $value) { continue }
+            switch ($key) {
+                'REMOTION_CHROMIUM_EXECUTABLE' {
+                    $resolved = Resolve-Path -Path $value -ErrorAction SilentlyContinue
+                    if ($resolved) {
+                        $env:REMOTION_CHROMIUM_EXECUTABLE = $resolved.Path
+                    }
+                }
+                'REMOTION_BROWSER_TIMEOUT_MS' {
+                    $env:REMOTION_BROWSER_TIMEOUT_MS = $value
+                }
+            }
+        }
+    } catch {
+        Write-Warning "Could not read .env overrides: $_"
+    }
+}
+
+if (-not $env:REMOTION_BROWSER_TIMEOUT_MS) {
+    $env:REMOTION_BROWSER_TIMEOUT_MS = "120000"
+}
+
 # Determine which video directory to use (optimized or original)
 $OptimizedVideosDir = "$PublicDir\re_encoded_clips"
 $OriginalVideosDir = "$PublicDir\out_clips"
@@ -81,9 +116,12 @@ try {
             "--props",
             $propsPath,
             "--timeout",
-            "90000"
+            $env:REMOTION_BROWSER_TIMEOUT_MS
         )
 
+        if ($env:REMOTION_CHROMIUM_EXECUTABLE) {
+            $cmdArray += @("--chromium-executable", $env:REMOTION_CHROMIUM_EXECUTABLE)
+        }
         $cmdString = $cmdArray -join ' '
         Write-Host "  -> Running command: $cmdString"
         cmd /c $cmdString

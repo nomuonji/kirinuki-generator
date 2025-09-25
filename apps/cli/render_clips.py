@@ -2,8 +2,10 @@ import argparse
 import json
 import pathlib
 import re
-from typing import Iterable
 import ffmpeg
+
+
+FRAME_RATE = 30
 
 
 def _normalize_plain_text(text: str) -> str:
@@ -99,7 +101,7 @@ def parse_hooks(hooks_path: pathlib.Path) -> dict[str, object]:
     }
 
 
-def get_duration_in_frames(video_path: pathlib.Path, fps: int = 30) -> int:
+def get_duration_in_frames(video_path: pathlib.Path, fps: int = FRAME_RATE) -> int:
     """Gets the duration of a video in frames using ffmpeg."""
     try:
         probe = ffmpeg.probe(str(video_path))
@@ -133,6 +135,24 @@ def main():
     video_dir_in_public = ""
     source_video_dir = None
 
+    candidates_map: dict[str, tuple[float, float]] = {}
+    clip_candidates_path = input_dir / 'clip_candidates.json'
+    if clip_candidates_path.exists():
+        try:
+            candidates_payload = json.loads(clip_candidates_path.read_text(encoding='utf-8'))
+            if isinstance(candidates_payload, list):
+                for idx, clip_info in enumerate(candidates_payload, start=1):
+                    try:
+                        start_val = float(clip_info.get('start'))
+                        end_val = float(clip_info.get('end'))
+                    except (TypeError, ValueError, AttributeError):
+                        continue
+                    if end_val <= start_val:
+                        continue
+                    candidates_map[f'clip_{idx:03d}'] = (start_val, end_val)
+        except (json.JSONDecodeError, OSError) as exc:
+            print(f"  -> Warning: Could not parse {clip_candidates_path}: {exc}")
+
     if args.skip_optimization:
         print("--- Skipping video optimization ---")
         source_video_dir = input_dir
@@ -162,9 +182,21 @@ def main():
 
         video_for_props = source_video_dir / clip_path.name
         duration_frames = get_duration_in_frames(video_for_props)
+
+        clip_id = f"clip_{match.group(1)}"
+        candidate_span = candidates_map.get(clip_id)
+        candidate_duration_frames = None
+        if candidate_span:
+            candidate_duration_frames = max(1, round((candidate_span[1] - candidate_span[0]) * FRAME_RATE))
+            if duration_frames < candidate_duration_frames:
+                duration_frames = candidate_duration_frames
+
         if duration_frames == 0:
-            print(f"  -> Skipping props generation for {clip_path.name} due to duration error.")
-            continue
+            if candidate_duration_frames:
+                duration_frames = candidate_duration_frames
+            else:
+                print(f"  -> Skipping props generation for {clip_path.name} due to duration error.")
+                continue
 
         hooks_path = clip_path.with_name(f"clip_{match.group(1)}_hooks.txt")
         if not hooks_path.exists():
@@ -179,6 +211,52 @@ def main():
         hashtags = hooks_data.get('hashtags', [])
         video_filename_prop = (pathlib.Path(video_dir_in_public) / clip_path.name).as_posix()
 
+        reaction_timeline: list[dict[str, object]] = []
+        reactions_path = clip_path.with_name(f"clip_{match.group(1)}_reactions.json")
+        if reactions_path.exists():
+            try:
+                with reactions_path.open("r", encoding="utf-8") as reactions_file:
+                    reactions_payload = json.load(reactions_file)
+                raw_entries = reactions_payload.get("reactions")
+                if isinstance(raw_entries, list):
+                    for entry in raw_entries:
+                        if not isinstance(entry, dict):
+                            continue
+                        try:
+                            start_sec = float(
+                                entry.get("startTimeSec")
+                                or entry.get("start")
+                                or entry.get("timeSec")
+                                or 0
+                            )
+                            duration_sec = float(
+                                entry.get("durationSec")
+                                or entry.get("duration")
+                                or entry.get("lenSec")
+                                or entry.get("lengthSec")
+                                or 0
+                            )
+                        except (TypeError, ValueError):
+                            continue
+                        text = str(entry.get("text") or "").strip()
+                        if not text:
+                            continue
+                        start_frame = max(0, round(start_sec * FRAME_RATE))
+                        reaction_duration_frames = max(1, round(duration_sec * FRAME_RATE))
+                        reaction_entry: dict[str, object] = {
+                            "startFrame": start_frame,
+                            "durationInFrames": reaction_duration_frames,
+                            "text": text,
+                        }
+                        emotion = entry.get("emotion") or entry.get("mood")
+                        if isinstance(emotion, str) and emotion.strip():
+                            reaction_entry["emotion"] = emotion.strip()
+                        reaction_timeline.append(reaction_entry)
+                else:
+                    print(f"  -> Warning: Unexpected reactions format in {reactions_path}")
+            except (json.JSONDecodeError, OSError) as exc:
+                print(f"  -> Warning: Could not read reactions from {reactions_path}: {exc}")
+
         props_dict = {
             "videoFileName": video_filename_prop,
             "topText": upper_plain,
@@ -186,7 +264,8 @@ def main():
             "topRichText": upper_decorated,
             "bottomRichText": lower_decorated,
             "hashtags": hashtags,
-            "durationInFrames": duration_frames
+            "durationInFrames": duration_frames,
+            "reactionTimeline": reaction_timeline,
         }
 
         props_json_path = props_dir / f"{clip_path.stem}.json"
