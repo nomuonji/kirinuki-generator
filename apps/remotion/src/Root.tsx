@@ -7,6 +7,8 @@ export const inputPropsSchema = z.object({
 	videoFileName: z.string(),
 	topText: z.string(),
 	bottomText: z.string(),
+	topRichText: z.string().optional(),
+	bottomRichText: z.string().optional(),
 	// The duration is now passed as a prop
 	durationInFrames: z.number().positive(),
 });
@@ -27,6 +29,8 @@ export const RemotionRoot: React.FC = () => {
 					videoFileName: 'out_clips/clip_001_84-125.mp4',
 					topText: 'Default Top Text',
 					bottomText: 'Default Bottom Text',
+					topRichText: undefined,
+					bottomRichText: undefined,
 					durationInFrames: 1200, // Default to 40 seconds
 				}}
 				// Use calculateMetadata to dynamically set the duration from props
