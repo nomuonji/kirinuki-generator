@@ -7,10 +7,10 @@ import sys
 import textwrap
 from typing import Any, Dict, List
 
-import requests
+import google.generativeai as genai
 from dotenv import load_dotenv
 
-DEFAULT_MODEL = "gemini-1.5-flash-latest"
+DEFAULT_MODEL = "gemini-2.5-flash"
 MAX_TRANSCRIPT_LINES = 160
 MAX_TRANSCRIPT_CHARS = 6500
 
@@ -89,9 +89,6 @@ def _format_segments(segments: List[dict[str, Any]]) -> List[str]:
 
 
 
-
-
-
 def _build_single_prompt(
     character_name: str,
     transcript_lines: List[str],
@@ -121,9 +118,6 @@ def _build_single_prompt(
         'Return valid JSON with double quotes and no extra commentary.\n'
     )
     return textwrap.dedent(prompt).strip()
-
-
-
 
 
 def _build_bulk_prompt(
@@ -163,32 +157,24 @@ def _build_bulk_prompt(
     return textwrap.dedent(prompt).strip()
 
 
-
-def _call_gemini(model: str, api_key: str, prompt: str) -> dict[str, Any]:
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    headers = {"Content-Type": "application/json"}
-    payload = {
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": prompt}],
-            }
-        ]
-    }
-    response = requests.post(endpoint, headers=headers, params={"key": api_key}, json=payload, timeout=90)
-    response.raise_for_status()
-    data = response.json()
-    candidates = data.get("candidates") or []
-    for candidate in candidates:
-        parts = candidate.get("content", {}).get("parts", [])
-        for part in parts:
-            text = part.get("text")
-            if text:
-                parsed = _extract_json(text)
-                if parsed is not None:
-                    return parsed
+def _call_gemini(model: str, prompt: str) -> dict[str, Any]:
+    model = genai.GenerativeModel(model)
+    generation_config = genai.types.GenerationConfig(
+        response_mime_type="application/json",
+        temperature=0.7,
+    )
+    response = model.generate_content(
+        contents=[prompt],
+        generation_config=generation_config,
+    )
+    
+    if response.candidates:
+        text = response.candidates[0].content.parts[0].text
+        if text:
+            parsed = _extract_json(text)
+            if parsed is not None:
+                return parsed
     raise RuntimeError("Gemini API did not return valid JSON content")
-
 
 def _extract_json(value: str) -> dict[str, Any] | None:
     try:
@@ -196,7 +182,7 @@ def _extract_json(value: str) -> dict[str, Any] | None:
     except json.JSONDecodeError:
         pass
 
-    fenced_match = re.search(r"```(?:json)?\\s*(\{.*?\})\\s*```", value, flags=re.S)
+    fenced_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", value, flags=re.S)
     if fenced_match:
         try:
             return json.loads(fenced_match.group(1))
@@ -210,9 +196,6 @@ def _extract_json(value: str) -> dict[str, Any] | None:
         except json.JSONDecodeError:
             return None
     return None
-
-
-
 
 
 def _sanitize_reaction_entries(
@@ -343,7 +326,6 @@ def _sanitize_bulk_reactions(
 
     return sanitized
 
-
 def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate mascot reaction timelines via Gemini API.")
     parser.add_argument("--transcript", required=True, help="Path to transcript JSON (list of segments).")
@@ -376,6 +358,8 @@ def main(argv: List[str] | None = None) -> int:
     api_key = args.api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
         parser.error("Gemini API key missing. Pass --api-key or set GEMINI_API_KEY.")
+    
+    genai.configure(api_key=api_key)
 
     if single_mode:
         if args.start_sec is None or args.end_sec is None:
@@ -395,17 +379,15 @@ def main(argv: List[str] | None = None) -> int:
             args.tone,
         )
         try:
-            response_payload = _call_gemini(args.model, api_key, prompt)
+            response_payload = _call_gemini(args.model, prompt)
             reactions = _sanitize_reaction_entries(
                 response_payload.get("reactions", []),
                 max_reactions=max(1, args.max_reactions),
                 clip_duration=clip_duration,
                 segments=window_segments,
             )
-        except requests.HTTPError as exc:
-            parser.error(f"Gemini API error: {exc.response.text if exc.response else exc}")
-        except Exception as exc:  # pragma: no cover
-            parser.error(str(exc))
+        except Exception as exc:
+            parser.error(f"Gemini API error: {exc}")
 
         if args.output:
             output_path = pathlib.Path(args.output)
@@ -481,16 +463,14 @@ def main(argv: List[str] | None = None) -> int:
     )
 
     try:
-        response_payload = _call_gemini(args.model, api_key, prompt)
+        response_payload = _call_gemini(args.model, prompt)
         sanitized_map = _sanitize_bulk_reactions(
             response_payload,
             clip_meta,
             max(1, args.max_reactions),
         )
-    except requests.HTTPError as exc:
-        parser.error(f"Gemini API error: {exc.response.text if exc.response else exc}")
-    except Exception as exc:  # pragma: no cover
-        parser.error(str(exc))
+    except Exception as exc:
+        parser.error(f"Gemini API error: {exc}")
 
     for clip_id, meta in clip_meta.items():
         reactions = sanitized_map.get(clip_id, [])
