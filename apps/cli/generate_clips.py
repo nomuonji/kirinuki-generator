@@ -196,16 +196,17 @@ def main():
                         ev['text'] = cleaned
             except Exception as exc:
                 print(f"  -> Warning: Subtitle polishing skipped ({exc})")
-            subs_filename = f"clip_{i:03d}.{args.subs_format}"
-            subs_path = str((outdir / subs_filename).resolve())
-            if args.subs_format == "srt":
-                write_srt(events, pathlib.Path(subs_path))
-            else:
-                write_ass(events, pathlib.Path(subs_path))
+            
+            # Instead of writing SRT/ASS, write a JSON file for Remotion
+            subs_json_path = outdir / f"clip_{i:03d}_subtitles.json"
+            with open(subs_json_path, 'w', encoding='utf-8') as f:
+                json.dump(events, f, ensure_ascii=False, indent=2)
+            print(f"  -> Saved Remotion subtitles to {subs_json_path}")
 
+        # The spec no longer needs subtitle paths for burning
         clip_specs.append(ClipSpec(
             start=p.start, end=p.end, index=i, title=p.title,
-            subs_path=subs_path, burn=burn_subs
+            subs_path=None, burn=False
         ))
 
     cut_many(args.video, clip_specs, args.out)

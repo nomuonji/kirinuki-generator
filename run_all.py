@@ -11,7 +11,7 @@ def run_command(command, description, cwd=None):
     cmd_str = ' '.join(map(str, command))
     print(f"Executing: {cmd_str}")
     try:
-        subprocess.run(command, check=True, cwd=cwd, capture_output=True, text=True)
+        subprocess.run(command, check=True, cwd=cwd, capture_output=True, text=True, encoding='utf-8', errors='ignore')
     except subprocess.CalledProcessError as e:
         print(f"ERROR during '{description}':")
         print(e.stdout)
@@ -27,7 +27,7 @@ def main():
     parser.add_argument("video_id", help="The YouTube video ID.")
     parser.add_argument("--subs", action="store_true", help="Burn subtitles into the generated clips.")
     parser.add_argument("--soft-subs", action="store_true", help="Export subtitle files without burning them.")
-    parser.add_argument("--subs-format", choices=["srt", "ass"], default="srt", help="Subtitle format to use when subtitles are generated.")
+    parser.add_argument("--subs-format", choices=["srt", "ass"], default="ass", help="Subtitle format to use when subtitles are generated.")
     parser.add_argument(
         "--concept-file", 
         default="configs/video_concept.md", 

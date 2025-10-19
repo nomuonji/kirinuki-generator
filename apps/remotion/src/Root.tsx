@@ -1,4 +1,4 @@
-import {Composition} from 'remotion';
+import {AbsoluteFill, Composition, GoogleFont} from 'remotion';
 import {VideoWithBands} from './VideoWithBands';
 import {z} from 'zod';
 
@@ -7,6 +7,12 @@ const reactionTimelineSchema = z.object({
 	durationInFrames: z.number().int().positive(),
 	text: z.string(),
 	emotion: z.string().optional(),
+});
+
+const subtitleTimelineSchema = z.object({
+	startFrame: z.number().int().nonnegative(),
+	endFrame: z.number().int().positive(),
+	text: z.string(),
 });
 
 // Define the schema for the input props
@@ -19,11 +25,13 @@ export const inputPropsSchema = z.object({
 	// The duration is now passed as a prop
 	durationInFrames: z.number().positive(),
 	reactionTimeline: z.array(reactionTimelineSchema).optional(),
+	subtitleTimeline: z.array(subtitleTimelineSchema).optional(),
 });
 
 export const RemotionRoot: React.FC = () => {
 	return (
 		<>
+			{/* <GoogleFont.Import name="Noto Sans JP" weight="900" /> */}
 			<Composition
 				id="VideoWithBands"
 				component={VideoWithBands}

@@ -3,6 +3,8 @@ import {AbsoluteFill, Video, staticFile, useVideoConfig} from "remotion";
 
 import {ReactionOverlay, ReactionTimelineEntry} from "./ReactionOverlay";
 
+import {SubtitleOverlay, SubtitleEntry} from './SubtitleOverlay';
+
 type VideoWithBandsProps = {
   videoFileName: string;
   topText: string;
@@ -12,27 +14,29 @@ type VideoWithBandsProps = {
   /** e.g. 16/9, 4/3. Defaults to 16/9 when omitted. */
   sourceAspect?: number;
   reactionTimeline?: ReactionTimelineEntry[];
+  subtitleTimeline?: SubtitleEntry[];
 };
 
 const textBase: React.CSSProperties = {
-  fontFamily: "Impact, Arial Black, sans-serif",
+  fontFamily: "'Rounded Mplus 1c', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif",
   color: "white",
-  fontWeight: "bold",
+  fontWeight: "900",
   textAlign: "center",
-  textShadow: "0 0 24px rgba(0,0,0,0.95)",
-  lineHeight: 1.08,
+  textShadow: "0 0 12px rgba(0,0,0,0.8)",
+  lineHeight: 1.3,
   width: "100%",
   wordBreak: "break-word",
   whiteSpace: "pre-wrap",
-  letterSpacing: 0.3,
-  paddingLeft: 60,
-  paddingRight: 60,
+  letterSpacing: 1.5,
+  paddingLeft: 40,
+  paddingRight: 40,
 };
 
 const highlightStyle: React.CSSProperties = {
-  color: "#FFE066",
-  fontSize: "1.16em",
-  textShadow: "0 0 28px rgba(0,0,0,0.9)",
+  backgroundColor: "#FFD700",
+  color: "black",
+  padding: "0.1em 0.25em",
+  borderRadius: "0.2em",
 };
 
 const normalizeRichSource = (value: string): string =>
@@ -51,8 +55,21 @@ const renderRichText = (richText?: string, fallback?: string): React.ReactNode =
     return "";
   }
 
+  const lineStyle: React.CSSProperties = {
+    display: "block",
+    marginBottom: "0.25em",
+  };
+
+  const textChunkStyle: React.CSSProperties = {
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    padding: "0.1em 0.25em",
+    borderRadius: "0.2em",
+    display: "inline",
+    lineHeight: "1.5",
+  };
+
   return source.split("\n").map((line, lineIndex) => (
-    <span key={`line-${lineIndex}`} style={{display: "block"}}>
+    <div key={`line-${lineIndex}`} style={lineStyle}>
       {line.split(/(\*\*[^*]+\*\*)/g).map((chunk, chunkIndex) => {
         if (/^\*\*[^*]+\*\*$/.test(chunk)) {
           const content = chunk.slice(2, -2);
@@ -63,12 +80,12 @@ const renderRichText = (richText?: string, fallback?: string): React.ReactNode =
           );
         }
         return (
-          <span key={`text-${lineIndex}-${chunkIndex}`} style={{display: "inline"}}>
+          <span key={`text-${lineIndex}-${chunkIndex}`} style={textChunkStyle}>
             {chunk}
           </span>
         );
       })}
-    </span>
+    </div>
   ));
 };
 
@@ -80,6 +97,7 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
   bottomRichText,
   sourceAspect = 16 / 9,
   reactionTimeline = [],
+  subtitleTimeline = [],
 }) => {
   const {width: W, height: H} = useVideoConfig();
 
@@ -104,6 +122,8 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
   const bottomContent = renderRichText(bottomRichText, bottomText);
 
   const hasReactions = reactionTimeline.length > 0;
+  const hasSubtitles = subtitleTimeline.length > 0;
+
   const reactionBottomOffset = hasReactions
     ? Math.max(120, bandH + Math.max(36, Math.round(bandH * 0.1)))
     : 0;
@@ -141,6 +161,8 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
       >
         <Video src={videoSrc} style={{width: "100%", height: "100%", objectFit: "contain"}} />
       </div>
+
+      {hasSubtitles ? <SubtitleOverlay timeline={subtitleTimeline} /> : null}
 
       {hasReactions ? (
         <ReactionOverlay bottomOffset={reactionBottomOffset} timeline={reactionTimeline} />

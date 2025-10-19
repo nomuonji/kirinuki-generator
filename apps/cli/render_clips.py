@@ -257,6 +257,36 @@ def main():
             except (json.JSONDecodeError, OSError) as exc:
                 print(f"  -> Warning: Could not read reactions from {reactions_path}: {exc}")
 
+        subtitle_timeline: list[dict[str, object]] = []
+        subtitles_path = clip_path.with_name(f"clip_{match.group(1)}_subtitles.json")
+        if subtitles_path.exists():
+            try:
+                with subtitles_path.open("r", encoding="utf-8") as subtitles_file:
+                    subtitle_events = json.load(subtitles_file)
+                if isinstance(subtitle_events, list):
+                    for event in subtitle_events:
+                        if not isinstance(event, dict):
+                            continue
+                        try:
+                            start_sec = float(event.get("start", 0))
+                            end_sec = float(event.get("end", 0))
+                        except (TypeError, ValueError):
+                            continue
+                        text = str(event.get("text") or "").strip()
+                        if not text or end_sec <= start_sec:
+                            continue
+                        
+                        start_frame = max(0, round(start_sec * FRAME_RATE))
+                        end_frame = max(start_frame + 1, round(end_sec * FRAME_RATE))
+                        
+                        subtitle_timeline.append({
+                            "startFrame": start_frame,
+                            "endFrame": end_frame,
+                            "text": text,
+                        })
+            except (json.JSONDecodeError, OSError) as exc:
+                print(f"  -> Warning: Could not read subtitles from {subtitles_path}: {exc}")
+
         props_dict = {
             "videoFileName": video_filename_prop,
             "topText": upper_plain,
@@ -266,6 +296,7 @@ def main():
             "hashtags": hashtags,
             "durationInFrames": duration_frames,
             "reactionTimeline": reaction_timeline,
+            "subtitleTimeline": subtitle_timeline,
         }
 
         props_json_path = props_dir / f"{clip_path.stem}.json"

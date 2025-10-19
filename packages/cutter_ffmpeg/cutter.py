@@ -36,6 +36,16 @@ def _run_ffmpeg(cmd: List[str], spec: ClipSpec):
         print(f"An unexpected error occurred while running ffmpeg for clip {spec.index}: {e}")
         return False
 
+def _escape_ffmpeg_path(path_str: str) -> str:
+    """Escapes a path for use in ffmpeg's subtitles/ass filters on Windows."""
+    # Replace all backslashes with forward slashes, which is safer for ffmpeg
+    escaped = path_str.replace('\\', '/')
+    # For Windows paths (e.g., "D:/..."), escape the colon
+    if os.name == 'nt' and ':' in escaped:
+        # "D:/path" -> "D\:/path"
+        return escaped.replace(':', '\\:', 1)
+    return escaped
+
 def _prepare_command(video_path: pathlib.Path, spec: ClipSpec, out_file: pathlib.Path) -> List[str]:
     """Prepares the ffmpeg command list for a given ClipSpec."""
     duration = max(0.0, spec.end - spec.start)
@@ -50,12 +60,11 @@ def _prepare_command(video_path: pathlib.Path, spec: ClipSpec, out_file: pathlib
     # Part 2: Filter options (subtitles only, no fades)
     vf_filters = []  # No video filters by default
     if spec.burn and spec.subs_path:
-        subs_path = pathlib.Path(spec.subs_path).as_posix()
-        if subs_path.lower().endswith(".srt"):
-            escaped_path = subs_path.replace('\\', '/').replace(':', '\\:')
+        escaped_path = _escape_ffmpeg_path(spec.subs_path)
+        if spec.subs_path.lower().endswith(".srt"):
             vf_filters.append(f"subtitles='{escaped_path}'")
         else:  # ASS
-            vf_filters.append(f"ass='{subs_path}'")
+            vf_filters.append(f"ass='{escaped_path}'")
 
     filter_opts = []
     if vf_filters:

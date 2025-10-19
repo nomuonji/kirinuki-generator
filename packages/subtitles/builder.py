@@ -44,7 +44,7 @@ def write_srt(events: List[dict], path: pathlib.Path) -> None:
         lines.append("")  # blank line
     path.write_text("\n".join(lines), encoding="utf-8")
 
-ASS_HEADER = "; Script generated\n[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\nScaledBorderAndShadow: yes\nYCbCr Matrix: TV.601\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Sub, Noto Sans JP, 64, &H00FFFFFF, &H00FFD700, &H00202020, &H80000000, -1, 0, 0, 0, 100, 100, 0, 0, 1, 4.5, 2, 2, 60, 60, 160, 1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+ASS_HEADER = "; Script generated\n[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\nScaledBorderAndShadow: yes\nYCbCr Matrix: TV.601\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Sub,Rounded Mplus 1c,72,&H00FFFFFF,&H00FFD700,&H00000000,&H9A000000,-1,0,0,0,100,100,0,0,1,4,1,2,60,60,180,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
 
 def _fmt_time_ass(sec: float) -> str:
     h = int(sec // 3600)
