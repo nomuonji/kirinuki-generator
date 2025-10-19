@@ -1,5 +1,5 @@
 import React from "react";
-import {AbsoluteFill, Video, staticFile, useVideoConfig} from "remotion";
+import {AbsoluteFill, Video, staticFile, useCurrentFrame, useVideoConfig} from "remotion";
 
 import {ReactionOverlay, ReactionTimelineEntry} from "./ReactionOverlay";
 
@@ -89,6 +89,77 @@ const renderRichText = (richText?: string, fallback?: string): React.ReactNode =
   ));
 };
 
+/**
+ * Animated gradient and confetti-style blobs for a playful backdrop.
+ */
+const AnimatedBackground: React.FC = () => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const t = frame / Math.max(fps, 1);
+
+  const angle = 35 + Math.sin(t * 1.1) * 25;
+  const accent1X = 18 + Math.sin(t * 0.7) * 6;
+  const accent1Y = 22 + Math.cos(t * 0.9) * 7;
+  const accent2X = 78 + Math.cos(t * 0.8) * 7;
+  const accent2Y = 18 + Math.sin(t * 1.3) * 6;
+  const accent3X = 50 + Math.sin(t * 0.6) * 12;
+  const accent3Y = 82 + Math.cos(t * 0.75) * 8;
+
+  const backgroundImage = `
+    radial-gradient(circle at ${accent1X}% ${accent1Y}%, rgba(255,255,255,0.35), transparent 55%),
+    radial-gradient(circle at ${accent2X}% ${accent2Y}%, rgba(255,255,255,0.25), transparent 60%),
+    radial-gradient(circle at ${accent3X}% ${accent3Y}%, rgba(255,255,255,0.28), transparent 65%),
+    linear-gradient(${angle}deg, #FF9A9E 0%, #FECFEF 35%, #A1C4FD 70%, #C2E9FB 100%)
+  `;
+
+  const confettiPalette = [
+    {color: "#FFD166", size: 28, baseX: 12, baseY: 22, ampX: 10, ampY: 12, freqX: 1.05, freqY: 0.85},
+    {color: "#9CFFFA", size: 22, baseX: 52, baseY: 16, ampX: 14, ampY: 10, freqX: 0.8, freqY: 1.1},
+    {color: "#FF9CEE", size: 26, baseX: 82, baseY: 28, ampX: 9, ampY: 14, freqX: 1.2, freqY: 1.4},
+    {color: "#B5F44A", size: 24, baseX: 28, baseY: 72, ampX: 11, ampY: 10, freqX: 0.9, freqY: 0.7},
+    {color: "#FFC6FF", size: 20, baseX: 66, baseY: 78, ampX: 13, ampY: 9, freqX: 1.1, freqY: 0.95},
+  ];
+
+  return (
+    <AbsoluteFill style={{zIndex: 0, overflow: "hidden", pointerEvents: "none"}}>
+      <div
+        style={{
+          position: "absolute",
+          inset: "-6%",
+          backgroundImage,
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "160% 160%, 140% 140%, 160% 160%, 100% 100%",
+          backgroundBlendMode: "screen, screen, screen, normal",
+          filter: "saturate(1.08)",
+        }}
+      />
+      {confettiPalette.map((piece, index) => {
+        const x = piece.baseX + Math.sin(t * piece.freqX + index) * piece.ampX;
+        const y = piece.baseY + Math.cos(t * piece.freqY + index) * piece.ampY;
+        const rotation = Math.sin(t * (0.8 + index * 0.15)) * 45;
+
+        return (
+          <div
+            key={`confetti-${index}`}
+            style={{
+              position: "absolute",
+              left: `${x}%`,
+              top: `${y}%`,
+              width: piece.size,
+              height: piece.size * 0.65,
+              borderRadius: index % 2 === 0 ? "50% 40% 55% 45%" : "35% 65% 45% 55%",
+              backgroundColor: piece.color,
+              opacity: 0.55,
+              transform: `rotate(${rotation}deg)`,
+              boxShadow: "0 12px 24px rgba(0,0,0,0.08)",
+            }}
+          />
+        );
+      })}
+    </AbsoluteFill>
+  );
+};
+
 export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
   videoFileName,
   topText,
@@ -129,61 +200,64 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
     : 0;
 
   return (
-    <AbsoluteFill style={{backgroundColor: "black"}}>
-      {/* Top overlay aligned with the top band */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: bandH,
-          display: "grid",
-          placeItems: "center",
-          pointerEvents: "none",
-        }}
-      >
-        <div style={{...textBase, fontSize: topFont}}>{topContent}</div>
-      </div>
+    <AbsoluteFill>
+      <AnimatedBackground />
+      <AbsoluteFill style={{zIndex: 1}}>
+        {/* Top overlay aligned with the top band */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: bandH,
+            display: "grid",
+            placeItems: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div style={{...textBase, fontSize: topFont}}>{topContent}</div>
+        </div>
 
-      {/* Video centered with contain fit */}
-      <div
-        style={{
-          position: "absolute",
-          top: bandH,
-          left: 0,
-          right: 0,
-          height: H - bandH * 2,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Video src={videoSrc} style={{width: "100%", height: "100%", objectFit: "contain"}} />
-      </div>
+        {/* Video centered with contain fit */}
+        <div
+          style={{
+            position: "absolute",
+            top: bandH,
+            left: 0,
+            right: 0,
+            height: H - bandH * 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Video src={videoSrc} style={{width: "100%", height: "100%", objectFit: "contain"}} />
+        </div>
 
-      {hasSubtitles ? <SubtitleOverlay timeline={subtitleTimeline} /> : null}
+        {hasSubtitles ? <SubtitleOverlay timeline={subtitleTimeline} /> : null}
 
-      {hasReactions ? (
-        <ReactionOverlay bottomOffset={reactionBottomOffset} timeline={reactionTimeline} />
-      ) : null}
+        {hasReactions ? (
+          <ReactionOverlay bottomOffset={reactionBottomOffset} timeline={reactionTimeline} />
+        ) : null}
 
-      {/* Bottom overlay aligned with the bottom band */}
-      <div
-        style={{
-          position: "absolute",
-          top: H - bandH,
-          left: 0,
-          right: 0,
-          height: bandH,
-          transform: "translateY(0)",
-          display: "grid",
-          placeItems: "center",
-          pointerEvents: "none",
-        }}
-      >
-        <div style={{...textBase, fontSize: bottomFont}}>{bottomContent}</div>
-      </div>
+        {/* Bottom overlay aligned with the bottom band */}
+        <div
+          style={{
+            position: "absolute",
+            top: H - bandH,
+            left: 0,
+            right: 0,
+            height: bandH,
+            transform: "translateY(0)",
+            display: "grid",
+            placeItems: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div style={{...textBase, fontSize: bottomFont}}>{bottomContent}</div>
+        </div>
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };
