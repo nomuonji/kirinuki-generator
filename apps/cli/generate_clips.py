@@ -69,6 +69,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="only output JSON proposals")
     ap.add_argument("--concept", type=str, default="", help="Concept of the video to guide Gemini's generation")
     ap.add_argument("--concept-file", type=str, default=None, help="Path to a file containing the concept of the video")
+    ap.add_argument("--batch-size", type=int, default=30, help="Batch size for bulk processing hooks")
     args = ap.parse_args()
     if args.subs and args.soft_subs:
         ap.error("--subs and --soft-subs cannot be used together.")
@@ -160,7 +161,7 @@ def main():
     hooks_map: dict[int, HookText] = {}
     if any(per_clip_transcript.values()):
         print(f"Generating hook texts in bulk for {len(bulk_inputs)} clips...")
-        hooks_map = generate_hooks_bulk(bulk_inputs, concept=concept)
+        hooks_map = generate_hooks_bulk(bulk_inputs, concept=concept, batch_size=args.batch_size)
 
     clip_specs = []
     for i, p in enumerate(props, start=1):

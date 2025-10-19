@@ -56,7 +56,7 @@ def _normalize_hashtags(raw) -> List[str]:
             break
     return hashtags
 
-def _chunks(items, max_chars=12000):
+def _chunks(items, max_chars=6000):
     buf, size = [], 0
     for it in items:
         line = f"[{it['start']:.2f}->{it['end']:.2f}] {it['text']}"
@@ -120,6 +120,7 @@ Output JSON only."""
                 "response_schema": clip_schema,
                 "temperature": 0.2
             },
+            request_options={"timeout": 300},
         )
         parsed = _safe_parsed(resp, expect_array=True)
         for d in parsed:
@@ -189,6 +190,7 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
                 'response_schema': schema,
                 'temperature': 0.2,
             },
+            request_options={"timeout": 300},
         )
         cleaned = _safe_parsed(resp, expect_array=True)
         cleaned_lines = [str(x) for x in cleaned]
@@ -250,7 +252,7 @@ def generate_hook_text(clip_transcript: str) -> HookText:
     )
 
 
-def generate_hooks_bulk(clip_items: List[Dict], concept: str = "") -> Dict[int, HookText]:
+def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: int = 10) -> Dict[int, HookText]:
     """
     Generate hook texts for multiple clips in a single Gemini call.
     clip_items: [{"index": int, "transcript": str}]
@@ -282,37 +284,50 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "") -> Dict[int, 
         "Return an array aligning 1:1 with input items by 'index'. Output JSON only."
     )
 
-    # Build input payload compactly to stay under token limits
-    payload = [{"index": int(it["index"]), "transcript": str(it.get("transcript", ""))[:4000]} for it in clip_items]
-
     model = genai.GenerativeModel(HOOK_MODEL)
-    resp = model.generate_content(
-        [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
-        generation_config={
-            "response_mime_type": "application/json",
-            "response_schema": result_schema,
-            "temperature": 0.7,
-        },
-    )
-    parsed = _safe_parsed(resp, expect_array=True)
     out: Dict[int, HookText] = {}
-    for obj in parsed:
+
+    for i in range(0, len(clip_items), batch_size):
+        batch = clip_items[i:i + batch_size]
+        print(f"  -> Processing batch {i//batch_size + 1}/{(len(clip_items) + batch_size - 1)//batch_size}...")
+
+        # Build input payload compactly to stay under token limits
+        payload = [{"index": int(it["index"]), "transcript": str(it.get("transcript", ""))[:4000]} for it in batch]
+
         try:
-            idx = int(obj.get("index"))
-            upper_decorated = str(obj.get("upperDecorated", ""))
-            lower_decorated = str(obj.get("lowerDecorated", ""))
-            upper_plain = _sanitize_plain_text(str(obj.get("upperPlain", "")), upper_decorated)
-            lower_plain = _sanitize_plain_text(str(obj.get("lowerPlain", "")), lower_decorated)
-            hashtags = _normalize_hashtags(obj.get("hashtags"))
-            out[idx] = HookText(
-                upper=upper_plain,
-                lower=lower_plain,
-                upper_decorated=upper_decorated,
-                lower_decorated=lower_decorated,
-                hashtags=hashtags,
+            resp = model.generate_content(
+                [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "response_schema": result_schema,
+                    "temperature": 0.7,
+                },
+                request_options={"timeout": 600},
             )
-        except Exception:
+            parsed = _safe_parsed(resp, expect_array=True)
+
+            for obj in parsed:
+                try:
+                    idx = int(obj.get("index"))
+                    upper_decorated = str(obj.get("upperDecorated", ""))
+                    lower_decorated = str(obj.get("lowerDecorated", ""))
+                    upper_plain = _sanitize_plain_text(str(obj.get("upperPlain", "")), upper_decorated)
+                    lower_plain = _sanitize_plain_text(str(obj.get("lowerPlain", "")), lower_decorated)
+                    hashtags = _normalize_hashtags(obj.get("hashtags"))
+                    out[idx] = HookText(
+                        upper=upper_plain,
+                        lower=lower_plain,
+                        upper_decorated=upper_decorated,
+                        lower_decorated=lower_decorated,
+                        hashtags=hashtags,
+                    )
+                except Exception as e:
+                    print(f"    -> Warning: Failed to parse a hook object: {e}")
+                    continue
+        except Exception as e:
+            print(f"  -> Error processing batch: {e}")
             continue
+
     return out
 
 
