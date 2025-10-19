@@ -170,8 +170,8 @@ def main():
             print(f"Preserving directory: {props_dir}")
         print("--- Cleanup complete ---\n")
 
-        print("\n[32m[1m✨✨✨ All steps completed successfully! ✨✨✨[0m")
-        print(f"Your final videos are ready in: \033[4m{final_output_dir.resolve()}\033[0m\n")
+        print("\n[OK] All steps completed successfully!")
+        print(f"Your final videos are ready in: {final_output_dir.resolve()}\n")
 
     except (subprocess.CalledProcessError, FileNotFoundError, Exception) as e:
         print("\n[ERROR] The pipeline did not finish successfully.")

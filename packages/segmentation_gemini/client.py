@@ -278,9 +278,13 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
 
     concept_prompt = f"The overall concept of the video is: {concept}. " if concept else ""
     sys = (
-        f"You are a viral video producer. {concept_prompt}For each item, craft youth-slang overlay text for the top and bottom bands."
-        "Follow the same formatting rules for decorated text as above (wrap highlights with **, use at most two lines separated by \n, and avoid other markup)."
-        "Always include plain copies with markup removed so they can be stored safely, and provide 3-5 Japanese hashtags (starting with #) that match the clip."
+        "You are a viral video producer. "
+        f"{concept_prompt}For each item, craft youth-slang overlay text for vertical video top/bottom bands. "
+        "Top overlay text (upperDecorated) should quickly set context or tease the setup in 1-2 short lines. "
+        "Bottom overlay text (lowerDecorated) must be a bold punchline-style catchphrase that captures the clip's climax—"
+        "keep it to a single, high-impact phrase (ideally under 14 Japanese characters), and spotlight the key word with **bold** if needed. "
+        "Follow the same formatting rules for decorated text as above (wrap highlights with **, use at most two lines separated by \\n, and avoid other markup). "
+        "Always include plain-text copies with markup removed, and provide 3-5 Japanese hashtags (starting with #) that match the clip. "
         "Return an array aligning 1:1 with input items by 'index'. Output JSON only."
     )
 

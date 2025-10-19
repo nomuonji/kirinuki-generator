@@ -1,5 +1,5 @@
 import React from "react";
-import {AbsoluteFill, Video, staticFile, useCurrentFrame, useVideoConfig} from "remotion";
+import {AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig} from "remotion";
 
 import {ReactionOverlay, ReactionTimelineEntry} from "./ReactionOverlay";
 
@@ -33,10 +33,11 @@ const textBase: React.CSSProperties = {
 };
 
 const highlightStyle: React.CSSProperties = {
-  backgroundColor: "#FFD700",
-  color: "black",
-  padding: "0.1em 0.25em",
-  borderRadius: "0.2em",
+  background: "linear-gradient(135deg, #FFF4B7 0%, #FFD1DC 55%, #CDE9FF 100%)",
+  color: "#31124E",
+  padding: "0.1em 0.35em",
+  borderRadius: "0.35em",
+  boxShadow: "0 6px 16px rgba(24, 0, 40, 0.3)",
 };
 
 const normalizeRichSource = (value: string): string =>
@@ -61,11 +62,8 @@ const renderRichText = (richText?: string, fallback?: string): React.ReactNode =
   };
 
   const textChunkStyle: React.CSSProperties = {
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    padding: "0.1em 0.25em",
-    borderRadius: "0.2em",
     display: "inline",
-    lineHeight: "1.5",
+    lineHeight: "1.45",
   };
 
   return source.split("\n").map((line, lineIndex) => (
@@ -180,8 +178,8 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
   const bandH = Math.max(0, Math.round((H - videoHeight) / 2));
 
   // Scale text size relative to band height
-  const topFont = `clamp(22px, ${Math.round(bandH * 0.48)}px, 64px)`;
-  const bottomFont = `clamp(22px, ${Math.round(bandH * 0.44)}px, 58px)`;
+  const topFont = `clamp(28px, ${Math.round(bandH * 0.64)}px, 74px)`;
+  const bottomFont = topFont;
 
   const safePath = videoFileName
     .split("\\")
@@ -198,6 +196,53 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
   const reactionBottomOffset = hasReactions
     ? Math.max(120, bandH + Math.max(36, Math.round(bandH * 0.1)))
     : 0;
+
+  const panelBaseStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "18px 40px",
+    borderRadius: 38,
+    maxWidth: "92%",
+    background: "linear-gradient(135deg, rgba(26,16,58,0.94) 0%, rgba(52,26,92,0.82) 55%, rgba(90,70,180,0.38) 100%)",
+    border: "1px solid rgba(168,148,255,0.35)",
+    backdropFilter: "blur(16px)",
+    boxShadow: "0 18px 38px rgba(18,6,48,0.52)",
+    margin: "0 auto",
+    position: "relative",
+    overflow: "hidden",
+  };
+
+  const topPanelStyle: React.CSSProperties = {
+    ...panelBaseStyle,
+    background: "linear-gradient(135deg, rgba(30,18,60,0.95) 0%, rgba(68,32,106,0.86) 60%, rgba(144,90,226,0.42) 100%)",
+  };
+
+  const bottomPanelStyle: React.CSSProperties = {
+    ...panelBaseStyle,
+    padding: "20px 46px",
+    borderRadius: 44,
+    background: "linear-gradient(140deg, rgba(18,10,32,0.96) 0%, rgba(48,24,80,0.86) 48%, rgba(34,134,214,0.42) 100%)",
+    border: "1px solid rgba(160,210,255,0.38)",
+    boxShadow: "0 24px 52px rgba(10,4,30,0.58)",
+  };
+
+  const topTextStyle: React.CSSProperties = {
+    ...textBase,
+    fontSize: topFont,
+    width: "auto",
+    textShadow: "0 10px 28px rgba(0,0,0,0.6)",
+    letterSpacing: 1.4,
+  };
+
+  const bottomTextStyle: React.CSSProperties = {
+    ...textBase,
+    fontSize: bottomFont,
+    letterSpacing: 1.6,
+    textTransform: "none",
+    textShadow: "0 14px 34px rgba(6,0,22,0.7)",
+    width: "auto",
+  };
 
   return (
     <AbsoluteFill>
@@ -216,7 +261,9 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
             pointerEvents: "none",
           }}
         >
-          <div style={{...textBase, fontSize: topFont}}>{topContent}</div>
+          <div style={topPanelStyle}>
+            <div style={{...textBase, fontSize: topFont, width: "auto"}}>{topContent}</div>
+          </div>
         </div>
 
         {/* Video centered with contain fit */}
@@ -232,7 +279,7 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
             justifyContent: "center",
           }}
         >
-          <Video src={videoSrc} style={{width: "100%", height: "100%", objectFit: "contain"}} />
+          <OffthreadVideo src={videoSrc} style={{width: "100%", height: "100%", objectFit: "contain"}} />
         </div>
 
         {hasSubtitles ? <SubtitleOverlay timeline={subtitleTimeline} /> : null}
@@ -255,7 +302,9 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
             pointerEvents: "none",
           }}
         >
-          <div style={{...textBase, fontSize: bottomFont}}>{bottomContent}</div>
+          <div style={bottomPanelStyle}>
+            <div style={bottomTextStyle}>{bottomContent}</div>
+          </div>
         </div>
       </AbsoluteFill>
     </AbsoluteFill>
