@@ -31,7 +31,8 @@ You are a *professional video editor AI*. Your primary goal is to identify compe
 Return a JSON array of clip candidate objects with the following fields:
 - `start`: The start time of the clip in seconds.
 - `end`: The end time of the clip in seconds. **Err on the side of making this slightly later** to capture the natural end of a pause or statement.
-- `title`: A concise, engaging title for the clip.
+- `title`: A concise, engaging title for the clip. This will be the main text at the top.
+- `punchline`: **Extract the single most impactful, funny, or memorable punchline spoken in the clip.** This must be a *verbatim quote* from the transcript, not a summary. It should be short and catchy.
 - `reason`: **Crucially, explain *why* this segment forms a complete and coherent narrative unit.** For example, "This clip contains the full Q&A about X" or "Covers the entire story of Y from beginning to end."
 - `confidence`: A score from 0 to 1 indicating how well the clip stands on its own.
 

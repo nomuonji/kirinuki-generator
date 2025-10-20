@@ -135,7 +135,7 @@ def main():
     video_dir_in_public = ""
     source_video_dir = None
 
-    candidates_map: dict[str, tuple[float, float]] = {}
+    candidates_map: dict[str, dict] = {}
     clip_candidates_path = input_dir / 'clip_candidates.json'
     if clip_candidates_path.exists():
         try:
@@ -145,11 +145,18 @@ def main():
                     try:
                         start_val = float(clip_info.get('start'))
                         end_val = float(clip_info.get('end'))
+                        title = clip_info.get('title', '')
+                        punchline = clip_info.get('punchline', '')
                     except (TypeError, ValueError, AttributeError):
                         continue
                     if end_val <= start_val:
                         continue
-                    candidates_map[f'clip_{idx:03d}'] = (start_val, end_val)
+                    candidates_map[f'clip_{idx:03d}'] = {
+                        'start': start_val,
+                        'end': end_val,
+                        'title': title,
+                        'punchline': punchline,
+                    }
         except (json.JSONDecodeError, OSError) as exc:
             print(f"  -> Warning: Could not parse {clip_candidates_path}: {exc}")
 
@@ -184,10 +191,10 @@ def main():
         duration_frames = get_duration_in_frames(video_for_props)
 
         clip_id = f"clip_{match.group(1)}"
-        candidate_span = candidates_map.get(clip_id)
+        candidate_info = candidates_map.get(clip_id)
         candidate_duration_frames = None
-        if candidate_span:
-            candidate_duration_frames = max(1, round((candidate_span[1] - candidate_span[0]) * FRAME_RATE))
+        if candidate_info:
+            candidate_duration_frames = max(1, round((candidate_info['end'] - candidate_info['start']) * FRAME_RATE))
             if duration_frames < candidate_duration_frames:
                 duration_frames = candidate_duration_frames
 
@@ -204,11 +211,18 @@ def main():
             continue
 
         hooks_data = parse_hooks(hooks_path)
-        upper_plain = hooks_data['upper_plain']
-        lower_plain = hooks_data['lower_plain']
-        upper_decorated = hooks_data['upper_decorated'] or upper_plain
-        lower_decorated = hooks_data['lower_decorated'] or lower_plain
         hashtags = hooks_data.get('hashtags', [])
+
+        # Use title and punchline from candidate_info for rich text overlays
+        top_rich_text = candidate_info.get('title', '') if candidate_info else ''
+        bottom_rich_text = candidate_info.get('punchline', '') if candidate_info else ''
+
+        # Fallback to hooks_data if candidate_info is missing data
+        if not top_rich_text:
+            top_rich_text = hooks_data.get('upper_decorated') or hooks_data.get('upper_plain', '')
+        if not bottom_rich_text:
+            bottom_rich_text = hooks_data.get('lower_decorated') or hooks_data.get('lower_plain', '')
+
         video_filename_prop = (pathlib.Path(video_dir_in_public) / clip_path.name).as_posix()
 
         reaction_timeline: list[dict[str, object]] = []
@@ -289,10 +303,10 @@ def main():
 
         props_dict = {
             "videoFileName": video_filename_prop,
-            "topText": upper_plain,
-            "bottomText": lower_plain,
-            "topRichText": upper_decorated,
-            "bottomRichText": lower_decorated,
+            "topText": "",
+            "bottomText": "",
+            "topRichText": top_rich_text,
+            "bottomRichText": bottom_rich_text,
             "hashtags": hashtags,
             "durationInFrames": duration_frames,
             "reactionTimeline": reaction_timeline,

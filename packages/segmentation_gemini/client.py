@@ -17,6 +17,7 @@ class ClipCandidate(BaseModel):
     start: float = Field(..., description="Start time in seconds")
     end: float = Field(..., description="End time in seconds")
     title: str = ""
+    punchline: str = ""
     reason: str = ""
     confidence: float = 0.5
 
@@ -81,6 +82,7 @@ def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30
                 "start": protos.Schema(type=protos.Type.NUMBER),
                 "end": protos.Schema(type=protos.Type.NUMBER),
                 "title": protos.Schema(type=protos.Type.STRING),
+                "punchline": protos.Schema(type=protos.Type.STRING),
                 "reason": protos.Schema(type=protos.Type.STRING),
                 "confidence": protos.Schema(type=protos.Type.NUMBER),
             },
@@ -106,6 +108,15 @@ def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30
 - Clip Length: {min_sec}s to {max_sec}s
 - Minimum Gap Between Clips: {min_gap}s
 - **Crucial:** The 'end' time for each proposed clip MUST exactly match the 'end' time of one of the transcript segments provided. Do not invent timestamps.
+
+**Output Format:**
+Return a JSON array of objects. Each object must have these fields:
+- `start`: The start time in seconds.
+- `end`: The end time of the clip in seconds.
+- `title`: A concise, engaging title for the clip. **Highlight the most important word** with `**`.
+- `punchline`: Extract the single most impactful, funny, or memorable punchline spoken in the clip. This must be a verbatim quote from the transcript, not a summary. It must be very short (under 15 characters) and readable in one second. **Highlight the key word** with `**`.
+- `reason`: Explain why this segment is a good, self-contained clip.
+- `confidence`: A score from 0 to 1.
 
 Output JSON only."""
 

@@ -177,7 +177,7 @@ def main():
         }
 
         details_path = outdir / f"clip_{i:03d}_details.txt"
-        details_content = f"Title: {p.title}\nReason: {p.reason}\nConfidence: {p.confidence:.2f}"
+        details_content = f"Title: {p.title}\nPunchline: {p.punchline}\nReason: {p.reason}\nConfidence: {p.confidence:.2f}"
         if hooks_payload['hashtags']:
             details_content += f"\nHashtags: {' '.join(hooks_payload['hashtags'])}"
         details_path.write_text(details_content, encoding="utf-8")

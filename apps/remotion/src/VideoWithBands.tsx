@@ -1,5 +1,5 @@
 import React from "react";
-import {AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig} from "remotion";
+import {AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig, spring, interpolate} from "remotion";
 
 import {ReactionOverlay, ReactionTimelineEntry} from "./ReactionOverlay";
 
@@ -19,25 +19,32 @@ type VideoWithBandsProps = {
 
 const textBase: React.CSSProperties = {
   fontFamily: "'Rounded Mplus 1c', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif",
-  color: "white",
+  color: "#31124E",
   fontWeight: "900",
   textAlign: "center",
-  textShadow: "0 0 12px rgba(0,0,0,0.8)",
   lineHeight: 1.3,
   width: "100%",
   wordBreak: "break-word",
   whiteSpace: "pre-wrap",
   letterSpacing: 1.5,
-  paddingLeft: 40,
-  paddingRight: 40,
+  // @ts-ignore
+  paintOrder: "stroke fill",
+  WebkitTextStroke: "1.5px white",
+  textStroke: "1.5px white",
+  textShadow: "3px 3px 5px rgba(0,0,0,0.25)",
 };
 
 const highlightStyle: React.CSSProperties = {
-  background: "linear-gradient(135deg, #FFF4B7 0%, #FFD1DC 55%, #CDE9FF 100%)",
-  color: "#31124E",
-  padding: "0.1em 0.35em",
-  borderRadius: "0.35em",
-  boxShadow: "0 6px 16px rgba(24, 0, 40, 0.3)",
+  display: "inline-block", // Required for transforms
+  color: "#FFD700",
+  // @ts-ignore
+  paintOrder: "stroke fill",
+  WebkitTextStroke: `1.5px #31124E`,
+  textStroke: `1.5px #31124E`,
+  textShadow: `
+    3px 3px 0px #31124E,
+    0px 0px 15px #FFD700
+  `,
 };
 
 const normalizeRichSource = (value: string): string =>
@@ -48,7 +55,10 @@ const normalizeRichSource = (value: string): string =>
     .replace(/\u2029/g, "\n")
     .trim();
 
-const renderRichText = (richText?: string, fallback?: string): React.ReactNode => {
+const RichText: React.FC<{richText?: string; fallback?: string}> = ({richText, fallback}) => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+
   const candidateRich = typeof richText === "string" ? normalizeRichSource(richText) : "";
   const candidateFallback = typeof fallback === "string" ? normalizeRichSource(fallback) : "";
   const source = candidateRich || candidateFallback;
@@ -66,25 +76,57 @@ const renderRichText = (richText?: string, fallback?: string): React.ReactNode =
     lineHeight: "1.45",
   };
 
-  return source.split("\n").map((line, lineIndex) => (
-    <div key={`line-${lineIndex}`} style={lineStyle}>
-      {line.split(/(\*\*[^*]+\*\*)/g).map((chunk, chunkIndex) => {
-        if (/^\*\*[^*]+\*\*$/.test(chunk)) {
-          const content = chunk.slice(2, -2);
-          return (
-            <span key={`highlight-${lineIndex}-${chunkIndex}`} style={highlightStyle}>
-              {content}
-            </span>
-          );
-        }
-        return (
-          <span key={`text-${lineIndex}-${chunkIndex}`} style={textChunkStyle}>
-            {chunk}
-          </span>
-        );
-      })}
-    </div>
-  ));
+  return (
+    <>
+      {source.split("\n").map((line, lineIndex) => (
+        <div key={`line-${lineIndex}`} style={lineStyle}>
+          {line.split(/(\*\*[^*]+\*\*)/g).map((chunk, chunkIndex) => {
+            if (/^\*\*[^*]+\*\*$/.test(chunk)) {
+              const content = chunk.slice(2, -2);
+
+              // Combined entry and perpetual animation
+              const entryDuration = 30;
+              const delay = lineIndex * 5 + chunkIndex * 2;
+              const frameAfterDelay = frame - delay;
+
+              const entryProgress = spring({
+                frame: frameAfterDelay,
+                fps,
+                durationInFrames: entryDuration,
+              });
+
+              const initialRotate = interpolate(entryProgress, [0, 1], [-8, -1]);
+              const initialScale = interpolate(entryProgress, [0, 1], [0.8, 1]);
+
+              const perpetualFrame = Math.max(0, frameAfterDelay - 15);
+              const perpetualScale = 1 + Math.sin(perpetualFrame / 20) * 0.03;
+              const perpetualRotate = Math.cos(perpetualFrame / 25) * 1.5;
+
+              const scale = initialScale * perpetualScale;
+              const rotate = initialRotate + perpetualRotate;
+
+              return (
+                <span
+                  key={`highlight-${lineIndex}-${chunkIndex}`}
+                  style={{
+                    ...highlightStyle,
+                    transform: `scale(${scale}) rotate(${rotate}deg)`,
+                  }}
+                >
+                  {content}
+                </span>
+              );
+            }
+            return (
+              <span key={`text-${lineIndex}-${chunkIndex}`} style={textChunkStyle}>
+                {chunk}
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </>
+  );
 };
 
 /**
@@ -187,9 +229,6 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
     .replace(/^public\//, "");
   const videoSrc = staticFile(safePath);
 
-  const topContent = renderRichText(topRichText, topText);
-  const bottomContent = renderRichText(bottomRichText, bottomText);
-
   const hasReactions = reactionTimeline.length > 0;
   const hasSubtitles = subtitleTimeline.length > 0;
 
@@ -204,10 +243,10 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
     padding: "18px 40px",
     borderRadius: 38,
     maxWidth: "92%",
-    background: "linear-gradient(135deg, rgba(26,16,58,0.94) 0%, rgba(52,26,92,0.82) 55%, rgba(90,70,180,0.38) 100%)",
-    border: "1px solid rgba(168,148,255,0.35)",
+    background: "linear-gradient(135deg, rgba(255, 154, 158, 0.85) 0%, rgba(254, 207, 239, 0.8) 55%, rgba(161, 196, 253, 0.75) 100%)",
+    border: "1px solid rgba(255, 255, 255, 0.4)",
     backdropFilter: "blur(16px)",
-    boxShadow: "0 18px 38px rgba(18,6,48,0.52)",
+    boxShadow: "0 18px 38px rgba(0, 0, 0, 0.3)",
     margin: "0 auto",
     position: "relative",
     overflow: "hidden",
@@ -215,23 +254,18 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
 
   const topPanelStyle: React.CSSProperties = {
     ...panelBaseStyle,
-    background: "linear-gradient(135deg, rgba(30,18,60,0.95) 0%, rgba(68,32,106,0.86) 60%, rgba(144,90,226,0.42) 100%)",
   };
 
   const bottomPanelStyle: React.CSSProperties = {
     ...panelBaseStyle,
     padding: "20px 46px",
     borderRadius: 44,
-    background: "linear-gradient(140deg, rgba(18,10,32,0.96) 0%, rgba(48,24,80,0.86) 48%, rgba(34,134,214,0.42) 100%)",
-    border: "1px solid rgba(160,210,255,0.38)",
-    boxShadow: "0 24px 52px rgba(10,4,30,0.58)",
   };
 
   const topTextStyle: React.CSSProperties = {
     ...textBase,
     fontSize: topFont,
     width: "auto",
-    textShadow: "0 10px 28px rgba(0,0,0,0.6)",
     letterSpacing: 1.4,
   };
 
@@ -240,7 +274,6 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
     fontSize: bottomFont,
     letterSpacing: 1.6,
     textTransform: "none",
-    textShadow: "0 14px 34px rgba(6,0,22,0.7)",
     width: "auto",
   };
 
@@ -262,7 +295,9 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
           }}
         >
           <div style={topPanelStyle}>
-            <div style={{...textBase, fontSize: topFont, width: "auto"}}>{topContent}</div>
+            <div style={{...textBase, fontSize: topFont, width: "auto"}}>
+              <RichText richText={topRichText} fallback={topText} />
+            </div>
           </div>
         </div>
 
@@ -303,7 +338,9 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
           }}
         >
           <div style={bottomPanelStyle}>
-            <div style={bottomTextStyle}>{bottomContent}</div>
+            <div style={bottomTextStyle}>
+              <RichText richText={bottomRichText} fallback={bottomText} />
+            </div>
           </div>
         </div>
       </AbsoluteFill>
