@@ -49,7 +49,8 @@ def main():
         default=6,
         help="Maximum reactions per clip when --reaction is enabled.",
     )
-    parser.add_argument("--cookies-from-browser", help="The name of the browser to load cookies from for yt-dlp (e.g., chrome, firefox).", default=None)
+    parser.add_argument("--cookies", help="Path to a cookies file for yt-dlp.", default=None)
+    parser.add_argument("--limit-rate", help="Download speed limit for yt-dlp (e.g., 10M).", default=None)
     args = parser.parse_args()
     if args.subs and args.soft_subs:
         parser.error("--subs and --soft-subs cannot be used together.")
@@ -81,8 +82,10 @@ def main():
     try:
         # --- 3. Download Video ---
         cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
-        if args.cookies_from_browser:
-            cmd_download.extend(["--cookies-from-browser", args.cookies_from_browser])
+        if args.cookies:
+            cmd_download.extend(["--cookies", args.cookies])
+        if args.limit_rate:
+            cmd_download.extend(["--limit-rate", args.limit_rate])
         run_command(cmd_download, "Downloading YouTube Video")
         if not video_path.exists() or video_path.stat().st_size == 0:
             raise RuntimeError(

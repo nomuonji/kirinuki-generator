@@ -234,7 +234,7 @@ def main():
             set_last_processed_video_id(video_id)
             continue
 
-        process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction", "--cookies-from-browser", "chrome"]
+        process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction", "--cookies", "cookies.txt", "--limit-rate", "10M"]
         
         if run_command(process_command, f"Processing video {video_id}"):
             print(f"Successfully processed video {video_id}.")

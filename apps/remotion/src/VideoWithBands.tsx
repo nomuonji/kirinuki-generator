@@ -17,6 +17,24 @@ type VideoWithBandsProps = {
   subtitleTimeline?: SubtitleEntry[];
 };
 
+// Keyframes for the shadow animation
+const animationStyles = `
+  @keyframes waver-shadow {
+    0% {
+      box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+      transform: translateY(0px);
+    }
+    50% {
+      box-shadow: 0 25px 48px rgba(0, 0, 0, 0.35);
+      transform: translateY(-3px);
+    }
+    100% {
+      box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+      transform: translateY(0px);
+    }
+  }
+`;
+
 const textBase: React.CSSProperties = {
   fontFamily: "'Rounded Mplus 1c', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif",
   color: "#31124E",
@@ -129,9 +147,6 @@ const RichText: React.FC<{richText?: string; fallback?: string}> = ({richText, f
   );
 };
 
-/**
- * Animated gradient and confetti-style blobs for a playful backdrop.
- */
 const AnimatedBackground: React.FC = () => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
@@ -212,14 +227,9 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
 }) => {
   const {width: W, height: H} = useVideoConfig();
 
-  // Height of the video when scaled using object-fit "contain"
-  // For a 9:16 canvas with a 16:9 source: videoHeight = W / sourceAspect
   const videoHeight = W / sourceAspect;
-
-  // Height of the resulting top/bottom letterbox bands
   const bandH = Math.max(0, Math.round((H - videoHeight) / 2));
 
-  // Scale text size relative to band height
   const topFont = `clamp(28px, ${Math.round(bandH * 0.64)}px, 74px)`;
   const bottomFont = topFont;
 
@@ -243,13 +253,13 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
     padding: "18px 40px",
     borderRadius: 38,
     maxWidth: "92%",
-    background: "linear-gradient(135deg, rgba(255, 154, 158, 0.85) 0%, rgba(254, 207, 239, 0.8) 55%, rgba(161, 196, 253, 0.75) 100%)",
-    border: "1px solid rgba(255, 255, 255, 0.4)",
-    backdropFilter: "blur(16px)",
-    boxShadow: "0 18px 38px rgba(0, 0, 0, 0.3)",
+    background: "linear-gradient(135deg, rgba(255, 154, 158, 0.7) 0%, rgba(254, 207, 239, 0.65) 55%, rgba(161, 196, 253, 0.6) 100%)",
+    border: "1px solid rgba(255, 255, 255, 0.3)",
+    backdropFilter: "blur(18px)",
     margin: "0 auto",
     position: "relative",
     overflow: "hidden",
+    animation: 'waver-shadow 7s ease-in-out infinite alternate',
   };
 
   const topPanelStyle: React.CSSProperties = {
@@ -279,6 +289,7 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
 
   return (
     <AbsoluteFill>
+      <style>{animationStyles}</style>
       <AnimatedBackground />
       <AbsoluteFill style={{zIndex: 1}}>
         {/* Top overlay aligned with the top band */}

@@ -3,7 +3,7 @@ name: Automatic Kirinuki Generator
 on:
   workflow_dispatch: # Allows manual triggering
   schedule:
-    - cron: '0 * * * *' # Runs every hour
+    - cron: '0 5 * * *' # Runs every day at 5 AM UTC
 
 jobs:
   build-and-upload:
@@ -31,6 +31,11 @@ jobs:
     - name: Install Node.js dependencies for Remotion
       run: npm install
       working-directory: ./apps/remotion
+
+    - name: Create cookie file from secret
+      env:
+        YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
+      run: echo "$YT_COOKIES_TXT" > cookies.txt
 
     - name: Run YouTube Watcher and Processor
       env:

@@ -2,25 +2,30 @@ import argparse
 import os
 import yt_dlp
 
-def download_youtube_video(video_url_or_id, output_path, browser_for_cookies=None):
+def download_youtube_video(video_url_or_id, output_path, cookie_file=None, limit_rate=None):
     """Downloads a YouTube video to the specified path."""
     output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     ydl_opts = {
-        'format': 'bv*+ba/b',
+        'format': 'best[ext=mp4]/best',
         'noplaylist': True,
         'merge_output_format': 'mp4',
         'concurrent_fragment_downloads': 1,
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         'outtmpl': output_path,
         'ignoreerrors': False,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     }
 
-    if browser_for_cookies:
-        print(f"Attempting to use cookies from: {browser_for_cookies}")
-        ydl_opts['cookiesfrombrowser'] = (browser_for_cookies, )
+    if cookie_file and os.path.exists(cookie_file):
+        print(f"Using cookies from: {cookie_file}")
+        ydl_opts['cookiefile'] = cookie_file
+    
+    if limit_rate:
+        print(f"Limiting download rate to: {limit_rate}")
+        ydl_opts['ratelimit'] = limit_rate
 
     video_url = video_url_or_id
     if not video_url_or_id.startswith(('http', 'https')):
@@ -41,10 +46,11 @@ def main():
     parser = argparse.ArgumentParser(description="Download a YouTube video for the Kirinuki Generator.")
     parser.add_argument("video_id", help="The YouTube video ID or full URL.")
     parser.add_argument("--output", default="tmp/video.mp4", help="Output path for the downloaded video. Defaults to 'tmp/video.mp4'.")
-    parser.add_argument("--cookies-from-browser", help="The name of the browser to load cookies from (e.g., chrome, firefox).", default=None)
+    parser.add_argument("--cookies", help="Path to a cookies file in Netscape format.", default=None)
+    parser.add_argument("--limit-rate", help="Download speed limit (e.g., 10M).", default=None)
     args = parser.parse_args()
 
-    download_youtube_video(args.video_id, args.output, args.cookies_from_browser)
+    download_youtube_video(args.video_id, args.output, args.cookies, args.limit_rate)
 
 if __name__ == "__main__":
     main()
