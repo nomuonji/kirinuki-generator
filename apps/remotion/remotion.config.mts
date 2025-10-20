@@ -12,6 +12,11 @@ Config.setPublicDir(PUBLIC_DIR);
 // Increase log level for better debugging
 Config.setLogLevel('verbose');
 
+// If on Windows, force MS Edge for better stability
+if (process.platform === 'win32') {
+    Config.setChromiumExecutable('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe');
+}
+
 // Stabilize rendering on ARM environments by fixing the GL driver
 Config.setChromiumOpenGlRenderer?.('swangle');
 

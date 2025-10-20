@@ -49,6 +49,7 @@ def main():
         default=6,
         help="Maximum reactions per clip when --reaction is enabled.",
     )
+    parser.add_argument("--cookies-from-browser", help="The name of the browser to load cookies from for yt-dlp (e.g., chrome, firefox).", default=None)
     args = parser.parse_args()
     if args.subs and args.soft_subs:
         parser.error("--subs and --soft-subs cannot be used together.")
@@ -68,25 +69,20 @@ def main():
 
     # --- 2. Pre-run Cleanup --- 
     print("--- Starting pre-run cleanup --- ")
-    # Clean up directories from previous runs
-    styled_props_dir = remotion_public_dir / "styled_props"
-
     paths_to_clean = [tmp_dir, clips_dir, props_dir, re_encoded_dir, remotion_temp_dir]
     for path in paths_to_clean:
         if path.exists():
             print(f"Removing old directory: {path}")
             shutil.rmtree(path)
-    if styled_props_dir.exists():
-        print(f"Removing legacy directory: {styled_props_dir}")
-        shutil.rmtree(styled_props_dir)
     print("--- Pre-run cleanup complete ---\n")
     
-    # Recreate tmp_dir for the current run
     tmp_dir.mkdir()
 
     try:
         # --- 3. Download Video ---
         cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
+        if args.cookies_from_browser:
+            cmd_download.extend(["--cookies-from-browser", args.cookies_from_browser])
         run_command(cmd_download, "Downloading YouTube Video")
         if not video_path.exists() or video_path.stat().st_size == 0:
             raise RuntimeError(
