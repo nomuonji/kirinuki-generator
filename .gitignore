@@ -9,3 +9,4 @@ rendered/
 apps/remotion/public/out_clips/
 remotion_tmp
 cookies.txt
+last_video_id.txt

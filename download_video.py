@@ -16,7 +16,8 @@ def download_youtube_video(video_url_or_id, output_path, cookie_file=None, limit
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         'outtmpl': output_path,
         'ignoreerrors': False,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+        'user_agent': 'com.google.android.youtube/19.22.36 (Linux; U; Android 12; Pixel 5 Build/SP1A.210812.015.A4)',
+        'force_ipv4': True,
     }
 
     if cookie_file and os.path.exists(cookie_file):

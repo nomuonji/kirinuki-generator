@@ -13,6 +13,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
+    - name: Cache last video ID
+      uses: actions/cache@v3
+      id: cache-video-id
+      with:
+        path: last_video_id.txt
+        key: ${{ runner.os }}-last-video-id
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -46,3 +53,10 @@ jobs:
         python youtube_watcher.py \
           --youtube-api-key "$YOUTUBE_API_KEY" \
           --gdrive-creds-json "$GDRIVE_CREDENTIALS_JSON"
+
+    - name: Save last video ID to cache
+      uses: actions/cache/save@v3
+      if: always()
+      with:
+        path: last_video_id.txt
+        key: ${{ runner.os }}-last-video-id
