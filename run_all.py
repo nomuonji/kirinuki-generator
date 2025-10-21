@@ -172,12 +172,20 @@ def main():
         print("\n[OK] All steps completed successfully!")
         print(f"Your final videos are ready in: {final_output_dir.resolve()}\n")
 
-    except (subprocess.CalledProcessError, FileNotFoundError, Exception) as e:
-        print("\n[ERROR] The pipeline did not finish successfully.")
-        if isinstance(e, subprocess.CalledProcessError):
-            print(f"  - Step failed: '{e.cmd}'")
+    except subprocess.CalledProcessError as e:
+        # Specific exit code for skippable download errors
+        if e.returncode == 10:
+            print("\n[INFO] Download failed with a skippable error. Propagating exit code 10.", file=sys.stderr)
+            sys.exit(10)
         else:
-            print(f"  - Error: {e}")
+            print("\n[ERROR] A command failed execution.", file=sys.stderr)
+            print(f"  - Step failed: {' '.join(e.cmd)}", file=sys.stderr)
+            print(f"  - Return Code: {e.returncode}", file=sys.stderr)
+            print(f"  - STDOUT: {e.stdout}", file=sys.stderr)
+            print(f"  - STDERR: {e.stderr}", file=sys.stderr)
+            sys.exit(1)
+    except (FileNotFoundError, RuntimeError, Exception) as e:
+        print(f"\n[ERROR] An unexpected error occurred: {e}", file=sys.stderr)
         print("\nIntermediate files are kept in their respective directories for debugging.")
         sys.exit(1)
 
