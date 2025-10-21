@@ -4,52 +4,76 @@ import sys
 import yt_dlp
 
 def download_youtube_video(video_url_or_id, output_path, cookie_file=None, limit_rate=None):
-    """Downloads a YouTube video to the specified path."""
+    """
+    Downloads a YouTube video, retrying with advanced options if the initial attempt fails with a 403 error.
+    """
     output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-
-    ydl_opts = {
-        'format': 'best[ext=mp4]/best',
-        'noplaylist': True,
-        'merge_output_format': 'mp4',
-        'concurrent_fragment_downloads': 1,
-        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
-        'outtmpl': output_path,
-        'ignoreerrors': False,
-        'user_agent': 'com.google.android.youtube/19.22.36 (Linux; U; Android 12; Pixel 5 Build/SP1A.210812.015.A4)',
-        'force_ipv4': True,
-    }
-
-    if cookie_file and os.path.exists(cookie_file):
-        print(f"Using cookies from: {cookie_file}")
-        ydl_opts['cookiefile'] = cookie_file
-    
-    if limit_rate:
-        print(f"Limiting download rate to: {limit_rate}")
-        ydl_opts['ratelimit'] = limit_rate
 
     video_url = video_url_or_id
     if not video_url_or_id.startswith(('http', 'https')):
         video_url = f'https://www.youtube.com/watch?v={video_url_or_id}'
 
-    print(f"Downloading video from: {video_url}")
-    print(f"Saving to: {output_path}")
+    # --- Basic Download Options ---
+    base_opts = {
+        'format': 'best[ext=mp4]/best',
+        'noplaylist': True,
+        'merge_output_format': 'mp4',
+        'outtmpl': output_path,
+        'ignoreerrors': False,
+        'force_ipv4': True,
+    }
+    if limit_rate:
+        base_opts['ratelimit'] = limit_rate
 
+    # --- First Attempt (Simple Download) ---
+    print(f"--- Attempting simple download for {video_url} ---")
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(base_opts) as ydl:
             ydl.download([video_url])
-        print("\nDownload complete!")
+        print("\nSimple download successful!")
+        return  # Exit the function on success
     except yt_dlp.utils.DownloadError as e:
         if 'HTTP Error 403' in str(e):
-            print(f"\n[SKIP] Download failed with HTTP Error 403. This video might be private or subscriber-only.", file=sys.stderr)
-            print(f"URL: {video_url}", file=sys.stderr)
-            sys.exit(10)
+            print("\nSimple download failed with HTTP 403. Retrying with advanced options...", file=sys.stderr)
         else:
-            print(f"\nAn unhandled download error occurred: {e}", file=sys.stderr)
-            raise
+            print(f"\nAn unhandled download error occurred during simple download: {e}", file=sys.stderr)
+            raise  # Re-raise for non-403 errors
     except Exception as e:
-        print(f"\nAn unexpected error occurred: {e}", file=sys.stderr)
+        print(f"\nAn unexpected error occurred during simple download: {e}", file=sys.stderr)
+        raise
+
+    # --- Second Attempt (Advanced Download with Cookies & User Agent) ---
+    print(f"--- Attempting advanced download for {video_url} ---")
+
+    advanced_opts = base_opts.copy()
+    advanced_opts.update({
+        'concurrent_fragment_downloads': 1,
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+        'user_agent': 'com.google.android.youtube/19.22.36 (Linux; U; Android 12; Pixel 5 Build/SP1A.210812.015.A4)',
+    })
+
+    if cookie_file and os.path.exists(cookie_file):
+        print(f"Using cookies from: {cookie_file}")
+        advanced_opts['cookiefile'] = cookie_file
+    else:
+        print("Warning: Advanced download requested but no cookie file found or provided.", file=sys.stderr)
+
+    try:
+        with yt_dlp.YoutubeDL(advanced_opts) as ydl:
+            ydl.download([video_url])
+        print("\nAdvanced download successful!")
+    except yt_dlp.utils.DownloadError as e:
+        if 'HTTP Error 403' in str(e):
+            print(f"\n[SKIP] Advanced download also failed with HTTP Error 403. This video is likely private or subscriber-only.", file=sys.stderr)
+            print(f"URL: {video_url}", file=sys.stderr)
+            sys.exit(10)  # Exit with skippable code
+        else:
+            print(f"\nAn unhandled download error occurred during advanced download: {e}", file=sys.stderr)
+            raise  # Re-raise for non-403 errors
+    except Exception as e:
+        print(f"\nAn unexpected error occurred during advanced download: {e}", file=sys.stderr)
         raise
 
 def main():
