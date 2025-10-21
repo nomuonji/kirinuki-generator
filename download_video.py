@@ -35,11 +35,12 @@ def download_youtube_video(video_url_or_id, output_path, cookie_file=None, limit
         print("\nSimple download successful!")
         return  # Exit the function on success
     except yt_dlp.utils.DownloadError as e:
-        if 'HTTP Error 403' in str(e):
-            print("\nSimple download failed with HTTP 403. Retrying with advanced options...", file=sys.stderr)
+        error_str = str(e)
+        if 'HTTP Error 403' in error_str or 'Sign in to confirm' in error_str:
+            print(f"\nSimple download failed ({'403' if '403' in error_str else 'Sign-in required'}). Retrying with advanced options...", file=sys.stderr)
         else:
             print(f"\nAn unhandled download error occurred during simple download: {e}", file=sys.stderr)
-            raise  # Re-raise for non-403 errors
+            raise  # Re-raise for other errors
     except Exception as e:
         print(f"\nAn unexpected error occurred during simple download: {e}", file=sys.stderr)
         raise
@@ -65,13 +66,14 @@ def download_youtube_video(video_url_or_id, output_path, cookie_file=None, limit
             ydl.download([video_url])
         print("\nAdvanced download successful!")
     except yt_dlp.utils.DownloadError as e:
-        if 'HTTP Error 403' in str(e):
-            print(f"\n[SKIP] Advanced download also failed with HTTP Error 403. This video is likely private or subscriber-only.", file=sys.stderr)
+        error_str = str(e)
+        if 'HTTP Error 403' in error_str or 'Sign in to confirm' in error_str:
+            print(f"\n[SKIP] Advanced download also failed ({'403' if '403' in error_str else 'Sign-in required'}). This video is likely private or requires login.", file=sys.stderr)
             print(f"URL: {video_url}", file=sys.stderr)
             sys.exit(10)  # Exit with skippable code
         else:
             print(f"\nAn unhandled download error occurred during advanced download: {e}", file=sys.stderr)
-            raise  # Re-raise for non-403 errors
+            raise  # Re-raise for other errors
     except Exception as e:
         print(f"\nAn unexpected error occurred during advanced download: {e}", file=sys.stderr)
         raise
