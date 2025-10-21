@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import yt_dlp
 
 def download_youtube_video(video_url_or_id, output_path, cookie_file=None, limit_rate=None):
@@ -39,8 +40,16 @@ def download_youtube_video(video_url_or_id, output_path, cookie_file=None, limit
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
         print("\nDownload complete!")
+    except yt_dlp.utils.DownloadError as e:
+        if 'HTTP Error 403' in str(e):
+            print(f"\n[SKIP] Download failed with HTTP Error 403. This video might be private or subscriber-only.", file=sys.stderr)
+            print(f"URL: {video_url}", file=sys.stderr)
+            sys.exit(10)
+        else:
+            print(f"\nAn unhandled download error occurred: {e}", file=sys.stderr)
+            raise
     except Exception as e:
-        print(f"\nAn error occurred during download: {e}")
+        print(f"\nAn unexpected error occurred: {e}", file=sys.stderr)
         raise
 
 def main():

@@ -19,27 +19,25 @@ MIN_VIDEO_DURATION_SECONDS = 360  # 6 minutes
 STATE_FILE = Path("last_video_id.txt")
 
 def run_command(command, description):
-    """Runs a command and prints its description."""
+    """Runs a command, prints its description, and returns the result object."""
     print(f"--- {description} ---")
     cmd_str = ' '.join(map(str, command))
     print(f"Executing: {cmd_str}")
-    try:
-        result = subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='ignore'
-        )
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='ignore'
+    )
+    # Always print stdout/stderr for logging purposes
+    if result.stdout:
         print(result.stdout)
-        print(f"--- Finished: {description} ---\n")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"ERROR during '{description}':")
-        print(e.stdout)
-        print(e.stderr)
-        return False
+    if result.stderr:
+        print(result.stderr, file=sys.stderr)
+
+    print(f"--- Finished: {description} (Exit Code: {result.returncode}) ---\n")
+    return result
 
 def get_latest_videos(api_key, channel_id):
     """Get latest videos from a YouTube channel."""
@@ -236,19 +234,30 @@ def main():
 
         process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction", "--cookies", "cookies.txt", "--limit-rate", "10M"]
         
-        if run_command(process_command, f"Processing video {video_id}"):
+        result = run_command(process_command, f"Processing video {video_id}")
+
+        # --- Handle command result ---
+        if result.returncode == 0:
+            # --- Success ---
             print(f"Successfully processed video {video_id}.")
-            
             gdrive_creds = json.loads(gdrive_creds_json)
             if rename_and_upload_files(title, gdrive_creds, gdrive_parent_folder_id):
                 print("Upload successful.")
                 set_last_processed_video_id(video_id)
                 print(f"Updated last processed video ID to: {video_id}")
             else:
-                print("Upload failed. State file will not be updated.")
-                sys.exit(1) # Stop processing if upload fails
+                print("Upload failed. State file will not be updated.", file=sys.stderr)
+                sys.exit(1)
+        elif result.returncode == 10:
+            # --- Skippable Error (e.g., 403 Forbidden) ---
+            print(f"Skipping video {video_id} due to a skippable error (Exit Code 10).")
+            # Mark as processed to avoid retrying a video that will likely fail again
+            set_last_processed_video_id(video_id)
+            print(f"Updated last processed video ID to: {video_id}")
+            continue # Move to the next video
         else:
-            print(f"Failed to process video {video_id}. Stopping.")
+            # --- Non-zero Exit Code (Failure) ---
+            print(f"Failed to process video {video_id} with exit code {result.returncode}. Stopping.", file=sys.stderr)
             sys.exit(1)
 
 if __name__ == "__main__":
