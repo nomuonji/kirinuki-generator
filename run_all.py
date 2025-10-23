@@ -49,8 +49,11 @@ def main():
         default=6,
         help="Maximum reactions per clip when --reaction is enabled.",
     )
-    parser.add_argument("--cookies", help="Path to a cookies file for yt-dlp.", default=None)
-    parser.add_argument("--limit-rate", help="Download speed limit for yt-dlp (e.g., 10M).", default=None)
+    # The --cookies and --limit-rate arguments are no longer needed as we've switched to a different download API.
+    # They are kept here as dummy arguments to avoid breaking youtube_watcher.py,
+    # which still passes them. We will remove them from the caller in the next step.
+    parser.add_argument("--cookies", help="[DEPRECATED] No longer used.", default=None)
+    parser.add_argument("--limit-rate", help="[DEPRECATED] No longer used.", default=None)
     args = parser.parse_args()
     if args.subs and args.soft_subs:
         parser.error("--subs and --soft-subs cannot be used together.")
@@ -82,10 +85,7 @@ def main():
     try:
         # --- 3. Download Video ---
         cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
-        if args.cookies:
-            cmd_download.extend(["--cookies", args.cookies])
-        if args.limit_rate:
-            cmd_download.extend(["--limit-rate", args.limit_rate])
+        # The --cookies and --limit-rate arguments are no longer used by download_video.py
         run_command(cmd_download, "Downloading YouTube Video")
         if not video_path.exists() or video_path.stat().st_size == 0:
             raise RuntimeError(
