@@ -74,7 +74,7 @@ def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_di
 
         try:
             run_command(cmd, f"Rendering {absolute_output_file.name}", cwd=remotion_app_dir)
-            print(f"  -> Successfully rendered: {output_file}")
+            print(f"  -> Successfully rendered: {absolute_output_file}")
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             print(f"\n[ERROR] Remotion rendering failed for {prop_file.name}.", file=sys.stderr)
             # The detailed error is already printed by run_command, so we just re-raise
