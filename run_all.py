@@ -49,11 +49,6 @@ def main():
         default=6,
         help="Maximum reactions per clip when --reaction is enabled.",
     )
-    # The --cookies and --limit-rate arguments are no longer needed as we've switched to a different download API.
-    # They are kept here as dummy arguments to avoid breaking youtube_watcher.py,
-    # which still passes them. We will remove them from the caller in the next step.
-    parser.add_argument("--cookies", help="[DEPRECATED] No longer used.", default=None)
-    parser.add_argument("--limit-rate", help="[DEPRECATED] No longer used.", default=None)
     args = parser.parse_args()
     if args.subs and args.soft_subs:
         parser.error("--subs and --soft-subs cannot be used together.")
