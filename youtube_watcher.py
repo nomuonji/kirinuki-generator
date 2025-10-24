@@ -184,9 +184,10 @@ def main():
     youtube_api_key = os.environ.get("YOUTUBE_API_KEY")
     gdrive_creds_json = os.environ.get("GDRIVE_CREDENTIALS_JSON")
     gdrive_parent_folder_id = os.environ.get("GDRIVE_PARENT_FOLDER_ID")
+    rapidapi_key = os.environ.get("RAPIDAPI_KEY")
 
-    if not all([youtube_api_key, gdrive_creds_json, gdrive_parent_folder_id]):
-        print("ERROR: Missing one or more required environment variables.")
+    if not all([youtube_api_key, gdrive_creds_json, gdrive_parent_folder_id, rapidapi_key]):
+        print("ERROR: Missing one or more required environment variables (YOUTUBE_API_KEY, GDRIVE_CREDENTIALS_JSON, GDRIVE_PARENT_FOLDER_ID, RAPIDAPI_KEY).")
         sys.exit(1)
 
     last_processed_id = get_last_processed_video_id()
