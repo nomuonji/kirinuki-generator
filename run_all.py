@@ -52,25 +52,28 @@ def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_di
 
     for prop_file in prop_files:
         base_name = prop_file.stem
-        output_file = final_output_dir / f"{base_name}.mp4"
+        # Ensure the final output path is absolute before making it relative
+        absolute_output_file = final_output_dir.resolve() / f"{base_name}.mp4"
 
         print(f"\nProcessing {prop_file.name}...")
 
-        # Construct the command to run Remotion CLI
-        # Using npx ensures that the local version of remotion is used
+        # Remotion CLI works relative to the app directory, so we must provide relative paths
+        relative_output_path = os.path.relpath(absolute_output_file, remotion_app_dir)
+        relative_props_path = os.path.relpath(prop_file.resolve(), remotion_app_dir)
+
         cmd = [
             "npx",
             "remotion",
             "render",
             "src/index.tsx",
             "VideoWithBands",
-            str(output_file),
+            relative_output_path,
             "--props",
-            str(prop_file),
+            relative_props_path,
         ]
 
         try:
-            run_command(cmd, f"Rendering {output_file.name}", cwd=remotion_app_dir)
+            run_command(cmd, f"Rendering {absolute_output_file.name}", cwd=remotion_app_dir)
             print(f"  -> Successfully rendered: {output_file}")
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             print(f"\n[ERROR] Remotion rendering failed for {prop_file.name}.", file=sys.stderr)
