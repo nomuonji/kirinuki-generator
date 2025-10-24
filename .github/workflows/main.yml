@@ -53,6 +53,7 @@ jobs:
         GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
         GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
         RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: python youtube_watcher.py
 
     - name: Save last video ID to cache
