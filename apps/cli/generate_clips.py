@@ -219,7 +219,7 @@ def main():
             "-m", "apps.cli.render_clips",
             "--input-dir", str(outdir) # Pass the correct outdir
         ]
-        print(f"Running command: {" ".join(render_cmd)}")
+        print(f"Running command: {' '.join(render_cmd)}")
         subprocess.run(render_cmd, check=True)
 
 if __name__ == "__main__":
