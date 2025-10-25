@@ -30,6 +30,9 @@ jobs:
       with:
         node-version: '18' # Or the version required by Remotion
 
+    - name: Install ffmpeg
+      run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
@@ -49,10 +52,9 @@ jobs:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
         GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
-      run: |
-        python youtube_watcher.py \
-          --youtube-api-key "$YOUTUBE_API_KEY" \
-          --gdrive-creds-json "$GDRIVE_CREDENTIALS_JSON"
+        RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: python youtube_watcher.py
 
     - name: Save last video ID to cache
       uses: actions/cache/save@v3
