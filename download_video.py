@@ -3,6 +3,7 @@ import os
 import requests
 import ffmpeg
 import sys
+import time
 from dotenv import load_dotenv
 
 def find_stream_urls(data):
@@ -57,12 +58,43 @@ def download_youtube_video_from_api(video_id, output_path):
 
     video_part_path = os.path.join(output_dir, f"video_{video_id}.part")
     audio_part_path = os.path.join(output_dir, f"audio_{video_id}.part")
-    
+
     api_response = None
+    data = None
+    MAX_RETRIES = 3
+    RETRY_DELAY_SECONDS = 10
+
+    for attempt in range(MAX_RETRIES):
+        print(f"Attempt {attempt + 1} of {MAX_RETRIES} to fetch video metadata...")
+        try:
+            api_response = requests.get(api_url, headers=headers, params=params, timeout=45)
+            api_response.raise_for_status()
+            data = api_response.json()
+
+            # The API might return a 200 OK but still have a failure status inside the JSON
+            if data.get('status') == 'success' or 'adaptiveFormats' in data: # some responses have formats but no success status
+                print("Successfully fetched video metadata.")
+                break # Exit the loop on success
+            else:
+                status = data.get('status', 'N/A')
+                error_msg = data.get('error', 'No error message')
+                code = data.get('code', 'N/A')
+                print(f"API returned a non-success status: Status='{status}', Error='{error_msg}', Code='{code}'", file=sys.stderr)
+                data = None # Reset data to indicate failure
+
+        except requests.exceptions.RequestException as e:
+            print(f"An error occurred during API request: {e}", file=sys.stderr)
+            data = None # Reset data to indicate failure
+
+        if attempt < MAX_RETRIES - 1:
+            print(f"Retrying in {RETRY_DELAY_SECONDS} seconds...", file=sys.stderr)
+            time.sleep(RETRY_DELAY_SECONDS)
+        else:
+            print("Could not fetch video metadata after multiple retries.", file=sys.stderr)
+
     try:
-        api_response = requests.get(api_url, headers=headers, params=params, timeout=45)
-        api_response.raise_for_status()
-        data = api_response.json()
+        if data is None:
+             raise ValueError("API request failed after multiple retries.")
 
         video_url, audio_url = find_stream_urls(data)
 
