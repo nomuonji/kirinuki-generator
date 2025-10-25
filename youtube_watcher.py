@@ -181,13 +181,23 @@ def main():
     """Main function to check for videos and process them."""
     load_dotenv()
 
-    youtube_api_key = os.environ.get("YOUTUBE_API_KEY")
-    gdrive_creds_json = os.environ.get("GDRIVE_CREDENTIALS_JSON")
-    gdrive_parent_folder_id = os.environ.get("GDRIVE_PARENT_FOLDER_ID")
+    # Re-adding the comprehensive environment variable check
+    required_vars = {
+        "YOUTUBE_API_KEY": os.environ.get("YOUTUBE_API_KEY"),
+        "GDRIVE_CREDENTIALS_JSON": os.environ.get("GDRIVE_CREDENTIALS_JSON"),
+        "GDRIVE_PARENT_FOLDER_ID": os.environ.get("GDRIVE_PARENT_FOLDER_ID"),
+        "RAPIDAPI_KEY": os.environ.get("RAPIDAPI_KEY"),
+        "GEMINI_API_KEY": os.environ.get("GEMINI_API_KEY"),
+    }
 
-    if not all([youtube_api_key, gdrive_creds_json, gdrive_parent_folder_id]):
-        print("ERROR: Missing one or more required environment variables.")
+    missing_vars = [name for name, value in required_vars.items() if not value]
+    if missing_vars:
+        print(f"ERROR: Missing required environment variables: {', '.join(missing_vars)}", file=sys.stderr)
         sys.exit(1)
+
+    youtube_api_key = required_vars["YOUTUBE_API_KEY"]
+    gdrive_creds_json = required_vars["GDRIVE_CREDENTIALS_JSON"]
+    gdrive_parent_folder_id = required_vars["GDRIVE_PARENT_FOLDER_ID"]
 
     last_processed_id = get_last_processed_video_id()
     print(f"Last processed video ID: {last_processed_id}")
@@ -234,12 +244,18 @@ def main():
             set_last_processed_video_id(video_id)
             continue
 
-        process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction", "--cookies", "cookies.txt", "--limit-rate", "10M"]
+        # Correcting the call to run_all.py by removing obsolete arguments
+        process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
         
         if run_command(process_command, f"Processing video {video_id}"):
             print(f"Successfully processed video {video_id}.")
             
-            gdrive_creds = json.loads(gdrive_creds_json)
+            try:
+                gdrive_creds = json.loads(gdrive_creds_json)
+            except json.JSONDecodeError:
+                print("ERROR: Failed to parse GDRIVE_CREDENTIALS_JSON. Please ensure it's a valid, single-line JSON string in your repository secrets.", file=sys.stderr)
+                sys.exit(1)
+
             if rename_and_upload_files(title, gdrive_creds, gdrive_parent_folder_id):
                 print("Upload successful.")
                 set_last_processed_video_id(video_id)
