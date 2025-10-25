@@ -4,6 +4,7 @@ import sys
 import subprocess
 import json
 import re
+import traceback
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from dotenv import load_dotenv
@@ -141,47 +142,39 @@ def rename_and_upload_files(video_title, service_account_info, parent_folder_id)
         return False
 
     # --- Upload files ---
-    try:
-        creds = Credentials.from_service_account_info(service_account_info, scopes=["https://www.googleapis.com/auth/drive"])
-        drive_service = build('drive', 'v3', credentials=creds)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_folder_name = f"{sanitized_title}_{timestamp}"
-        
-        file_metadata = {
-            'name': run_folder_name,
-            'mimeType': 'application/vnd.google-apps.folder',
-            'parents': [parent_folder_id]
-        }
-        run_folder = drive_service.files().create(body=file_metadata, fields='id').execute()
-        run_folder_id = run_folder.get('id')
-        print(f"Created Google Drive folder: '{run_folder_name}' (ID: {run_folder_id})")
+    # No try/except here, let it bubble up to the main handler
+    creds = Credentials.from_service_account_info(service_account_info, scopes=["https://www.googleapis.com/auth/drive"])
+    drive_service = build('drive', 'v3', credentials=creds)
 
-        if not renamed_files:
-            print("No files found to upload.")
-            return True # Nothing to upload is not a failure
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_folder_name = f"{sanitized_title}_{timestamp}"
 
-        for file_path in renamed_files:
-            print(f"Uploading {file_path.name}...")
-            file_metadata = {'name': file_path.name, 'parents': [run_folder_id]}
-            media = MediaFileUpload(str(file_path))
-            drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-            print(f"Successfully uploaded {file_path.name}.")
-        
-        return True # Success
+    file_metadata = {
+        'name': run_folder_name,
+        'mimeType': 'application/vnd.google-apps.folder',
+        'parents': [parent_folder_id]
+    }
+    run_folder = drive_service.files().create(body=file_metadata, fields='id').execute()
+    run_folder_id = run_folder.get('id')
+    print(f"Created Google Drive folder: '{run_folder_name}' (ID: {run_folder_id})")
 
-    except HttpError as e:
-        print(f"ERROR during Google Drive upload: {e.content}")
-        return False
-    except Exception as e:
-        print(f"ERROR during Google Drive upload: {e}")
-        return False
+    if not renamed_files:
+        print("No files found to upload.")
+        return True # Nothing to upload is not a failure
+
+    for file_path in renamed_files:
+        print(f"Uploading {file_path.name}...")
+        file_metadata = {'name': file_path.name, 'parents': [run_folder_id]}
+        media = MediaFileUpload(str(file_path))
+        drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        print(f"Successfully uploaded {file_path.name}.")
+
+    return True
 
 def main():
     """Main function to check for videos and process them."""
     load_dotenv()
 
-    # Re-adding the comprehensive environment variable check
     required_vars = {
         "YOUTUBE_API_KEY": os.environ.get("YOUTUBE_API_KEY"),
         "GDRIVE_CREDENTIALS_JSON": os.environ.get("GDRIVE_CREDENTIALS_JSON"),
@@ -244,25 +237,37 @@ def main():
             set_last_processed_video_id(video_id)
             continue
 
-        # Correcting the call to run_all.py by removing obsolete arguments
         process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
         
         if run_command(process_command, f"Processing video {video_id}"):
             print(f"Successfully processed video {video_id}.")
             
             try:
+                print("Attempting to parse Google Drive credentials...")
                 gdrive_creds = json.loads(gdrive_creds_json)
-            except json.JSONDecodeError:
-                print("ERROR: Failed to parse GDRIVE_CREDENTIALS_JSON. Please ensure it's a valid, single-line JSON string in your repository secrets.", file=sys.stderr)
-                sys.exit(1)
+                print("Successfully parsed Google Drive credentials.")
 
-            if rename_and_upload_files(title, gdrive_creds, gdrive_parent_folder_id):
-                print("Upload successful.")
-                set_last_processed_video_id(video_id)
-                print(f"Updated last processed video ID to: {video_id}")
-            else:
-                print("Upload failed. State file will not be updated.")
-                sys.exit(1) # Stop processing if upload fails
+                print("Attempting to rename and upload files...")
+                upload_success = rename_and_upload_files(title, gdrive_creds, gdrive_parent_folder_id)
+                print("Finished rename and upload step.")
+
+                if upload_success:
+                    print("Upload successful.")
+                    set_last_processed_video_id(video_id)
+                    print(f"Updated last processed video ID to: {video_id}")
+                else:
+                    print("Upload failed. State file will not be updated.", file=sys.stderr)
+                    sys.exit(1)
+            except Exception as e:
+                print("--- AN UNEXPECTED ERROR OCCURRED DURING UPLOAD ---", file=sys.stderr)
+                if isinstance(e, json.JSONDecodeError):
+                    print("ERROR: Failed to parse GDRIVE_CREDENTIALS_JSON. Please ensure it's a valid, single-line JSON string in your repository secrets.", file=sys.stderr)
+                else:
+                    print(f"An error of type {type(e).__name__} occurred.", file=sys.stderr)
+
+                # Print the full traceback for detailed debugging
+                traceback.print_exc()
+                sys.exit(1)
         else:
             print(f"Failed to process video {video_id}. Stopping.")
             sys.exit(1)
