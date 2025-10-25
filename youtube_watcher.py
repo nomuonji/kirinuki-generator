@@ -244,15 +244,6 @@ def main():
             
             try:
                 print("Attempting to parse Google Drive credentials...")
-                # --- Start Enhanced Debugging ---
-                print(f"Type of gdrive_creds_json: {type(gdrive_creds_json)}")
-                if isinstance(gdrive_creds_json, str):
-                    print(f"Length of gdrive_creds_json string: {len(gdrive_creds_json)}")
-                    print(f"First 20 chars: '{gdrive_creds_json[:20]}'")
-                    print(f"Last 20 chars: '{gdrive_creds_json[-20:]}'")
-                else:
-                    print("gdrive_creds_json is not a string.")
-                # --- End Enhanced Debugging ---
                 gdrive_creds = json.loads(gdrive_creds_json)
                 print("Successfully parsed Google Drive credentials.")
 
