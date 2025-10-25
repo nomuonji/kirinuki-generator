@@ -154,7 +154,7 @@ def rename_and_upload_files(video_title, service_account_info, parent_folder_id)
         'mimeType': 'application/vnd.google-apps.folder',
         'parents': [parent_folder_id]
     }
-    run_folder = drive_service.files().create(body=file_metadata, fields='id').execute()
+    run_folder = drive_service.files().create(body=file_metadata, fields='id', supportsAllDrives=True).execute()
     run_folder_id = run_folder.get('id')
     print(f"Created Google Drive folder: '{run_folder_name}' (ID: {run_folder_id})")
 
@@ -166,7 +166,7 @@ def rename_and_upload_files(video_title, service_account_info, parent_folder_id)
         print(f"Uploading {file_path.name}...")
         file_metadata = {'name': file_path.name, 'parents': [run_folder_id]}
         media = MediaFileUpload(str(file_path))
-        drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        drive_service.files().create(body=file_metadata, media_body=media, fields='id', supportsAllDrives=True).execute()
         print(f"Successfully uploaded {file_path.name}.")
 
     return True
