@@ -184,20 +184,9 @@ def main():
     youtube_api_key = os.environ.get("YOUTUBE_API_KEY")
     gdrive_creds_json = os.environ.get("GDRIVE_CREDENTIALS_JSON")
     gdrive_parent_folder_id = os.environ.get("GDRIVE_PARENT_FOLDER_ID")
-    rapidapi_key = os.environ.get("RAPIDAPI_KEY")
-    gemini_api_key = os.environ.get("GEMINI_API_KEY")
 
-    required_vars = {
-        "YOUTUBE_API_KEY": youtube_api_key,
-        "GDRIVE_CREDENTIALS_JSON": gdrive_creds_json,
-        "GDRIVE_PARENT_FOLDER_ID": gdrive_parent_folder_id,
-        "RAPIDAPI_KEY": rapidapi_key,
-        "GEMINI_API_KEY": gemini_api_key,
-    }
-
-    missing_vars = [name for name, value in required_vars.items() if not value]
-    if missing_vars:
-        print(f"ERROR: Missing required environment variables: {', '.join(missing_vars)}")
+    if not all([youtube_api_key, gdrive_creds_json, gdrive_parent_folder_id]):
+        print("ERROR: Missing one or more required environment variables.")
         sys.exit(1)
 
     last_processed_id = get_last_processed_video_id()
@@ -245,7 +234,7 @@ def main():
             set_last_processed_video_id(video_id)
             continue
 
-        process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
+        process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction", "--cookies", "cookies.txt", "--limit-rate", "10M"]
         
         if run_command(process_command, f"Processing video {video_id}"):
             print(f"Successfully processed video {video_id}.")
