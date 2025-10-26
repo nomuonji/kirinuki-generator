@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from google.oauth2.service_account import Credentials
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaFileUpload
 
 # --- Configuration ---
@@ -107,7 +108,36 @@ def sanitize_filename(name):
     # Limit length
     return name[:100].strip()
 
-def rename_and_upload_files(video_title, service_account_info, parent_folder_id):
+def get_gdrive_credentials():
+    """Gets Google Drive credentials from token file, refreshing if necessary."""
+    creds = None
+    token_file = 'gdrive_token.json'
+    scopes = ["https://www.googleapis.com/auth/drive"]
+
+    if os.path.exists(token_file):
+        creds = Credentials.from_authorized_user_file(token_file, scopes)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            print("Credentials expired. Refreshing token...")
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"Error refreshing token: {e}", file=sys.stderr)
+                raise Exception("Could not refresh token. Please re-run authenticate_gdrive.py.")
+        else:
+            raise FileNotFoundError(
+                f"'{token_file}' not found or invalid. "
+                "Please run authenticate_gdrive.py to generate it."
+            )
+
+        with open(token_file, 'w') as token:
+            token.write(creds.to_json())
+            print(f"Token refreshed and saved to {token_file}")
+
+    return creds
+
+def rename_and_upload_files(video_title, parent_folder_id):
     """Renames output files with the video title and uploads them to Google Drive."""
     print("--- Renaming and Uploading to Google Drive ---")
     sanitized_title = sanitize_filename(video_title)
@@ -117,7 +147,6 @@ def rename_and_upload_files(video_title, service_account_info, parent_folder_id)
     # --- Rename files ---
     renamed_files = []
     try:
-        # Sort files to maintain order
         video_files = sorted(list(rendered_dir.glob('*.mp4')))
         prop_files = sorted(list(props_dir.glob('*.json')))
 
@@ -129,7 +158,6 @@ def rename_and_upload_files(video_title, service_account_info, parent_folder_id)
             print(f"Renamed {file_path.name} to {new_name}")
 
         for i, file_path in enumerate(prop_files):
-            # Ensure it's a clip prop, not the main temp_props
             if file_path.name.startswith('clip_'):
                 new_name = f"{sanitized_title}_clip_{i+1:02d}.json"
                 new_path = file_path.with_name(new_name)
@@ -142,8 +170,7 @@ def rename_and_upload_files(video_title, service_account_info, parent_folder_id)
         return False
 
     # --- Upload files ---
-    # No try/except here, let it bubble up to the main handler
-    creds = Credentials.from_service_account_info(service_account_info, scopes=["https://www.googleapis.com/auth/drive"])
+    creds = get_gdrive_credentials()
     drive_service = build('drive', 'v3', credentials=creds)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -160,7 +187,7 @@ def rename_and_upload_files(video_title, service_account_info, parent_folder_id)
 
     if not renamed_files:
         print("No files found to upload.")
-        return True # Nothing to upload is not a failure
+        return True
 
     for file_path in renamed_files:
         print(f"Uploading {file_path.name}...")
@@ -177,10 +204,11 @@ def main():
 
     required_vars = {
         "YOUTUBE_API_KEY": os.environ.get("YOUTUBE_API_KEY"),
-        "GDRIVE_CREDENTIALS_JSON": os.environ.get("GDRIVE_CREDENTIALS_JSON"),
         "GDRIVE_PARENT_FOLDER_ID": os.environ.get("GDRIVE_PARENT_FOLDER_ID"),
         "RAPIDAPI_KEY": os.environ.get("RAPIDAPI_KEY"),
         "GEMINI_API_KEY": os.environ.get("GEMINI_API_KEY"),
+        "GDRIVE_CLIENT_SECRET_JSON": os.environ.get("GDRIVE_CLIENT_SECRET_JSON"),
+        "GDRIVE_REFRESH_TOKEN": os.environ.get("GDRIVE_REFRESH_TOKEN"),
     }
 
     missing_vars = [name for name, value in required_vars.items() if not value]
@@ -189,8 +217,37 @@ def main():
         sys.exit(1)
 
     youtube_api_key = required_vars["YOUTUBE_API_KEY"]
-    gdrive_creds_json = required_vars["GDRIVE_CREDENTIALS_JSON"]
     gdrive_parent_folder_id = required_vars["GDRIVE_PARENT_FOLDER_ID"]
+    gdrive_client_secret_json = required_vars["GDRIVE_CLIENT_SECRET_JSON"]
+    gdrive_refresh_token = required_vars["GDRIVE_REFRESH_TOKEN"]
+
+    # --- Create credential files from environment variables ---
+    try:
+        # Create client_secret.json
+        with open('client_secret.json', 'w') as f:
+            json.dump(json.loads(gdrive_client_secret_json), f)
+
+        # Create gdrive_token.json from refresh token
+        token_data = {
+            "token": None,  # Access token is not needed, will be fetched
+            "refresh_token": gdrive_refresh_token,
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "client_id": json.loads(gdrive_client_secret_json)["installed"]["client_id"],
+            "client_secret": json.loads(gdrive_client_secret_json)["installed"]["client_secret"],
+            "scopes": ["https.www.googleapis.com/auth/drive"],
+            "expiry": "1970-01-01T00:00:00Z" # Force refresh
+        }
+        with open('gdrive_token.json', 'w') as f:
+            json.dump(token_data, f)
+
+        print("Successfully created Google Drive credential files from environment variables.")
+
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"ERROR: Failed to parse Google Drive credentials from environment variables: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"ERROR: An unexpected error occurred while creating credential files: {e}", file=sys.stderr)
+        sys.exit(1)
 
     last_processed_id = get_last_processed_video_id()
     print(f"Last processed video ID: {last_processed_id}")
@@ -243,12 +300,8 @@ def main():
             print(f"Successfully processed video {video_id}.")
             
             try:
-                print("Attempting to parse Google Drive credentials...")
-                gdrive_creds = json.loads(gdrive_creds_json)
-                print("Successfully parsed Google Drive credentials.")
-
                 print("Attempting to rename and upload files...")
-                upload_success = rename_and_upload_files(title, gdrive_creds, gdrive_parent_folder_id)
+                upload_success = rename_and_upload_files(title, gdrive_parent_folder_id)
                 print("Finished rename and upload step.")
 
                 if upload_success:
@@ -260,12 +313,7 @@ def main():
                     sys.exit(1)
             except Exception as e:
                 print("--- AN UNEXPECTED ERROR OCCURRED DURING UPLOAD ---", file=sys.stderr)
-                if isinstance(e, json.JSONDecodeError):
-                    print("ERROR: Failed to parse GDRIVE_CREDENTIALS_JSON. Please ensure it's a valid, single-line JSON string in your repository secrets.", file=sys.stderr)
-                else:
-                    print(f"An error of type {type(e).__name__} occurred.", file=sys.stderr)
-
-                # Print the full traceback for detailed debugging
+                print(f"An error of type {type(e).__name__} occurred: {e}", file=sys.stderr)
                 traceback.print_exc()
                 sys.exit(1)
         else:
