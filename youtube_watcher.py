@@ -224,17 +224,23 @@ def main():
     # --- Create credential files from environment variables ---
     try:
         # Create client_secret.json
+        client_secret_data = json.loads(gdrive_client_secret_json)
         with open('client_secret.json', 'w') as f:
-            json.dump(json.loads(gdrive_client_secret_json), f)
+            json.dump(client_secret_data, f)
+
+        # Determine key ('web' or 'installed') and get client data
+        client_info = client_secret_data.get('web') or client_secret_data.get('installed')
+        if not client_info:
+            raise ValueError("Invalid client secret format: 'web' or 'installed' key not found.")
 
         # Create gdrive_token.json from refresh token
         token_data = {
             "token": None,  # Access token is not needed, will be fetched
             "refresh_token": gdrive_refresh_token,
             "token_uri": "https://oauth2.googleapis.com/token",
-            "client_id": json.loads(gdrive_client_secret_json)["installed"]["client_id"],
-            "client_secret": json.loads(gdrive_client_secret_json)["installed"]["client_secret"],
-            "scopes": ["https.www.googleapis.com/auth/drive"],
+            "client_id": client_info["client_id"],
+            "client_secret": client_info["client_secret"],
+            "scopes": ["https://www.googleapis.com/auth/drive"],
             "expiry": "1970-01-01T00:00:00Z" # Force refresh
         }
         with open('gdrive_token.json', 'w') as f:
@@ -242,11 +248,8 @@ def main():
 
         print("Successfully created Google Drive credential files from environment variables.")
 
-    except (json.JSONDecodeError, KeyError) as e:
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
         print(f"ERROR: Failed to parse Google Drive credentials from environment variables: {e}", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"ERROR: An unexpected error occurred while creating credential files: {e}", file=sys.stderr)
         sys.exit(1)
 
     last_processed_id = get_last_processed_video_id()
