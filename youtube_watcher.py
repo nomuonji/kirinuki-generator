@@ -321,55 +321,58 @@ def main():
 
     print(f"Found {len(new_videos_to_process)} new video(s) to process.")
 
-    # Only process the single oldest, new video in this run
-    if not new_videos_to_process:
-        print("No new videos to process.")
-        sys.exit(0)
+    # Iterate through new videos and process the first one that meets the criteria
+    processed_one_video = False
+    for video in new_videos_to_process:
+        video_id = video["id"]
+        title = video["snippet"]["title"]
+        duration = parse_duration(video["contentDetails"]["duration"])
 
-    if len(new_videos_to_process) > 1:
-        print(f"Processing the oldest video first. {len(new_videos_to_process) - 1} other new videos will be processed in subsequent runs.")
+        print(f"\n--- Checking Video ---")
+        print(f"ID: {video_id}")
+        print(f"Title: {title}")
+        print(f"Duration: {duration.total_seconds()}s")
 
-    video_to_process = new_videos_to_process[0]
-    video_id = video_to_process["id"]
-    title = video_to_process["snippet"]["title"]
-    duration = parse_duration(video_to_process["contentDetails"]["duration"])
+        if duration.total_seconds() < MIN_VIDEO_DURATION_SECONDS:
+            print("Video is shorter than the minimum duration. Skipping.")
+            set_last_processed_video_id(video_id)
+            continue  # Move to the next video
 
-    print(f"\n--- Processing Video ---")
-    print(f"ID: {video_id}")
-    print(f"Title: {title}")
-    print(f"Duration: {duration.total_seconds()}s")
-
-    if duration.total_seconds() < MIN_VIDEO_DURATION_SECONDS:
-        print("Video is shorter than the minimum duration. Skipping.")
-        set_last_processed_video_id(video_id)
-        # Since we are only processing one video, we can exit here.
-        sys.exit(0)
-
-    process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
-
-    if run_command(process_command, f"Processing video {video_id}"):
-        print(f"Successfully processed video {video_id}.")
+        # Found a video to process
+        print("--- Starting processing for this video ---")
+        process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
         
-        try:
-            print("Attempting to rename and upload files...")
-            upload_success = rename_and_upload_files(title, gdrive_parent_folder_id)
-            print("Finished rename and upload step.")
+        if run_command(process_command, f"Processing video {video_id}"):
+            print(f"Successfully processed video {video_id}.")
 
-            if upload_success:
-                print("Upload successful.")
-                set_last_processed_video_id(video_id)
-                print(f"Updated last processed video ID to: {video_id}")
-            else:
-                print("Upload failed. State file will not be updated.", file=sys.stderr)
+            try:
+                print("Attempting to rename and upload files...")
+                upload_success = rename_and_upload_files(title, gdrive_parent_folder_id)
+                print("Finished rename and upload step.")
+
+                if upload_success:
+                    print("Upload successful.")
+                    set_last_processed_video_id(video_id)
+                    print(f"Updated last processed video ID to: {video_id}")
+                else:
+                    print("Upload failed. State file will not be updated.", file=sys.stderr)
+                    # Even if upload fails, we stop after one attempt
+                    sys.exit(1)
+            except Exception as e:
+                print("--- AN UNEXPECTED ERROR OCCURRED DURING UPLOAD ---", file=sys.stderr)
+                print(f"An error of type {type(e).__name__} occurred: {e}", file=sys.stderr)
+                traceback.print_exc()
                 sys.exit(1)
-        except Exception as e:
-            print("--- AN UNEXPECTED ERROR OCCURRED DURING UPLOAD ---", file=sys.stderr)
-            print(f"An error of type {type(e).__name__} occurred: {e}", file=sys.stderr)
-            traceback.print_exc()
+        else:
+            print(f"Failed to process video {video_id}. Stopping.")
             sys.exit(1)
-    else:
-        print(f"Failed to process video {video_id}. Stopping.")
-        sys.exit(1)
+
+        # Mark that we've processed one video and exit the loop
+        processed_one_video = True
+        break
+
+    if not processed_one_video:
+        print("No new videos met the processing criteria in this run.")
 
 if __name__ == "__main__":
     main()
