@@ -21,26 +21,42 @@ MIN_VIDEO_DURATION_SECONDS = 360  # 6 minutes
 STATE_FILE = Path("last_video_id.txt")
 
 def run_command(command, description):
-    """Runs a command and prints its description."""
+    """Runs a command and prints its description, streaming output in real-time."""
     print(f"--- {description} ---")
     cmd_str = ' '.join(map(str, command))
     print(f"Executing: {cmd_str}")
+
     try:
-        result = subprocess.run(
+        # Use Popen to stream output in real-time
+        process = subprocess.Popen(
             command,
-            check=True,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, # Redirect stderr to stdout
             text=True,
             encoding='utf-8',
             errors='ignore'
         )
-        print(result.stdout)
-        print(f"--- Finished: {description} ---\n")
+
+        # Read and print output line by line
+        for line in iter(process.stdout.readline, ''):
+            print(line, end='')
+
+        process.stdout.close()
+        return_code = process.wait()
+
+        if return_code != 0:
+            # Create a CalledProcessError-like object for consistent error handling
+            raise subprocess.CalledProcessError(return_code, command)
+
+        print(f"\n--- Finished: {description} ---\n")
         return True
+
     except subprocess.CalledProcessError as e:
-        print(f"ERROR during '{description}':")
-        print(e.stdout)
-        print(e.stderr)
+        # Error message is now more generic as stdout/stderr is already printed
+        print(f"\nERROR during '{description}': Command returned non-zero exit status {e.returncode}.", file=sys.stderr)
+        return False
+    except FileNotFoundError:
+        print(f"\nERROR: Command not found for '{description}': {command[0]}", file=sys.stderr)
         return False
 
 def get_latest_videos(api_key, channel_id):

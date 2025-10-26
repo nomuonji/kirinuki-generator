@@ -6,35 +6,42 @@ import shutil
 from pathlib import Path
 
 def run_command(command, description, cwd=None):
-    """Runs a command and prints its description."""
+    """Runs a command, streaming its output in real-time."""
     print(f"--- {description} ---")
     cmd_str = ' '.join(map(str, command))
     print(f"Executing: {cmd_str}")
+
     try:
-        # Use subprocess.run for better control and error handling
-        result = subprocess.run(
+        # Use Popen to stream output in real-time
+        process = subprocess.Popen(
             command,
-            check=True,
-            cwd=cwd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, # Redirect stderr to stdout
             text=True,
             encoding='utf-8',
-            errors='ignore'
+            errors='ignore',
+            cwd=cwd
         )
-        # Print stdout only if there is content, to keep logs cleaner
-        if result.stdout:
-            print(result.stdout)
+
+        # Read and print output line by line
+        for line in iter(process.stdout.readline, ''):
+            print(line, end='')
+
+        process.stdout.close()
+        return_code = process.wait()
+
+        if return_code != 0:
+            raise subprocess.CalledProcessError(return_code, command)
+
+        print(f"\n--- Finished: {description} ---\n")
+
     except subprocess.CalledProcessError as e:
-        print(f"ERROR during '{description}':")
-        # Print stdout and stderr for better debugging
-        if e.stdout:
-            print("--- STDOUT ---")
-            print(e.stdout)
-        if e.stderr:
-            print("--- STDERR ---")
-            print(e.stderr)
+        print(f"\nERROR during '{description}': Command returned non-zero exit status {e.returncode}.", file=sys.stderr)
+        # Re-raise the exception to be caught by the main pipeline's error handler
         raise e
-    print(f"--- Finished: {description} ---\n")
+    except FileNotFoundError:
+        print(f"\nERROR: Command not found for '{description}': {command[0]}", file=sys.stderr)
+        raise
 
 def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_dir: Path):
     """
