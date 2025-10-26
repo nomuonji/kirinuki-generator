@@ -33,7 +33,7 @@ export const inputPropsSchema = z.object({
 export const RemotionRoot: React.FC = () => {
 	return (
 		<>
-			{/* <GoogleFont.Import name="Noto Sans JP" weight="900" /> */}
+			<GoogleFont.Import name="M PLUS Rounded 1c" weight="900" />
 			<Composition
 				id="VideoWithBands"
 				component={VideoWithBands}
