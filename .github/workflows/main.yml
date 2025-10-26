@@ -50,10 +50,11 @@ jobs:
     - name: Run YouTube Watcher and Processor
       env:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
         GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
         RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+        GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
       run: python youtube_watcher.py
 
     - name: Save last video ID to cache

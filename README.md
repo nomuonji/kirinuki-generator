@@ -194,3 +194,46 @@ python -m apps.cli.generate_clips `
   --soft-subs --subs-format srt
 ```
 
+---
+
+## Google Driveへの自動アップロード設定 (OAuth 2.0)
+
+このプロジェクトは、生成された動画を自動でGoogle Driveにアップロードする機能を持ちます。GitHub Actionsでこの機能を利用するには、以下の手順でOAuth 2.0認証を設定する必要があります。
+
+### 1. Google Cloud Consoleでの認証情報の発行
+
+1.  [Google Cloud Console](https://console.cloud.google.com/)にアクセスし、プロジェクトを選択または新規作成します。
+2.  ナビゲーションメニューから「APIとサービス」>「有効なAPIとサービス」を選択し、「+ APIとサービスの有効化」をクリックして、**Google Drive API** を検索して有効にします。
+3.  「APIとサービス」>「認証情報」に移動します。
+4.  「+ 認証情報を作成」をクリックし、「OAuthクライアントID」を選択します。
+5.  アプリケーションの種類で「**デスクトップアプリ**」を選択し、任意の名前を付けて「作成」をクリックします。
+6.  作成が完了すると、クライアントIDとクライアントシークレットが表示されます。「JSONをダウンロード」をクリックし、`client_secret.json` という名前でファイルを保存します。このファイルをプロジェクトのルートディレクトリに配置してください。
+
+### 2. リフレッシュトークンの取得
+
+次に、ローカル環境で認証を行い、アップロードに必要なリフレッシュトークンを取得します。
+
+1.  プロジェクトのルートディレクトリで、以下のコマンドを実行します。
+    ```bash
+    python authenticate_gdrive.py
+    ```
+2.  コマンドを実行すると、ターミナルに認証用のURLが表示されます。そのURLをブラウザで開き、Googleアカウントでログインしてアクセスを許可してください。
+3.  認証が成功すると、ブラウザがリダイレクトされ、ローカルサーバーがトークンを受け取ります。
+4.  ターミナルに「Authentication successful.」と表示されると、プロジェクトのルートディレクトリに `gdrive_token.json` というファイルが生成されます。このファイルにはリフレッシュトークンが含まれています。
+
+**重要:** `client_secret.json` と `gdrive_token.json` は、リポジトリにコミットしないように注意してください。`.gitignore` に追加することを推奨します。
+
+### 3. GitHub ActionsのSecrets設定
+
+最後に、取得した認証情報をGitHubリポジトリのSecretsに設定します。
+
+1.  GitHubリポジトリの「Settings」>「Secrets and variables」>「Actions」に移動します。
+2.  以下の2つのリポジトリシークレットを新規作成します。
+
+    -   **`GDRIVE_CLIENT_SECRET_JSON`**:
+        -   `client_secret.json` ファイルの中身全体をコピーして、このシークレットの値として貼り付けます。
+
+    -   **`GDRIVE_REFRESH_TOKEN`**:
+        -   `gdrive_token.json` ファイルを開き、`refresh_token` の値（例: `"1//..."`）のみをコピーして、このシークレットの値として貼り付けます。
+
+これで、GitHub Actionsが実行されるたびに、設定した認証情報を使ってGoogle Driveへのアップロードが自動で行われるようになります。
