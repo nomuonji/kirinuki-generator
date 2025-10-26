@@ -194,34 +194,47 @@ def rename_and_upload_files(video_title, parent_folder_id):
         return True
 
     print(f"Uploading {len(renamed_files)} file(s) to Google Drive folder ID: {parent_folder_id}")
+    # Threshold for switching to resumable uploads (5MB)
+    RESUMABLE_UPLOAD_THRESHOLD = 5 * 1024 * 1024
 
     for file_path in renamed_files:
-        print(f"Uploading {file_path.name}...")
+        print(f"\nProcessing upload for: {file_path.name}...")
         try:
+            file_size = file_path.stat().st_size
             file_metadata = {'name': file_path.name, 'parents': [parent_folder_id]}
-            media = MediaFileUpload(str(file_path), resumable=True)
 
-            request = drive_service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id'
-            )
+            # Use resumable upload for large files, simple upload for smaller files
+            if file_size > RESUMABLE_UPLOAD_THRESHOLD:
+                print(f"  File size ({file_size / 1024**2:.2f} MB) is large, using resumable upload.")
+                media = MediaFileUpload(str(file_path), resumable=True)
+                request = drive_service.files().create(
+                    body=file_metadata,
+                    media_body=media,
+                    fields='id'
+                )
 
-            response = None
-            while response is None:
-                status, response = request.next_chunk()
-                if status:
-                    print(f"  Uploaded {int(status.progress() * 100)}%")
+                response = None
+                while response is None:
+                    status, response = request.next_chunk()
+                    if status:
+                        print(f"  Uploaded {int(status.progress() * 100)}%")
+            else:
+                print(f"  File size ({file_size / 1024:.2f} KB) is small, using simple upload.")
+                media = MediaFileUpload(str(file_path))
+                drive_service.files().create(
+                    body=file_metadata,
+                    media_body=media,
+                    fields='id'
+                ).execute()
 
             print(f"Successfully uploaded {file_path.name}.")
 
         except HttpError as e:
             print(f"An HTTP error occurred during upload of {file_path.name}: {e}", file=sys.stderr)
-            # Decide if you want to stop or continue
-            # For now, we'll print the error and continue
         except Exception as e:
             print(f"An unexpected error occurred during upload of {file_path.name}: {e}", file=sys.stderr)
 
+    print("\n--- All file uploads attempted. Proceeding... ---")
     return True
 
 def main():
@@ -308,46 +321,55 @@ def main():
 
     print(f"Found {len(new_videos_to_process)} new video(s) to process.")
 
-    for video in new_videos_to_process:
-        video_id = video["id"]
-        title = video["snippet"]["title"]
-        duration = parse_duration(video["contentDetails"]["duration"])
+    # Only process the single oldest, new video in this run
+    if not new_videos_to_process:
+        print("No new videos to process.")
+        sys.exit(0)
 
-        print(f"\n--- Processing Video ---")
-        print(f"ID: {video_id}")
-        print(f"Title: {title}")
-        print(f"Duration: {duration.total_seconds()}s")
+    if len(new_videos_to_process) > 1:
+        print(f"Processing the oldest video first. {len(new_videos_to_process) - 1} other new videos will be processed in subsequent runs.")
 
-        if duration.total_seconds() < MIN_VIDEO_DURATION_SECONDS:
-            print("Video is shorter than the minimum duration. Skipping.")
-            set_last_processed_video_id(video_id)
-            continue
+    video_to_process = new_videos_to_process[0]
+    video_id = video_to_process["id"]
+    title = video_to_process["snippet"]["title"]
+    duration = parse_duration(video_to_process["contentDetails"]["duration"])
 
-        process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
+    print(f"\n--- Processing Video ---")
+    print(f"ID: {video_id}")
+    print(f"Title: {title}")
+    print(f"Duration: {duration.total_seconds()}s")
+
+    if duration.total_seconds() < MIN_VIDEO_DURATION_SECONDS:
+        print("Video is shorter than the minimum duration. Skipping.")
+        set_last_processed_video_id(video_id)
+        # Since we are only processing one video, we can exit here.
+        sys.exit(0)
+
+    process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
+
+    if run_command(process_command, f"Processing video {video_id}"):
+        print(f"Successfully processed video {video_id}.")
         
-        if run_command(process_command, f"Processing video {video_id}"):
-            print(f"Successfully processed video {video_id}.")
-            
-            try:
-                print("Attempting to rename and upload files...")
-                upload_success = rename_and_upload_files(title, gdrive_parent_folder_id)
-                print("Finished rename and upload step.")
+        try:
+            print("Attempting to rename and upload files...")
+            upload_success = rename_and_upload_files(title, gdrive_parent_folder_id)
+            print("Finished rename and upload step.")
 
-                if upload_success:
-                    print("Upload successful.")
-                    set_last_processed_video_id(video_id)
-                    print(f"Updated last processed video ID to: {video_id}")
-                else:
-                    print("Upload failed. State file will not be updated.", file=sys.stderr)
-                    sys.exit(1)
-            except Exception as e:
-                print("--- AN UNEXPECTED ERROR OCCURRED DURING UPLOAD ---", file=sys.stderr)
-                print(f"An error of type {type(e).__name__} occurred: {e}", file=sys.stderr)
-                traceback.print_exc()
+            if upload_success:
+                print("Upload successful.")
+                set_last_processed_video_id(video_id)
+                print(f"Updated last processed video ID to: {video_id}")
+            else:
+                print("Upload failed. State file will not be updated.", file=sys.stderr)
                 sys.exit(1)
-        else:
-            print(f"Failed to process video {video_id}. Stopping.")
+        except Exception as e:
+            print("--- AN UNEXPECTED ERROR OCCURRED DURING UPLOAD ---", file=sys.stderr)
+            print(f"An error of type {type(e).__name__} occurred: {e}", file=sys.stderr)
+            traceback.print_exc()
             sys.exit(1)
+    else:
+        print(f"Failed to process video {video_id}. Stopping.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
