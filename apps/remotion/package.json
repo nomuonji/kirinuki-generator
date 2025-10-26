@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@fontsource/m-plus-rounded-1c": "^5.2.9",
-    "@remotion/google-fonts": "^4.0.366",
+    "@remotion/google-fonts": "4.0.350",
     "@remotion/media-utils": "^4.0.350",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
