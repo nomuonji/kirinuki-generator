@@ -8,6 +8,7 @@
     "render": "remotion render VideoWithBands ../../out/final.mp4"
   },
   "dependencies": {
+    "@fontsource/m-plus-rounded-1c": "^5.2.9",
     "@remotion/media-utils": "^4.0.350",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

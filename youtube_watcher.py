@@ -189,28 +189,38 @@ def rename_and_upload_files(video_title, parent_folder_id):
     creds = get_gdrive_credentials()
     drive_service = build('drive', 'v3', credentials=creds)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_folder_name = f"{sanitized_title}_{timestamp}"
-
-    file_metadata = {
-        'name': run_folder_name,
-        'mimeType': 'application/vnd.google-apps.folder',
-        'parents': [parent_folder_id]
-    }
-    run_folder = drive_service.files().create(body=file_metadata, fields='id').execute()
-    run_folder_id = run_folder.get('id')
-    print(f"Created Google Drive folder: '{run_folder_name}' (ID: {run_folder_id})")
-
     if not renamed_files:
         print("No files found to upload.")
         return True
 
+    print(f"Uploading {len(renamed_files)} file(s) to Google Drive folder ID: {parent_folder_id}")
+
     for file_path in renamed_files:
         print(f"Uploading {file_path.name}...")
-        file_metadata = {'name': file_path.name, 'parents': [run_folder_id]}
-        media = MediaFileUpload(str(file_path))
-        drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        print(f"Successfully uploaded {file_path.name}.")
+        try:
+            file_metadata = {'name': file_path.name, 'parents': [parent_folder_id]}
+            media = MediaFileUpload(str(file_path), resumable=True)
+
+            request = drive_service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id'
+            )
+
+            response = None
+            while response is None:
+                status, response = request.next_chunk()
+                if status:
+                    print(f"  Uploaded {int(status.progress() * 100)}%")
+
+            print(f"Successfully uploaded {file_path.name}.")
+
+        except HttpError as e:
+            print(f"An HTTP error occurred during upload of {file_path.name}: {e}", file=sys.stderr)
+            # Decide if you want to stop or continue
+            # For now, we'll print the error and continue
+        except Exception as e:
+            print(f"An unexpected error occurred during upload of {file_path.name}: {e}", file=sys.stderr)
 
     return True
 
