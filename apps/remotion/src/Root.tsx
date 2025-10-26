@@ -1,6 +1,7 @@
+import {GoogleFont} from '@remotion/google-fonts';
 import '@fontsource/m-plus-rounded-1c/900.css';
 
-import {AbsoluteFill, Composition, GoogleFont} from 'remotion';
+import {AbsoluteFill, Composition} from 'remotion';
 import {VideoWithBands} from './VideoWithBands';
 import {z} from 'zod';
 
