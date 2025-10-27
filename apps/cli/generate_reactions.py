@@ -157,24 +157,116 @@ def _build_bulk_prompt(
     return textwrap.dedent(prompt).strip()
 
 
-def _call_gemini(model: str, prompt: str) -> dict[str, Any]:
-    model = genai.GenerativeModel(model)
+def _candidate_texts(response: Any) -> List[str]:
+    texts: List[str] = []
+
+    response_text = getattr(response, "text", None)
+    if response_text:
+        texts.append(str(response_text))
+
+    candidates = getattr(response, "candidates", None)
+    if not candidates:
+        return texts
+
+    for candidate in candidates:
+        if candidate is None:
+            continue
+
+        parts = []
+        content = getattr(candidate, "content", None)
+        if content is not None:
+            parts = getattr(content, "parts", None) or []
+        if not parts:
+            parts = getattr(candidate, "parts", None) or []
+
+        part_texts: List[str] = []
+        for part in parts:
+            if part is None:
+                continue
+            text_value = getattr(part, "text", None)
+            if text_value:
+                part_texts.append(str(text_value))
+                continue
+
+            inline_data = getattr(part, "inline_data", None)
+            if inline_data is not None:
+                data = getattr(inline_data, "data", None)
+                if isinstance(data, (bytes, bytearray)):
+                    part_texts.append(data.decode("utf-8", errors="ignore"))
+                    continue
+                if isinstance(data, str):
+                    part_texts.append(data)
+                    continue
+
+            json_value = getattr(part, "json", None)
+            if json_value:
+                part_texts.append(json.dumps(json_value, ensure_ascii=False))
+                continue
+
+            if hasattr(part, "to_dict"):
+                try:
+                    part_dict = part.to_dict()
+                except Exception:
+                    part_dict = None
+                if isinstance(part_dict, dict):
+                    if "text" in part_dict and part_dict["text"]:
+                        part_texts.append(str(part_dict["text"]))
+                        continue
+                    if "json" in part_dict and part_dict["json"]:
+                        part_texts.append(json.dumps(part_dict["json"], ensure_ascii=False))
+                        continue
+
+        if part_texts:
+            texts.append("".join(part_texts))
+            continue
+
+        if hasattr(candidate, "to_dict"):
+            try:
+                cand_dict = candidate.to_dict()
+            except Exception:
+                cand_dict = None
+            if cand_dict:
+                try:
+                    texts.append(json.dumps(cand_dict, ensure_ascii=False))
+                except TypeError:
+                    pass
+
+    return texts
+
+
+def _call_gemini(model_name: str, prompt: str, *, retries: int = 2) -> dict[str, Any]:
+    model = genai.GenerativeModel(model_name)
     generation_config = genai.types.GenerationConfig(
         response_mime_type="application/json",
         temperature=0.7,
     )
-    response = model.generate_content(
-        contents=[prompt],
-        generation_config=generation_config,
-    )
-    
-    if response.candidates:
-        text = response.candidates[0].content.parts[0].text
-        if text:
+
+    attempts: List[str] = []
+    for attempt in range(retries + 1):
+        prompt_variant = prompt
+        if attempt > 0:
+            prompt_variant = prompt + "\n\nREMINDER: Respond with JSON only. No prose."
+
+        try:
+            response = model.generate_content(
+                contents=[prompt_variant],
+                generation_config=generation_config,
+            )
+        except Exception as exc:
+            attempts.append(f"generation_error:{exc}")
+            continue
+
+        for text in _candidate_texts(response):
             parsed = _extract_json(text)
             if parsed is not None:
                 return parsed
-    raise RuntimeError("Gemini API did not return valid JSON content")
+
+        texts = _candidate_texts(response)
+        snippet = (texts[0][:400] + "...") if texts else "<no text>"
+        attempts.append(f"unparsed:{snippet}")
+
+    details = "; ".join(attempts) or "no_attempts"
+    raise RuntimeError(f"Gemini API did not return valid JSON content ({details})")
 
 def _extract_json(value: str) -> dict[str, Any] | None:
     try:
@@ -206,7 +298,8 @@ def _sanitize_reaction_entries(
     segments: List[dict[str, Any]] | None = None,
 ) -> List[dict[str, Any]]:
     if not isinstance(raw_entries, list):
-        raise ValueError("Response JSON must include a 'reactions' list")
+        print("  -> Warning: Missing or invalid 'reactions' list; falling back to empty list.", file=sys.stderr)
+        return []
 
     cleaned: List[dict[str, Any]] = []
     last_end = 0.0
@@ -298,7 +391,8 @@ def _sanitize_bulk_reactions(
 ) -> Dict[str, List[dict[str, Any]]]:
     clips = payload.get("clips")
     if not isinstance(clips, list):
-        raise ValueError("Bulk response must include a 'clips' array")
+        print("Warning: Gemini response missing 'clips' array; treating as no reactions.", file=sys.stderr)
+        clips = []
 
     sanitized: Dict[str, List[dict[str, Any]]] = {}
     for clip in clips:
