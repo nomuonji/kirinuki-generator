@@ -117,12 +117,42 @@ def get_last_processed_video_id():
 def set_last_processed_video_id(video_id):
     STATE_FILE.write_text(video_id)
 
-def sanitize_filename(name):
-    """Remove invalid characters from a string to make it a valid filename."""
-    # Remove invalid chars
-    name = re.sub(r'[<>:"/\\|?*]', '', name)
-    # Limit length
-    return name[:100].strip()
+def sanitize_filename(name: str) -> str:
+    """Remove invalid characters and collapse whitespace for a safe base filename."""
+    if not isinstance(name, str):
+        name = str(name or "")
+    # Replace unsupported characters, collapse whitespace
+    sanitized = re.sub(r'[<>:"/\\|?*]', "", name)
+    sanitized = re.sub(r"[\r\n\t]+", " ", sanitized)
+    sanitized = re.sub(r"\s+", " ", sanitized).strip()
+    return sanitized or "clip"
+
+
+def build_safe_filename(base: str, suffix: str, max_bytes: int = 240) -> str:
+    """
+    Combine base and suffix ensuring the resulting filename stays under the byte limit.
+    ext4 / NTFS allow 255 bytes per filename; keep a buffer for safety.
+    """
+    base = base.strip() or "clip"
+    suffix = suffix.strip()
+    candidate = f"{base}{suffix}"
+    if len(candidate.encode("utf-8")) <= max_bytes:
+        return candidate
+
+    # Trim the base until the encoded byte length fits within max_bytes.
+    encoded_suffix = suffix.encode("utf-8")
+    budget = max_bytes - len(encoded_suffix)
+    truncated = []
+    consumed = 0
+    for ch in base:
+        ch_bytes = ch.encode("utf-8")
+        if consumed + len(ch_bytes) > budget:
+            break
+        truncated.append(ch)
+        consumed += len(ch_bytes)
+
+    safe_base = "".join(truncated).rstrip() or "clip"
+    return f"{safe_base}{suffix}"
 
 def get_gdrive_credentials():
     """Gets Google Drive credentials from token file, refreshing if necessary."""
@@ -156,7 +186,7 @@ def get_gdrive_credentials():
 def rename_and_upload_files(video_title, parent_folder_id):
     """Renames output files with the video title and uploads them to Google Drive."""
     print("--- Renaming and Uploading to Google Drive ---")
-    sanitized_title = sanitize_filename(video_title)
+    base_title = sanitize_filename(video_title)
     rendered_dir = Path("rendered")
     props_dir = Path("apps/remotion/public/props")
     
@@ -167,7 +197,8 @@ def rename_and_upload_files(video_title, parent_folder_id):
         prop_files = sorted(list(props_dir.glob('*.json')))
 
         for i, file_path in enumerate(video_files):
-            new_name = f"{sanitized_title}_clip_{i+1:02d}.mp4"
+            suffix = f"_clip_{i+1:02d}.mp4"
+            new_name = build_safe_filename(base_title, suffix)
             new_path = file_path.with_name(new_name)
             file_path.rename(new_path)
             renamed_files.append(new_path)
@@ -175,7 +206,8 @@ def rename_and_upload_files(video_title, parent_folder_id):
 
         for i, file_path in enumerate(prop_files):
             if file_path.name.startswith('clip_'):
-                new_name = f"{sanitized_title}_clip_{i+1:02d}.json"
+                suffix = f"_clip_{i+1:02d}.json"
+                new_name = build_safe_filename(base_title, suffix)
                 new_path = file_path.with_name(new_name)
                 file_path.rename(new_path)
                 renamed_files.append(new_path)
