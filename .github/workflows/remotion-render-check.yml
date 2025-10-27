@@ -1,0 +1,39 @@
+name: Remotion Render Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  remotion-render:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: apps/remotion/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: apps/remotion
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Prepare sample assets
+        working-directory: apps/remotion
+        run: |
+          mkdir -p public/out_clips rendered
+          ffmpeg -f lavfi -i "color=c0ffee:s=1080x1920:r=30" -t 2 -pix_fmt yuv420p -c:v libx264 public/out_clips/workflow-sample.mp4
+
+      - name: Run Remotion render
+        working-directory: apps/remotion
+        run: |
+          npx remotion render src/index.tsx VideoWithBands rendered/workflow-check.mp4 --props public/props/workflow-sample.json --concurrency=1
