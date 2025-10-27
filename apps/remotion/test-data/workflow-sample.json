@@ -1,0 +1,10 @@
+{
+  "videoFileName": "out_clips/workflow-sample.mp4",
+  "topText": "Workflow Check",
+  "bottomText": "Rendering Sample",
+  "topRichText": "Workflow **Check**",
+  "bottomRichText": "Rendering **Sample**",
+  "durationInFrames": 120,
+  "reactionTimeline": [],
+  "subtitleTimeline": []
+}

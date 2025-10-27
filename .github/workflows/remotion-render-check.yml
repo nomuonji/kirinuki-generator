@@ -36,4 +36,4 @@ jobs:
       - name: Run Remotion render
         working-directory: apps/remotion
         run: |
-          npx remotion render src/index.tsx VideoWithBands rendered/workflow-check.mp4 --props public/props/workflow-sample.json --concurrency=1
+          npx remotion render src/index.tsx VideoWithBands rendered/workflow-check.mp4 --props test-data/workflow-sample.json --concurrency=1
