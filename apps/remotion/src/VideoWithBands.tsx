@@ -36,7 +36,7 @@ const animationStyles = `
 `;
 
 const textBase: React.CSSProperties = {
-  fontFamily: "'Rounded Mplus 1c', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif",
+  fontFamily: "'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif",
   color: "#31124E",
   fontWeight: "900",
   textAlign: "center",
