@@ -68,6 +68,22 @@ def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_di
         relative_output_path = os.path.relpath(absolute_output_file, remotion_app_dir)
         relative_props_path = os.path.relpath(prop_file.resolve(), remotion_app_dir)
 
+        # --- Pre-render diagnostics ---
+        print(f"  - CWD for render: {remotion_app_dir}")
+        print(f"  - Relative props path: {relative_props_path}")
+
+        # Add commands to check file existence and content within the CWD
+        diag_cmd_ls = ["ls", "-l", str(Path(relative_props_path).parent)]
+        diag_cmd_cat = ["cat", str(relative_props_path)]
+
+        try:
+            run_command(diag_cmd_ls, f"Checking contents of props directory", cwd=remotion_app_dir)
+            run_command(diag_cmd_cat, f"Displaying contents of {prop_file.name}", cwd=remotion_app_dir)
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            print(f"\n[ERROR] Diagnostic check failed for {prop_file.name}. Props file may be missing or path is incorrect.", file=sys.stderr)
+            raise e
+        # --- End diagnostics ---
+
         cmd = [
             "npx",
             "remotion",
@@ -140,12 +156,11 @@ def main():
     remotion_temp_dir = Path("remotion_tmp")
     
     final_output_dir = Path("rendered")
-    final_output_dir.mkdir(exist_ok=True) # Ensure it exists before rendering
 
     # --- 2. Pre-run Cleanup --- 
     print("--- Starting pre-run cleanup --- ")
-    # Extended cleanup to include the new top-level remotion_tmp
-    paths_to_clean = [tmp_dir, clips_dir, props_dir, re_encoded_dir, remotion_temp_dir, final_output_dir]
+    # Now cleans up the entire public directory to prevent stale data issues
+    paths_to_clean = [tmp_dir, remotion_public_dir, remotion_temp_dir, final_output_dir]
     for path in paths_to_clean:
         if path.exists():
             if path.is_dir():
