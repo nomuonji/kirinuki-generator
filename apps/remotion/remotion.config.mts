@@ -24,4 +24,5 @@ Config.setChromiumOpenGlRenderer?.('swangle');
 Config.setVideoImageFormat('jpeg');
 Config.setCodec('h264');
 Config.setPixelFormat('yuv420p');
-Config.setDelayRenderTimeoutInMilliseconds(120000);
+Config.setDelayRenderTimeoutInMilliseconds(180000);
+Config.setRenderTimeoutInMilliseconds(180000);
