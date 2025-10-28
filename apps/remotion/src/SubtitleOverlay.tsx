@@ -14,7 +14,7 @@ type SubtitleOverlayProps = {
 
 // テキストスタイル
 const subtitleStyle: React.CSSProperties = {
-  fontFamily: "'Rounded Mplus 1c', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif",
+  fontFamily: "'M PLUS Rounded 1c', 'Rounded Mplus 1c', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif",
   fontWeight: 900,
   fontSize: '42px',
   color: 'white',

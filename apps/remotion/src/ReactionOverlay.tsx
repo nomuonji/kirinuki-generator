@@ -240,7 +240,7 @@ export const ReactionOverlay: React.FC<ReactionOverlayProps> = ({bottomOffset, t
             padding: "22px 28px",
             boxShadow: "0 18px 36px rgba(0,0,0,0.28)",
             color: "#1A1A1A",
-            fontFamily: '"Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif',
+            fontFamily: '"M PLUS Rounded 1c", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif',
             fontWeight: 600,
             fontSize: 32,
             lineHeight: 1.2,

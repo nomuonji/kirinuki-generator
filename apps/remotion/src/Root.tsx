@@ -1,4 +1,5 @@
 import '@fontsource/m-plus-rounded-1c/japanese-900.css';
+import '@fontsource/m-plus-rounded-1c/japanese-600.css';
 
 import {AbsoluteFill, Composition} from 'remotion';
 import {VideoWithBands} from './VideoWithBands';
