@@ -68,17 +68,16 @@ def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_di
         relative_output_path = os.path.relpath(absolute_output_file, remotion_app_dir)
         relative_props_path = os.path.relpath(prop_file.resolve(), remotion_app_dir)
 
-        # Construct the direct path to the Remotion executable to avoid npx path issues
-        remotion_executable = remotion_app_dir.resolve() / "node_modules" / ".bin" / "remotion"
-
         cmd = [
-            str(remotion_executable),
+            "npx",
+            "remotion",
             "render",
             "src/index.tsx",
             "VideoWithBands",
             relative_output_path,
             "--props",
             relative_props_path,
+            "--concurrency=2",
         ]
 
         try:

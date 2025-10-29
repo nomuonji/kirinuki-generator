@@ -1,12 +1,12 @@
-name: Remotion Render Check
+name: Manual Remotion Render Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  remotion-render:
+  render-test:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -14,26 +14,30 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: npm
-          cache-dependency-path: apps/remotion/package-lock.json
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            apps/remotion/package-lock.json
 
-      - name: Install dependencies
+      - name: Install root Node.js dependencies
         run: npm ci
+
+      - name: Install Remotion app dependencies
         working-directory: apps/remotion
+        run: npm ci
 
-      - name: Install ffmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+      - name: Set Remotion environment variables
+        run: echo "REMOTION_CHROMIUM_PORTABLE_DOWNLOAD=1" >> $GITHUB_ENV
 
-      - name: Prepare sample assets
-        working-directory: apps/remotion
-        run: |
-          mkdir -p public/out_clips rendered
-          ffmpeg -f lavfi -i "color=c0ffee:s=1080x1920:r=30" -t 2 -pix_fmt yuv420p -c:v libx264 public/out_clips/workflow-sample.mp4
-
-      - name: Run Remotion render
+      - name: Render sample video for testing
         working-directory: apps/remotion
         run: |
-          npx remotion render src/index.tsx VideoWithBands rendered/workflow-check.mp4 --props test-data/workflow-sample.json --concurrency=1
+          npx remotion render src/index.tsx VideoWithBands ../../rendered/sample.mp4 --props public/props/sample.json --concurrency=2
+
+      - name: Upload rendered video as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-test-render-result
+          path: rendered/sample.mp4
