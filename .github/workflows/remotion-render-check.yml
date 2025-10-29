@@ -33,7 +33,7 @@ jobs:
       - name: Render sample video for testing
         working-directory: apps/remotion
         run: |
-          npx remotion render src/index.tsx VideoWithBands ../../rendered/sample.mp4 --props public/props/sample.json --concurrency=2
+          npx remotion render src/index.tsx VideoWithBands ../../rendered/sample.mp4 --props "$(pwd)/public/props/sample.json" --concurrency=2
 
       - name: Upload rendered video as artifact
         if: always()
