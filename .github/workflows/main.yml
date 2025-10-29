@@ -39,7 +39,7 @@ jobs:
         pip install -r requirements.txt
 
     - name: Install Node.js dependencies for Remotion
-      run: npm install --no-workspaces
+      run: npm install
       working-directory: ./apps/remotion
 
     - name: Create cookie file from secret
