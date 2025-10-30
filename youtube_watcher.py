@@ -186,7 +186,7 @@ def get_gdrive_credentials():
 def rename_and_upload_files(video_title, parent_folder_id):
     """Renames output files with the video title and uploads them to Google Drive."""
     print("--- Renaming and Uploading to Google Drive ---")
-    base_title = sanitize_filename(video_title)
+    base_title = sanitize_filename(video_title[:10])
     rendered_dir = Path("rendered")
     props_dir = Path("apps/remotion/public/props")
     
