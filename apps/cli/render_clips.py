@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import pathlib
 import re
 import ffmpeg
@@ -126,6 +127,18 @@ def main():
     re_encoded_dir = remotion_public_dir / "re_encoded_clips"
     props_dir.mkdir(exist_ok=True)
     re_encoded_dir.mkdir(exist_ok=True)
+
+    source_title = os.environ.get("SOURCE_VIDEO_TITLE", "").strip()
+    if not source_title:
+        for candidate_name in ("video_title.txt", "source_title.txt"):
+            candidate_path = input_dir / candidate_name
+            if candidate_path.exists():
+                try:
+                    source_title = candidate_path.read_text(encoding="utf-8").strip()
+                except OSError as exc:
+                    print(f"  -> Warning: Could not read {candidate_name}: {exc}")
+                if source_title:
+                    break
 
     clip_files = sorted(input_dir.glob("clip_*.mp4"))
     if not clip_files:
@@ -311,6 +324,7 @@ def main():
             "durationInFrames": duration_frames,
             "reactionTimeline": reaction_timeline,
             "subtitleTimeline": subtitle_timeline,
+            "sourceVideoTitle": source_title,
         }
 
         props_json_path = props_dir / f"{clip_path.stem}.json"

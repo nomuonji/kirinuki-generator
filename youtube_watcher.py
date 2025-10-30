@@ -377,6 +377,7 @@ def main():
 
         # Found a video to process
         print("--- Starting processing for this video ---")
+        os.environ["SOURCE_VIDEO_TITLE"] = title
         process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
         
         if run_command(process_command, f"Processing video {video_id}"):

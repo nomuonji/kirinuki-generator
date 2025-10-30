@@ -24,6 +24,7 @@ export const inputPropsSchema = z.object({
 	bottomText: z.string(),
 	topRichText: z.string().optional(),
 	bottomRichText: z.string().optional(),
+	sourceVideoTitle: z.string().optional(),
 	// The duration is now passed as a prop
 	durationInFrames: z.number().positive(),
 	reactionTimeline: z.array(reactionTimelineSchema).optional(),
@@ -48,6 +49,7 @@ export const RemotionRoot: React.FC = () => {
 					bottomText: 'Default Bottom Text',
 					topRichText: undefined,
 					bottomRichText: undefined,
+					sourceVideoTitle: 'Sample Video Title',
 					durationInFrames: 1200, // Default to 40 seconds
 					reactionTimeline: [],
 				}}

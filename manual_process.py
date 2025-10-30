@@ -94,6 +94,8 @@ def main():
     if not video_title:
         sys.exit(1)
 
+    os.environ["SOURCE_VIDEO_TITLE"] = video_title
+
     # --- Process Video ---
     process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
     if not run_command(process_command, f"Processing video {video_id}"):

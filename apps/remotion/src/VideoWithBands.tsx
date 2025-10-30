@@ -11,6 +11,7 @@ type VideoWithBandsProps = {
   bottomText: string;
   topRichText?: string;
   bottomRichText?: string;
+  sourceVideoTitle?: string;
   /** e.g. 16/9, 4/3. Defaults to 16/9 when omitted. */
   sourceAspect?: number;
   reactionTimeline?: ReactionTimelineEntry[];
@@ -221,6 +222,7 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
   bottomText,
   topRichText,
   bottomRichText,
+  sourceVideoTitle,
   sourceAspect = 16 / 9,
   reactionTimeline = [],
   subtitleTimeline = [],
@@ -229,6 +231,34 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
 
   const videoHeight = W / sourceAspect;
   const bandH = Math.max(0, Math.round((H - videoHeight) / 2));
+
+  const sourceTitle = (sourceVideoTitle ?? "").trim();
+  const baseSourceFont = bandH > 0 ? Math.round(bandH * 0.32) : Math.round(H * 0.018);
+  const sourceTitleFont = Math.max(26, Math.min(42, baseSourceFont || 0));
+  const sourceTitleContainerStyle: React.CSSProperties = {
+    position: "absolute",
+    top: Math.max(18, Math.round(bandH * 0.2)),
+    left: 24,
+    maxWidth: "68%",
+    background: "rgba(24, 18, 48, 0.55)",
+    borderRadius: 18,
+    padding: "10px 20px",
+    pointerEvents: "none",
+    zIndex: 4,
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
+  };
+  const sourceTitleTextStyle: React.CSSProperties = {
+    fontFamily: textBase.fontFamily,
+    fontWeight: 700,
+    fontSize: `${sourceTitleFont}px`,
+    color: "#FFFFFF",
+    letterSpacing: 0.4,
+    lineHeight: 1.18,
+    textShadow: "0 4px 12px rgba(0,0,0,0.65)",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+  };
 
   const topFont = `clamp(28px, ${Math.round(bandH * 0.64)}px, 74px)`;
   const bottomFont = topFont;
@@ -292,6 +322,11 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
       <style>{animationStyles}</style>
       <AnimatedBackground />
       <AbsoluteFill style={{zIndex: 1}}>
+        {sourceTitle ? (
+          <div style={sourceTitleContainerStyle}>
+            <div style={sourceTitleTextStyle}>{sourceTitle}</div>
+          </div>
+        ) : null}
         {/* Top overlay aligned with the top band */}
         <div
           style={{
