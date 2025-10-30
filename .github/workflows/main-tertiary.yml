@@ -1,9 +1,16 @@
-name: Automatic Kirinuki Generator
+name: Tertiary Kirinuki Generator
 
 on:
-  workflow_dispatch: # Allows manual triggering
-  schedule:
-    - cron: '0 5 * * *' # Runs every day at 5 AM UTC
+  workflow_dispatch:
+    inputs:
+      youtube_channel_id:
+        description: 'YouTube Channel ID'
+        required: true
+        default: 'UC0yQ2h4gQXmVUFWZSqlMVOA'
+      gdrive_folder_id:
+        description: 'Google Drive Folder ID'
+        required: true
+        default: '12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4'
 
 jobs:
   build-and-upload:
@@ -17,18 +24,18 @@ jobs:
       uses: actions/cache@v3
       id: cache-video-id
       with:
-        path: last_video_id.txt
-        key: ${{ runner.os }}-last-video-id
+        path: last_video_id_${{ github.event.inputs.youtube_channel_id }}.txt
+        key: ${{ runner.os }}-last-video-id-${{ github.event.inputs.youtube_channel_id }}
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11' # Or the version you use
+        python-version: '3.11'
 
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '18' # Or the version required by Remotion
+        node-version: '18'
 
     - name: Install ffmpeg
       run: sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -50,8 +57,9 @@ jobs:
     - name: Run YouTube Watcher and Processor
       env:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
-        YOUTUBE_CHANNEL_ID: "UCzXVsEc1h2Elljge0fnQYRg"
+        YOUTUBE_CHANNEL_ID: ${{ github.event.inputs.youtube_channel_id }}
+        GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id }}
+        STATE_FILE_PATH: last_video_id_${{ github.event.inputs.youtube_channel_id }}.txt
         RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
@@ -62,5 +70,5 @@ jobs:
       uses: actions/cache/save@v3
       if: always()
       with:
-        path: last_video_id.txt
-        key: ${{ runner.os }}-last-video-id
+        path: last_video_id_${{ github.event.inputs.youtube_channel_id }}.txt
+        key: ${{ runner.os }}-last-video-id-${{ github.event.inputs.youtube_channel_id }}

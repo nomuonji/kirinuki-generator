@@ -1,34 +1,32 @@
-name: Automatic Kirinuki Generator
+name: Manual Kirinuki Generator
 
 on:
-  workflow_dispatch: # Allows manual triggering
-  schedule:
-    - cron: '0 5 * * *' # Runs every day at 5 AM UTC
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: 'YouTube Video ID to process'
+        required: true
+      gdrive_folder_id:
+        description: 'Google Drive Folder ID for upload'
+        required: true
 
 jobs:
-  build-and-upload:
+  manual-build-and-upload:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Cache last video ID
-      uses: actions/cache@v3
-      id: cache-video-id
-      with:
-        path: last_video_id.txt
-        key: ${{ runner.os }}-last-video-id
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11' # Or the version you use
+        python-version: '3.11'
 
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '18' # Or the version required by Remotion
+        node-version: '18'
 
     - name: Install ffmpeg
       run: sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -47,20 +45,11 @@ jobs:
         YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
       run: echo "$YT_COOKIES_TXT" > cookies.txt
 
-    - name: Run YouTube Watcher and Processor
+    - name: Run Manual Processor
       env:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
-        YOUTUBE_CHANNEL_ID: "UCzXVsEc1h2Elljge0fnQYRg"
-        RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
         GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-      run: python youtube_watcher.py
-
-    - name: Save last video ID to cache
-      uses: actions/cache/save@v3
-      if: always()
-      with:
-        path: last_video_id.txt
-        key: ${{ runner.os }}-last-video-id
+        RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: python manual_process.py ${{ github.event.inputs.video_id }} ${{ github.event.inputs.gdrive_folder_id }}

@@ -16,9 +16,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaFileUpload
 
 # --- Configuration ---
-YOUTUBE_CHANNEL_ID = "UCzXVsEc1h2Elljge0fnQYRg"
 MIN_VIDEO_DURATION_SECONDS = 360  # 6 minutes
-STATE_FILE = Path("last_video_id.txt")
 
 def run_command(command, description):
     """Runs a command and prints its description, streaming output in real-time."""
@@ -109,13 +107,15 @@ def parse_duration(duration_str):
             number_buffer = ""
     return timedelta(seconds=total_seconds)
 
-def get_last_processed_video_id():
-    if STATE_FILE.exists():
-        return STATE_FILE.read_text().strip()
+def get_last_processed_video_id(state_file):
+    state_file = Path(state_file)
+    if state_file.exists():
+        return state_file.read_text().strip()
     return None
 
-def set_last_processed_video_id(video_id):
-    STATE_FILE.write_text(video_id)
+def set_last_processed_video_id(video_id, state_file):
+    state_file = Path(state_file)
+    state_file.write_text(video_id)
 
 def sanitize_filename(name: str) -> str:
     """Remove invalid characters and collapse whitespace for a safe base filename."""
@@ -273,6 +273,9 @@ def main():
     """Main function to check for videos and process them."""
     load_dotenv()
 
+    state_file_path = os.environ.get("STATE_FILE_PATH", "last_video_id.txt")
+    state_file = Path(state_file_path)
+
     required_vars = {
         "YOUTUBE_API_KEY": os.environ.get("YOUTUBE_API_KEY"),
         "GDRIVE_PARENT_FOLDER_ID": os.environ.get("GDRIVE_PARENT_FOLDER_ID"),
@@ -280,6 +283,7 @@ def main():
         "GEMINI_API_KEY": os.environ.get("GEMINI_API_KEY"),
         "GDRIVE_CLIENT_SECRET_JSON": os.environ.get("GDRIVE_CLIENT_SECRET_JSON"),
         "GDRIVE_REFRESH_TOKEN": os.environ.get("GDRIVE_REFRESH_TOKEN"),
+        "YOUTUBE_CHANNEL_ID": os.environ.get("YOUTUBE_CHANNEL_ID"),
     }
 
     missing_vars = [name for name, value in required_vars.items() if not value]
@@ -291,6 +295,7 @@ def main():
     gdrive_parent_folder_id = required_vars["GDRIVE_PARENT_FOLDER_ID"]
     gdrive_client_secret_json = required_vars["GDRIVE_CLIENT_SECRET_JSON"]
     gdrive_refresh_token = required_vars["GDRIVE_REFRESH_TOKEN"]
+    youtube_channel_id = required_vars["YOUTUBE_CHANNEL_ID"]
 
     # --- Create credential files from environment variables ---
     try:
@@ -323,10 +328,10 @@ def main():
         print(f"ERROR: Failed to parse Google Drive credentials from environment variables: {e}", file=sys.stderr)
         sys.exit(1)
 
-    last_processed_id = get_last_processed_video_id()
+    last_processed_id = get_last_processed_video_id(state_file)
     print(f"Last processed video ID: {last_processed_id}")
 
-    videos = get_latest_videos(youtube_api_key, YOUTUBE_CHANNEL_ID)
+    videos = get_latest_videos(youtube_api_key, youtube_channel_id)
     
     if not videos:
         print("No videos found or API error.")
@@ -367,7 +372,7 @@ def main():
 
         if duration.total_seconds() < MIN_VIDEO_DURATION_SECONDS:
             print("Video is shorter than the minimum duration. Skipping.")
-            set_last_processed_video_id(video_id)
+            set_last_processed_video_id(video_id, state_file)
             continue  # Move to the next video
 
         # Found a video to process
@@ -384,7 +389,7 @@ def main():
 
                 if upload_success:
                     print("Upload successful.")
-                    set_last_processed_video_id(video_id)
+                    set_last_processed_video_id(video_id, state_file)
                     print(f"Updated last processed video ID to: {video_id}")
                 else:
                     print("Upload failed. State file will not be updated.", file=sys.stderr)

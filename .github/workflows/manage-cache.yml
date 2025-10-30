@@ -1,0 +1,78 @@
+name: Manage Workflow Cache
+
+on:
+  workflow_dispatch:
+    description: |
+      ### How to use this workflow
+      This workflow allows you to view and update the cache for the video processing workflows.
+      The cache stores the ID of the last video that was processed.
+      
+      1. **Choose the state file** for the workflow you want to manage.
+      2. To **view** the current ID, leave `new_video_id` empty and run the workflow.
+      3. To **update** the ID, enter a new YouTube Video ID in `new_video_id` and run.
+    inputs:
+      state_file_name:
+        description: |-
+          The state file of the target workflow.
+          - For the main workflow: `last_video_id.txt`
+          - For a secondary workflow, the format is `last_video_id_YOUTUBECHANNELID.txt`
+        required: true
+        default: 'last_video_id.txt'
+      new_video_id:
+        description: '(Optional) The new YouTube Video ID to set. Leave empty to just view the current ID.'
+        required: false
+
+jobs:
+  manage-cache:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Determine Cache Key Suffix
+      id: get_suffix
+      run: |
+        FILENAME="${{ github.event.inputs.state_file_name }}"
+        if [ "$FILENAME" == "last_video_id.txt" ]; then
+          SUFFIX=""
+        else
+          # Remove "last_video_id_" prefix
+          SUFFIX=${FILENAME#last_video_id_}
+          # Remove ".txt" suffix
+          SUFFIX=${SUFFIX%.txt}
+        fi
+        echo "CACHE_KEY_SUFFIX=$SUFFIX" >> $GITHUB_ENV
+        echo "Determined suffix: '$SUFFIX'"
+
+    - name: Restore cache
+      uses: actions/cache@v3
+      id: cache-video-id-restore
+      with:
+        path: ${{ github.event.inputs.state_file_name }}
+        key: ${{ runner.os }}-last-video-id-${{ env.CACHE_KEY_SUFFIX }}
+        restore-keys: |
+          ${{ runner.os }}-last-video-id-${{ env.CACHE_KEY_SUFFIX }}
+
+    - name: Display current video ID
+      id: display-id
+      run: |
+        if [ -f "${{ github.event.inputs.state_file_name }}" ]; then
+          echo "Current last processed video ID is: $(cat ${{ github.event.inputs.state_file_name }})"
+        else
+          echo "No cache found or state file is empty."
+        fi
+
+    - name: Update video ID if provided
+      if: "github.event.inputs.new_video_id != ''"
+      run: |
+        echo "Updating last processed video ID to: ${{ github.event.inputs.new_video_id }}"
+        echo "${{ github.event.inputs.new_video_id }}" > ${{ github.event.inputs.state_file_name }}
+      shell: bash
+
+    - name: Save updated cache
+      uses: actions/cache/save@v3
+      if: "always()"
+      with:
+        path: ${{ github.event.inputs.state_file_name }}
+        key: ${{ runner.os }}-last-video-id-${{ env.CACHE_KEY_SUFFIX }}
