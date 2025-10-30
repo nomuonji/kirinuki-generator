@@ -131,7 +131,7 @@ Output JSON only."""
                 "response_schema": clip_schema,
                 "temperature": 0.2
             },
-            request_options={"timeout": 300},
+            request_options={"timeout": 600},
         )
         parsed = _safe_parsed(resp, expect_array=True)
         for d in parsed:
