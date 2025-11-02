@@ -15,6 +15,9 @@ on:
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
+    env:
+      PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
+      REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
 
     steps:
     - name: Checkout repository
@@ -36,6 +39,25 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: apps/remotion/package-lock.json
+
+    - name: Prepare browser cache directories
+      run: |
+        mkdir -p ~/.cache/puppeteer
+        mkdir -p ~/.cache/remotion
+        mkdir -p ~/.remotion
+      shell: bash
+
+    - name: Cache Remotion browser artifacts
+      uses: actions/cache@v3
+      id: remotion-browser-cache
+      with:
+        path: |
+          ~/.cache/puppeteer
+          ~/.cache/remotion
+          ~/.remotion
+        key: ${{ runner.os }}-remotion-browser-${{ hashFiles('apps/remotion/package-lock.json') }}
 
     - name: Install ffmpeg
       run: sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -47,6 +69,10 @@ jobs:
 
     - name: Install Node.js dependencies for Remotion
       run: npm install
+      working-directory: ./apps/remotion
+
+    - name: Ensure Remotion browser is available
+      run: npx remotion browser ensure --log=warn || npx remotion browser ensure
       working-directory: ./apps/remotion
 
     - name: Create cookie file from secret

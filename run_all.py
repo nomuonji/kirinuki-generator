@@ -57,6 +57,28 @@ def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_di
 
     final_output_dir.mkdir(exist_ok=True)
 
+    # Bundle the Remotion project once so every clip can reuse the same serve URL.
+    bundle_dir = remotion_app_dir / "build"
+    if bundle_dir.exists():
+        print(f"Removing existing Remotion bundle at {bundle_dir}")
+        shutil.rmtree(bundle_dir)
+
+    bundle_cmd = [
+        "npx",
+        "remotion",
+        "bundle",
+        "src/index.tsx",
+        "--public-dir",
+        "public",
+        "--overwrite",
+    ]
+    run_command(bundle_cmd, "Bundling Remotion project", cwd=remotion_app_dir)
+
+    if not bundle_dir.exists():
+        raise RuntimeError(f"Remotion bundle not found after bundling step: {bundle_dir}")
+
+    serve_url = os.path.relpath(bundle_dir.resolve(), remotion_app_dir.resolve())
+
     for prop_file in prop_files:
         base_name = prop_file.stem
         # Ensure the final output path is absolute before making it relative
@@ -72,7 +94,8 @@ def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_di
             "npx",
             "remotion",
             "render",
-            "src/index.tsx",
+            "--serve-url",
+            serve_url,
             "VideoWithBands",
             relative_output_path,
             "--props",
@@ -135,6 +158,7 @@ def main():
     clips_dir = remotion_public_dir / "out_clips"
     props_dir = remotion_public_dir / "props"
     re_encoded_dir = remotion_public_dir / "re_encoded_clips" # Legacy, but cleaned up
+    remotion_bundle_dir = remotion_app_dir / "build"
 
     # This is the new global temp dir for Remotion, outside the app folder
     remotion_temp_dir = Path("remotion_tmp")
@@ -145,7 +169,15 @@ def main():
     # --- 2. Pre-run Cleanup --- 
     print("--- Starting pre-run cleanup --- ")
     # Extended cleanup to include the new top-level remotion_tmp
-    paths_to_clean = [tmp_dir, clips_dir, props_dir, re_encoded_dir, remotion_temp_dir, final_output_dir]
+    paths_to_clean = [
+        tmp_dir,
+        clips_dir,
+        props_dir,
+        re_encoded_dir,
+        remotion_temp_dir,
+        final_output_dir,
+        remotion_bundle_dir,
+    ]
     for path in paths_to_clean:
         if path.exists():
             if path.is_dir():
@@ -229,7 +261,7 @@ def main():
         # This block runs whether the try block succeeds or fails
         print("--- Starting final cleanup of intermediate files ---")
         # Clean up directories that are no longer needed after the final render
-        paths_to_clean_finally = [clips_dir, re_encoded_dir, remotion_temp_dir]
+        paths_to_clean_finally = [clips_dir, re_encoded_dir, remotion_temp_dir, remotion_bundle_dir]
         for path in paths_to_clean_finally:
             if path.exists():
                 print(f"Removing intermediate directory: {path}")
