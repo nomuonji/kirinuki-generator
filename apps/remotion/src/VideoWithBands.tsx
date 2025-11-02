@@ -234,30 +234,29 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = ({
 
   const sourceTitle = (sourceVideoTitle ?? "").trim();
   const baseSourceFont = bandH > 0 ? Math.round(bandH * 0.32) : Math.round(H * 0.018);
-  const sourceTitleFont = Math.max(26, Math.min(42, baseSourceFont || 0));
   const sourceTitleContainerStyle: React.CSSProperties = {
-    position: "absolute",
-    top: Math.max(18, Math.round(bandH * 0.2)),
-    left: 24,
-    maxWidth: "68%",
-    background: "rgba(24, 18, 48, 0.55)",
-    borderRadius: 18,
-    padding: "10px 20px",
-    pointerEvents: "none",
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
+    background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent)',
+    padding: '12px 24px 24px 24px',
+    pointerEvents: 'none',
     zIndex: 4,
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
+    textAlign: 'center',
   };
   const sourceTitleTextStyle: React.CSSProperties = {
     fontFamily: textBase.fontFamily,
     fontWeight: 700,
-    fontSize: `${sourceTitleFont}px`,
-    color: "#FFFFFF",
+    fontSize: `28px`,
+    color: '#FFFFFF',
     letterSpacing: 0.4,
     lineHeight: 1.18,
-    textShadow: "0 4px 12px rgba(0,0,0,0.65)",
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
+    textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    width: '100%',
   };
 
   const topFont = `clamp(28px, ${Math.round(bandH * 0.64)}px, 74px)`;
