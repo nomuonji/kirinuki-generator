@@ -62,6 +62,8 @@ def main():
     ap.add_argument("--min-sec", type=float, default=30.0)
     ap.add_argument("--max-sec", type=float, default=120.0)
     ap.add_argument("--min-gap", type=float, default=30.0)
+    ap.add_argument("--max-clips", type=int, default=30,
+                    help="Maximum number of clips to keep from Gemini proposals (default: 30).")
     ap.add_argument("--subs", action="store_true", help="Burn subtitles into the output clips (hard subtitles).")
     ap.add_argument("--soft-subs", action="store_true", help="Generate external subtitle files without burning them.")
     ap.add_argument("--subs-format", choices=["srt","ass"], default="srt", help="Subtitle format to generate when subtitles are enabled")
@@ -123,6 +125,9 @@ def main():
 
     props = propose_clips_from_transcript(items, preset=args.platform,
                                           min_gap=args.min_gap, min_sec=args.min_sec, max_sec=args.max_sec, concept=concept)
+    if args.max_clips > 0 and len(props) > args.max_clips:
+        print(f"\nLimiting clip proposals from {len(props)} to top {args.max_clips} entries.")
+        props = props[: args.max_clips]
 
     print("\n--- Verifying Gemini's Raw Proposals and Refining End Times ---")
     for i, p in enumerate(props, start=1):
