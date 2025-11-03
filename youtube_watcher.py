@@ -17,6 +17,8 @@ from googleapiclient.http import MediaFileUpload
 
 # --- Configuration ---
 MIN_VIDEO_DURATION_SECONDS = 360  # 6 minutes
+CACHE_DIR_ENV = "KIRINUKI_CACHE_DIR"
+DEFAULT_CACHE_DIR = "cache"
 
 def run_command(command, description):
     """Runs a command and prints its description, streaming output in real-time."""
@@ -56,6 +58,21 @@ def run_command(command, description):
     except FileNotFoundError:
         print(f"\nERROR: Command not found for '{description}': {command[0]}", file=sys.stderr)
         return False
+
+def get_cache_root() -> Path:
+    env_value = os.environ.get(CACHE_DIR_ENV)
+    return Path(env_value) if env_value else Path(DEFAULT_CACHE_DIR)
+
+def load_cached_state(cache_root: Path, video_id: str) -> dict:
+    state_path = cache_root / video_id / "state.json"
+    if not state_path.exists():
+        return {}
+    try:
+        with state_path.open("r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Warning: Failed to read cached state for {video_id}: {exc}", file=sys.stderr)
+        return {}
 
 def get_latest_videos(api_key, channel_id):
     """Get latest videos from a YouTube channel."""
@@ -297,6 +314,9 @@ def main():
     gdrive_refresh_token = required_vars["GDRIVE_REFRESH_TOKEN"]
     youtube_channel_id = required_vars["YOUTUBE_CHANNEL_ID"]
 
+    cache_root = get_cache_root()
+    cache_root.mkdir(parents=True, exist_ok=True)
+
     # --- Create credential files from environment variables ---
     try:
         # Create client_secret.json
@@ -375,17 +395,43 @@ def main():
             set_last_processed_video_id(video_id, state_file)
             continue  # Move to the next video
 
+        cached_state = load_cached_state(cache_root, video_id)
+        cached_status = cached_state.get("status")
+        if cached_status == "completed":
+            print("Cached state reports this video is already processed. Marking as completed and skipping.")
+            set_last_processed_video_id(video_id, state_file)
+            continue
+
+        resume_flag = cached_status in {"in-progress", "failed"}
+        source_title_for_env = cached_state.get("sourceTitle") or title
         # Found a video to process
         print("--- Starting processing for this video ---")
-        os.environ["SOURCE_VIDEO_TITLE"] = title
-        process_command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
+        os.environ["SOURCE_VIDEO_TITLE"] = source_title_for_env
+        process_command = [
+            sys.executable,
+            "run_all.py",
+            video_id,
+            "--subs",
+            "--reaction",
+            "--cache-dir",
+            str(cache_root),
+        ]
+        if resume_flag:
+            process_command.append("--resume")
+            print("Resuming from cached progress for this video.")
         
         if run_command(process_command, f"Processing video {video_id}"):
             print(f"Successfully processed video {video_id}.")
 
+            refreshed_state = load_cached_state(cache_root, video_id)
+            refreshed_status = refreshed_state.get("status")
+            if refreshed_status != "completed":
+                print(f"Video {video_id} not fully processed yet (status={refreshed_status}). Stopping for resume in next run.")
+                sys.exit(0)
+
             try:
                 print("Attempting to rename and upload files...")
-                upload_success = rename_and_upload_files(title, gdrive_parent_folder_id)
+                upload_success = rename_and_upload_files(refreshed_state.get("sourceTitle") or title, gdrive_parent_folder_id)
                 print("Finished rename and upload step.")
 
                 if upload_success:
