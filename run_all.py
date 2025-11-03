@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 MAX_CLIPS_PER_BATCH = 15
-CLIP_FILENAME_PATTERN = re.compile(r"clip_(\d+)\.mp4")
+CLIP_FILENAME_PATTERN = re.compile(r"clip_(\d{3})", re.IGNORECASE)
 STATE_FILENAME = "state.json"
 
 def _utc_now_iso() -> str:
@@ -130,9 +130,12 @@ def collect_clip_indices(clips_dir: Path) -> list[int]:
     """Collects integer clip indices from generated clip files."""
     indices: list[int] = []
     for clip_path in sorted(clips_dir.glob("clip_*.mp4")):
-        match = CLIP_FILENAME_PATTERN.fullmatch(clip_path.name)
+        match = CLIP_FILENAME_PATTERN.search(clip_path.stem)
         if match:
-            indices.append(int(match.group(1)))
+            try:
+                indices.append(int(match.group(1)))
+            except ValueError:
+                continue
     return indices
 
 def build_clip_batches(clip_indices: list[int], requested_batches: int, max_per_batch: int = MAX_CLIPS_PER_BATCH) -> list[list[int]]:
