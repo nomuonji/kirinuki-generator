@@ -2,7 +2,9 @@ import io
 import json
 import os
 import re
+import ssl
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -177,16 +179,31 @@ def download_file_bytes(service, file_id: str) -> bytes:
     return fh.read()
 
 
+def _retryable_call(callable_):
+    """Execute a callable with basic retry logic."""
+    max_attempts = 4
+    backoff = 1.0
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return callable_()
+        except (HttpError, OSError, ssl.SSLEOFError) as exc:
+            if attempt == max_attempts:
+                raise
+            print(f"  -> Drive request failed ({exc}); retrying in {backoff:.1f}s (attempt {attempt}/{max_attempts})")
+            time.sleep(backoff)
+            backoff *= 2
+
+
 def upload_json_data(service, parent_id: str, name: str, payload: bytes, file_id: Optional[str] = None) -> str:
     """Uploads or updates a JSON file."""
     media = MediaIoBaseUpload(io.BytesIO(payload), mimetype="application/json", resumable=False)
     if file_id:
-        service.files().update(fileId=file_id, media_body=media).execute()
+        _retryable_call(lambda: service.files().update(fileId=file_id, media_body=media).execute())
         return file_id
     metadata = {
         "name": name,
         "parents": [parent_id],
         "mimeType": "application/json",
     }
-    response = service.files().create(body=metadata, media_body=media, fields="id").execute()
+    response = _retryable_call(lambda: service.files().create(body=metadata, media_body=media, fields="id").execute())
     return response["id"]
