@@ -9,48 +9,40 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from packages.shared.gdrive import (
+    build_safe_filename,
+    download_file_bytes,
+    find_file,
+    get_drive_service,
+    sanitize_filename,
+    upload_file,
+    upload_json_data,
+)
 MAX_CLIPS_PER_BATCH = 15
 CLIP_FILENAME_PATTERN = re.compile(r"clip_(\d{3})", re.IGNORECASE)
-STATE_FILENAME = "state.json"
+STATE_FILE_TEMPLATE = "state_{video_id}.json"
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-def _ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-
-def _copy_file(src: Path, dst: Path) -> None:
-    if not src.exists():
-        return
-    _ensure_dir(dst.parent)
-    shutil.copy2(src, dst)
-
-def _copy_tree(src: Path, dst: Path) -> None:
-    if not src.exists():
-        return
-    if dst.exists():
-        shutil.rmtree(dst)
-    _ensure_dir(dst.parent)
-    shutil.copytree(src, dst)
-
-def load_state(cache_dir: Path, video_id: str) -> dict:
-    state_path = cache_dir / video_id / STATE_FILENAME
-    if not state_path.exists():
-        return {}
+def load_state_from_drive(service, parent_folder_id: str, video_id: str) -> tuple[dict, str, str | None]:
+    """Loads state.json for the given video from Google Drive, if it exists."""
+    state_file_name = STATE_FILE_TEMPLATE.format(video_id=video_id)
+    state_file = find_file(service, parent_folder_id, state_file_name)
+    if not state_file:
+        return {}, state_file_name, None
     try:
-        with state_path.open("r", encoding="utf-8") as fh:
-            return json.load(fh)
+        payload = download_file_bytes(service, state_file["id"])
+        return json.loads(payload.decode("utf-8")), state_file_name, state_file["id"]
     except (json.JSONDecodeError, OSError) as exc:
-        print(f"Warning: Failed to load state file {state_path}: {exc}", file=sys.stderr)
-        return {}
+        print(f"Warning: Failed to parse state file from Drive ({state_file_name}): {exc}", file=sys.stderr)
+        return {}, state_file_name, state_file["id"]
 
-def save_state(cache_dir: Path, video_id: str, state: dict) -> None:
-    state_dir = cache_dir / video_id
-    _ensure_dir(state_dir)
+def save_state_to_drive(service, parent_folder_id: str, state_file_name: str, state: dict, file_id: str | None) -> str:
+    """Persists the state JSON to Google Drive, creating or updating the file."""
     state["lastUpdated"] = _utc_now_iso()
-    state_path = state_dir / STATE_FILENAME
-    with state_path.open("w", encoding="utf-8") as fh:
-        json.dump(state, fh, ensure_ascii=False, indent=2)
+    payload = json.dumps(state, ensure_ascii=False, indent=2).encode("utf-8")
+    return upload_json_data(service, parent_folder_id, state_file_name, payload, file_id)
 
 def run_command(command, description, cwd=None):
     """Runs a command, streaming its output in real-time."""
@@ -263,11 +255,6 @@ def main():
         help="Maximum reactions per clip when --reaction is enabled.",
     )
     parser.add_argument(
-        "--cache-dir",
-        default="cache",
-        help="Directory used to store intermediate state for resuming long jobs (default: cache).",
-    )
-    parser.add_argument(
         "--resume",
         action="store_true",
         help="Resume processing using cached state if available.",
@@ -294,20 +281,22 @@ def main():
     final_output_dir = Path("rendered")
     final_output_dir.mkdir(exist_ok=True) # Ensure it exists before rendering
 
-    cache_root = Path(args.cache_dir)
-    cache_video_dir = cache_root / args.video_id
-    existing_state = load_state(cache_root, args.video_id)
-    resuming = bool(existing_state) and (args.resume or existing_state.get("status") in {"in-progress", "failed"})
+    drive_parent_id = os.environ.get("GDRIVE_PARENT_FOLDER_ID")
+    if not drive_parent_id:
+        raise RuntimeError("GDRIVE_PARENT_FOLDER_ID environment variable is required for Drive state synchronization.")
+    drive_service = get_drive_service()
+
+    state, state_file_name, state_file_id = load_state_from_drive(drive_service, drive_parent_id, args.video_id)
+    resuming = bool(state) and (args.resume or state.get("status") in {"in-progress", "failed"})
 
     if resuming:
-        state = existing_state
-        print(f"Resuming cached progress for video {args.video_id} (cache: {cache_video_dir})")
+        print(f"Resuming progress for video {args.video_id} using Drive-backed state.")
         if state.get("status") == "completed":
-            print("Cached state indicates this video is already completed. Exiting.")
+            print("State indicates this video has already completed processing. Exiting.")
             return
     else:
-        if existing_state and not args.resume:
-            print("Warning: Cached state exists but --resume not provided. Starting fresh and overwriting previous cache.")
+        if state and not args.resume:
+            print("Warning: Remote state exists but --resume not provided. Starting fresh and overwriting previous state.")
         state = {
             "videoId": args.video_id,
             "status": "in-progress",
@@ -316,6 +305,7 @@ def main():
             "requestedBatches": 1,
             "clipBatches": [],
             "completedBatches": [],
+            "clips": {},
             "stages": {
                 "download": {"done": False},
                 "transcribe": {"done": False},
@@ -323,6 +313,12 @@ def main():
             },
         }
         resuming = False
+
+    def persist_state():
+        nonlocal state_file_id
+        state_file_id = save_state_to_drive(drive_service, drive_parent_id, state_file_name, state, state_file_id)
+        state["driveStateFileId"] = state_file_id
+    persist_state()
 
     stages = state.setdefault("stages", {})
     for key in ("download", "transcribe", "clips"):
@@ -334,15 +330,11 @@ def main():
     state.setdefault("clipBatches", [])
     state.setdefault("requestedBatches", max(1, int(state.get("requestedBatches", 1) or 1)))
     state.setdefault("durationSeconds", float(state.get("durationSeconds", 0.0) or 0.0))
+    state.setdefault("clips", {})
     state["status"] = "in-progress"
     if os.environ.get("SOURCE_VIDEO_TITLE"):
         state["sourceTitle"] = os.environ["SOURCE_VIDEO_TITLE"]
-    save_state(cache_root, args.video_id, state)
-
-    cache_inputs_dir = cache_video_dir / "inputs"
-    cache_clips_dir = cache_video_dir / "clips"
-    cache_batches_dir = cache_video_dir / "batches"
-    cache_rendered_dir = cache_video_dir / "rendered"
+    persist_state()
 
     duration_seconds: float = float(state.get("durationSeconds", 0.0) or 0.0)
     requested_batches = int(state.get("requestedBatches", 1) or 1)
@@ -370,53 +362,47 @@ def main():
     tmp_dir.mkdir()
     final_output_dir.mkdir()
 
-    if resuming:
-        if stages.get("download", {}).get("done"):
-            cached_video = cache_inputs_dir / "video.mp4"
-            if cached_video.exists():
-                _copy_file(cached_video, video_path)
-                print(f"Restored cached video to {video_path}")
-        if stages.get("transcribe", {}).get("done"):
-            cached_transcript = cache_inputs_dir / "transcript.json"
-            if cached_transcript.exists():
-                _copy_file(cached_transcript, transcript_path)
-                print(f"Restored cached transcript to {transcript_path}")
-        if stages.get("clips", {}).get("done") and cache_clips_dir.exists():
-            _copy_tree(cache_clips_dir, clips_dir)
-            print(f"Restored cached clips to {clips_dir}")
-        if cache_rendered_dir.exists():
-            _copy_tree(cache_rendered_dir, final_output_dir)
-            print(f"Restored cached rendered outputs to {final_output_dir}")
-
     print("--- Pre-run cleanup complete ---\n")
 
     # This try...finally block ensures cleanup happens even if the pipeline fails
     try:
         download_stage = stages.get("download", {})
-        if not download_stage.get("done"):
+        need_download = not download_stage.get("done") or not video_path.exists()
+        if need_download:
             # --- 3. Download Video ---
             cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
             run_command(cmd_download, "Downloading YouTube Video")
             if not video_path.exists() or video_path.stat().st_size == 0:
                 raise RuntimeError(f"Video download failed; file not found or empty at {video_path}")
-            _copy_file(video_path, cache_inputs_dir / video_path.name)
             download_stage["done"] = True
             duration_seconds = probe_video_duration(video_path)
             state["durationSeconds"] = duration_seconds
             requested_batches = determine_batch_count(duration_seconds)
             state["requestedBatches"] = requested_batches
-            save_state(cache_root, args.video_id, state)
+            persist_state()
         else:
-            print("Download stage already completed; using cached video.")
-            cached_video = cache_inputs_dir / video_path.name
-            if not video_path.exists() and cached_video.exists():
-                _copy_file(cached_video, video_path)
-                print(f"Restored cached video to {video_path}")
+            print("Download stage already marked complete; reusing existing video if present.")
+            if not video_path.exists():
+                print("Local video missing; re-downloading to ensure availability.")
+                cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
+                run_command(cmd_download, "Re-downloading YouTube Video")
+                if not video_path.exists() or video_path.stat().st_size == 0:
+                    raise RuntimeError(f"Video download failed; file not found or empty at {video_path}")
             duration_seconds = float(state.get("durationSeconds", 0.0) or 0.0)
-            if duration_seconds <= 0 and video_path.exists():
+            if duration_seconds <= 0:
                 duration_seconds = probe_video_duration(video_path)
                 state["durationSeconds"] = duration_seconds
-            requested_batches = int(state.get("requestedBatches", 1) or 1)
+                persist_state()
+
+        if not video_path.exists():
+            raise RuntimeError("Video file is required but missing even after download stage.")
+
+        requested_batches = max(1, int(state.get("requestedBatches", 1) or 1))
+        if duration_seconds <= 0:
+            duration_seconds = probe_video_duration(video_path)
+            state["durationSeconds"] = duration_seconds
+            persist_state()
+            duration_seconds = float(state.get("durationSeconds", 0.0) or 0.0)
 
         if duration_seconds > 0:
             duration_minutes = duration_seconds / 60.0
@@ -427,28 +413,31 @@ def main():
         print(f"Processing batches planned: {requested_batches} (limit {MAX_CLIPS_PER_BATCH} clips per batch).")
         state["durationSeconds"] = duration_seconds
         state["requestedBatches"] = max(1, requested_batches)
-        save_state(cache_root, args.video_id, state)
+        persist_state()
 
         transcribe_stage = stages.get("transcribe", {})
-        if not transcribe_stage.get("done"):
+        need_transcribe = not transcribe_stage.get("done") or not transcript_path.exists()
+        if need_transcribe:
             # --- 4. Transcribe Video ---
             cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
             run_command(cmd_transcribe, "Transcribing Video")
             if not transcript_path.exists():
                 raise RuntimeError(f"Transcript not found at {transcript_path}")
-            _copy_file(transcript_path, cache_inputs_dir / transcript_path.name)
             transcribe_stage["done"] = True
-            save_state(cache_root, args.video_id, state)
+            persist_state()
         else:
-            print("Transcription stage already completed; using cached transcript.")
-            cached_transcript = cache_inputs_dir / transcript_path.name
-            if not transcript_path.exists() and cached_transcript.exists():
-                _copy_file(cached_transcript, transcript_path)
-                print(f"Restored cached transcript to {transcript_path}")
+            print("Transcription stage already completed; reusing existing transcript.")
+            if not transcript_path.exists():
+                print("Transcript missing locally; regenerating to ensure availability.")
+                cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
+                run_command(cmd_transcribe, "Re-transcribing Video")
+                if not transcript_path.exists():
+                    raise RuntimeError(f"Transcript not found at {transcript_path}")
 
         # --- 5. Generate Clips ---
         clips_stage = stages.get("clips", {})
-        if not clips_stage.get("done"):
+        need_generate = not clips_stage.get("done") or not clips_dir.exists()
+        if need_generate:
             cmd_generate = [
                 sys.executable, "-m", "apps.cli.generate_clips",
                 "--transcript", str(transcript_path),
@@ -465,14 +454,32 @@ def main():
             run_command(cmd_generate, "Generating Clips with AI")
             if not clips_dir.exists():
                 raise RuntimeError(f"Expected clips directory missing: {clips_dir}")
-            _copy_tree(clips_dir, cache_clips_dir)
             clips_stage["done"] = True
-            save_state(cache_root, args.video_id, state)
+            persist_state()
         else:
-            print("Clip generation already completed; using cached clips.")
-            if not clips_dir.exists() and cache_clips_dir.exists():
-                _copy_tree(cache_clips_dir, clips_dir)
-                print(f"Restored cached clips to {clips_dir}")
+            print("Clip generation already completed; reusing existing clips directory.")
+            if not clips_dir.exists():
+                print("Clip directory missing; regenerating clips to continue.")
+                clips_stage["done"] = False
+                persist_state()
+                cmd_generate = [
+                    sys.executable, "-m", "apps.cli.generate_clips",
+                    "--transcript", str(transcript_path),
+                    "--video", str(video_path),
+                    "--out", str(clips_dir),
+                    "--concept-file", args.concept_file
+                ]
+                if args.subs: cmd_generate.append("--subs")
+                if args.soft_subs: cmd_generate.append("--soft-subs")
+                if args.subs or args.soft_subs: cmd_generate.extend(["--subs-format", args.subs_format])
+                if requested_batches > 1:
+                    max_clips_total = requested_batches * MAX_CLIPS_PER_BATCH
+                    cmd_generate.extend(["--max-clips", str(max_clips_total)])
+                run_command(cmd_generate, "Regenerating Clips with AI")
+                if not clips_dir.exists():
+                    raise RuntimeError(f"Expected clips directory missing after regeneration: {clips_dir}")
+                clips_stage["done"] = True
+                persist_state()
         
         # --- 5.5 Generate Reaction Timelines (optional) ---
         if args.reaction:
@@ -489,6 +496,8 @@ def main():
                 "--character-name", args.reaction_character,
             ]
             run_command(cmd_reaction, "Generating reactions for all clips")
+
+        clips_state: dict = state["clips"]
 
         clip_indices = collect_clip_indices(clips_dir)
         if not clip_indices:
@@ -509,7 +518,23 @@ def main():
         if clip_batches != stored_batches:
             state["clipBatches"] = clip_batches
         state["totalClips"] = len(clip_indices)
-        save_state(cache_root, args.video_id, state)
+        persist_state()
+
+        total_pending = 0
+        for clip_index in clip_indices:
+            clip_key = f"{clip_index:03d}"
+            clip_info = clips_state.get(clip_key)
+            if clip_info and clip_info.get("uploaded"):
+                continue
+            total_pending += 1
+
+        completed_batches = {
+            idx
+            for idx, batch in enumerate(clip_batches, start=1)
+            if all(clips_state.get(f"{clip:03d}", {}).get("uploaded") for clip in batch)
+        }
+        state["completedBatches"] = sorted(completed_batches)
+        persist_state()
 
         print(f"Total clips ready for rendering: {len(clip_indices)}")
         if len(clip_batches) != requested_batches:
@@ -521,17 +546,30 @@ def main():
                 print(f"  Batch {idx}: {len(batch)} clips -> {clip_labels}")
         else:
             print("Processing all clips in a single batch.")
+        print(f"Pending clips to process in this run: {total_pending}")
 
-        completed_batches = set(state.get("completedBatches", []))
-        state["completedBatches"] = sorted(completed_batches)
-        save_state(cache_root, args.video_id, state)
+        if total_pending == 0:
+            print("All clips have already been rendered and uploaded. Nothing to do.")
+            state["status"] = "completed"
+            persist_state()
+            return
+
+        state["driveFolderId"] = drive_parent_id
+        sanitized_title = sanitize_filename((state.get("sourceTitle") or args.video_id)[:20])
+        persist_state()
 
         for batch_idx, batch in enumerate(clip_batches, start=1):
-            if batch_idx in completed_batches:
+            pending_in_batch = [
+                clip_index for clip_index in batch
+                if not clips_state.get(f"{clip_index:03d}", {}).get("uploaded")
+            ]
+            if not pending_in_batch:
                 print(f"\n=== Skipping batch {batch_idx}/{len(clip_batches)}; already completed. ===")
                 continue
+
+            pending_keys = {f"{clip:03d}" for clip in pending_in_batch}
             batch_desc = f"batch {batch_idx}/{len(clip_batches)}"
-            print(f"\n=== Starting {batch_desc} ({len(batch)} clips) ===")
+            print(f"\n=== Starting {batch_desc} ({len(pending_in_batch)} clips) ===")
 
             if props_dir.exists():
                 shutil.rmtree(props_dir)
@@ -539,15 +577,19 @@ def main():
                 shutil.rmtree(re_encoded_dir)
 
             cmd_prepare = [sys.executable, "-m", "apps.cli.render_clips", "--input-dir", str(clips_dir)]
-            if len(clip_batches) > 1:
-                include_arg = ",".join(str(clip) for clip in batch)
-                cmd_prepare.extend(["--include-clips", include_arg])
+            include_arg = ",".join(str(clip) for clip in pending_in_batch)
+            cmd_prepare.extend(["--include-clips", include_arg])
             run_command(cmd_prepare, f"Preparing for Remotion Rendering ({batch_desc})")
 
             if not any(props_dir.glob("clip_*.json")):
                 raise RuntimeError(f"Prop files (clip_*.json) were not generated for {batch_desc}. Cannot proceed with rendering.")
 
             reuse_bundle = batch_idx > 1
+            for existing_file in final_output_dir.glob("clip_*.mp4"):
+                try:
+                    existing_file.unlink()
+                except OSError:
+                    pass
             run_remotion_render(
                 props_dir,
                 final_output_dir,
@@ -555,29 +597,64 @@ def main():
                 reuse_existing_bundle=reuse_bundle,
             )
 
-            batch_cache_dir = cache_batches_dir / f"batch_{batch_idx:02d}"
-            batch_props_dir = batch_cache_dir / "props"
-            batch_rendered_dir = batch_cache_dir / "rendered"
-            _copy_tree(props_dir, batch_props_dir)
-            if batch_rendered_dir.exists():
-                shutil.rmtree(batch_rendered_dir)
-            _ensure_dir(batch_rendered_dir)
-            for clip_index in batch:
-                rendered_file = final_output_dir / f"clip_{clip_index:03d}.mp4"
-                if rendered_file.exists():
-                    _copy_file(rendered_file, batch_rendered_dir / rendered_file.name)
-            _copy_tree(final_output_dir, cache_rendered_dir)
+            for stale_file in final_output_dir.glob("clip_*.mp4"):
+                # Ensure we only process freshly rendered files below.
+                stale_key = stale_file.stem[5:8] if len(stale_file.stem) >= 8 else ""
+                if stale_key not in pending_keys:
+                    try:
+                        stale_file.unlink()
+                    except OSError:
+                        pass
 
-            completed_batches.add(batch_idx)
+            for clip_index in pending_in_batch:
+                clip_key = f"{clip_index:03d}"
+                rendered_file = final_output_dir / f"clip_{clip_key}.mp4"
+                if not rendered_file.exists():
+                    raise RuntimeError(f"Expected rendered clip not found: {rendered_file}")
+
+                remote_name = build_safe_filename(sanitized_title, f"_clip_{clip_key}.mp4")
+                file_size = rendered_file.stat().st_size
+                file_id = upload_file(drive_service, rendered_file, remote_name, drive_parent_id)
+                if not file_id:
+                    raise RuntimeError(f"Drive upload did not return a file ID for {remote_name}")
+
+                clip_record = clips_state.setdefault(clip_key, {})
+                clip_record["rendered"] = True
+                clip_record["uploaded"] = True
+                clip_record["batchIndex"] = batch_idx
+                clip_record["driveFileId"] = file_id
+                clip_record["remoteFileName"] = remote_name
+                clip_record["uploadedAt"] = _utc_now_iso()
+                clip_record["sizeBytes"] = file_size
+                persist_state()
+
+                try:
+                    rendered_file.unlink()
+                except OSError:
+                    print(f"Warning: Could not delete local clip {rendered_file}", file=sys.stderr)
+
+            # Update completion markers after batch uploads
+            if all(clips_state.get(f"{clip:03d}", {}).get("uploaded") for clip in batch):
+                completed_batches.add(batch_idx)
             state["completedBatches"] = sorted(completed_batches)
-            save_state(cache_root, args.video_id, state)
+            persist_state()
+
+        completed_batches = {
+            idx
+            for idx, batch in enumerate(clip_batches, start=1)
+            if all(clips_state.get(f"{clip:03d}", {}).get("uploaded") for clip in batch)
+        }
+        state["completedBatches"] = sorted(completed_batches)
+        total_uploaded = sum(1 for data in clips_state.values() if data.get("uploaded"))
+        state["uploadedClips"] = total_uploaded
+        persist_state()
 
         if len(completed_batches) == len(clip_batches):
             state["status"] = "completed"
-            save_state(cache_root, args.video_id, state)
+            persist_state()
 
         print("\n[OK] All steps completed successfully!")
-        print(f"Your final videos are ready in: {final_output_dir.resolve()}\n")
+        print(f"Uploaded clips to Google Drive folder: {drive_parent_id}\n")
 
     except (subprocess.CalledProcessError, FileNotFoundError, RuntimeError) as e:
         print("\n[ERROR] The pipeline did not finish successfully.", file=sys.stderr)
@@ -587,14 +664,12 @@ def main():
             print(f"  - Error: {e}", file=sys.stderr)
         print("\nIntermediate files are kept in their respective directories for debugging.", file=sys.stderr)
         state["status"] = "failed"
-        save_state(cache_root, args.video_id, state)
+        persist_state()
         sys.exit(1)
     finally:
         # --- 8. Final Cleanup ---
         # This block runs whether the try block succeeds or fails
         print("--- Starting final cleanup of intermediate files ---")
-        if final_output_dir.exists():
-            _copy_tree(final_output_dir, cache_rendered_dir)
         # Clean up directories that are no longer needed after the final render
         paths_to_clean_finally = [clips_dir, re_encoded_dir, remotion_temp_dir, remotion_bundle_dir]
         for path in paths_to_clean_finally:
@@ -603,7 +678,7 @@ def main():
                 shutil.rmtree(path, ignore_errors=True)
         # Note: We keep tmp_dir, props_dir, and final_output_dir for inspection after the run.
         print("--- Final cleanup complete ---\n")
-        save_state(cache_root, args.video_id, state)
+        persist_state()
 
 if __name__ == "__main__":
     main()
