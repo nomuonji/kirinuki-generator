@@ -9,6 +9,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from packages.cutter_ffmpeg.cutter import ClipSpec, cut_many
 from packages.shared.gdrive import (
     build_safe_filename,
     download_file_bytes,
@@ -21,6 +22,7 @@ from packages.shared.gdrive import (
 MAX_CLIPS_PER_BATCH = 15
 CLIP_FILENAME_PATTERN = re.compile(r"clip_(\d{3})", re.IGNORECASE)
 STATE_FILE_TEMPLATE = "state_{video_id}.json"
+RENDERED_CLIP_PATTERN = re.compile(r"clip_(\d{3})(?:[_-].*)?\.mp4$", re.IGNORECASE)
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -43,6 +45,145 @@ def save_state_to_drive(service, parent_folder_id: str, state_file_name: str, st
     state["lastUpdated"] = _utc_now_iso()
     payload = json.dumps(state, ensure_ascii=False, indent=2).encode("utf-8")
     return upload_json_data(service, parent_folder_id, state_file_name, payload, file_id)
+
+def load_clips_manifest_from_drive(service, artifact_info: dict) -> dict | None:
+    """Load the stored clips manifest JSON from Drive."""
+    file_id = artifact_info.get("fileId") if artifact_info else None
+    if not file_id:
+        return None
+    try:
+        payload = download_file_bytes(service, file_id)
+        return json.loads(payload.decode("utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Warning: Failed to load clips manifest from Drive: {exc}", file=sys.stderr)
+        return None
+
+def find_rendered_clip_file(output_dir: Path, clip_key: str) -> Path | None:
+    """Locate the rendered clip file for the given clip key, accommodating timestamp suffixes."""
+    pattern_glob = f"clip_{clip_key}*.mp4"
+    candidates = sorted(output_dir.glob(pattern_glob))
+    for candidate in candidates:
+        match = RENDERED_CLIP_PATTERN.fullmatch(candidate.name)
+        if match and match.group(1) == clip_key:
+            return candidate
+    legacy = output_dir / f"clip_{clip_key}.mp4"
+    return legacy if legacy.exists() else None
+
+def build_clips_manifest(clips_dir: Path) -> dict | None:
+    """Construct a manifest capturing clip metadata for deterministic regeneration."""
+    candidates_path = clips_dir / "clip_candidates.json"
+    if not candidates_path.exists():
+        return None
+
+    try:
+        candidates = json.loads(candidates_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"Warning: Failed to parse clip_candidates.json: {exc}", file=sys.stderr)
+        return None
+
+    manifest: dict[str, object] = {
+        "version": 1,
+        "generatedAt": _utc_now_iso(),
+        "candidates": candidates,
+        "clips": {},
+    }
+
+    for idx, candidate in enumerate(candidates, start=1):
+        clip_key = f"{idx:03d}"
+        clip_entry = {
+            "start": float(candidate.get("start", 0.0)),
+            "end": float(candidate.get("end", 0.0)),
+            "title": candidate.get("title", ""),
+            "punchline": candidate.get("punchline", ""),
+            "reason": candidate.get("reason", ""),
+            "confidence": candidate.get("confidence", 0.0),
+        }
+
+        hooks_path = clips_dir / f"clip_{clip_key}_hooks.txt"
+        if hooks_path.exists():
+            try:
+                clip_entry["hooks"] = json.loads(hooks_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                clip_entry["hooksText"] = hooks_path.read_text(encoding="utf-8")
+
+        details_path = clips_dir / f"clip_{clip_key}_details.txt"
+        if details_path.exists():
+            clip_entry["details"] = details_path.read_text(encoding="utf-8")
+
+        subtitles_path = clips_dir / f"clip_{clip_key}_subtitles.json"
+        if subtitles_path.exists():
+            try:
+                clip_entry["subtitles"] = json.loads(subtitles_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                clip_entry["subtitlesText"] = subtitles_path.read_text(encoding="utf-8")
+
+        reactions_path = clips_dir / f"clip_{clip_key}_reactions.json"
+        if reactions_path.exists():
+            try:
+                clip_entry["reactions"] = json.loads(reactions_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                clip_entry["reactionsText"] = reactions_path.read_text(encoding="utf-8")
+
+        manifest["clips"][clip_key] = clip_entry
+
+    return manifest
+
+def restore_clips_from_manifest(manifest: dict, video_path: Path, clips_dir: Path) -> bool:
+    """Recreate clip assets from a stored manifest and fresh cuts."""
+    candidates = manifest.get("candidates")
+    clips_meta: dict = manifest.get("clips", {})
+    if not candidates or not isinstance(candidates, list):
+        return False
+
+    if clips_dir.exists():
+        shutil.rmtree(clips_dir)
+    clips_dir.mkdir(parents=True, exist_ok=True)
+
+    candidates_path = clips_dir / "clip_candidates.json"
+    candidates_path.write_text(json.dumps(candidates, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    clip_specs: list[ClipSpec] = []
+
+    for idx, candidate in enumerate(candidates, start=1):
+        clip_key = f"{idx:03d}"
+        clip_data = clips_meta.get(clip_key, {})
+
+        start = float(clip_data.get("start", candidate.get("start", 0.0)))
+        end = float(clip_data.get("end", candidate.get("end", start)))
+        title = clip_data.get("title") or candidate.get("title", "")
+
+        clip_specs.append(ClipSpec(start=start, end=end, index=idx, title=title))
+
+        hooks = clip_data.get("hooks")
+        hooks_text = clip_data.get("hooksText")
+        hooks_path = clips_dir / f"clip_{clip_key}_hooks.txt"
+        if hooks:
+            hooks_path.write_text(json.dumps(hooks, ensure_ascii=False, indent=2), encoding="utf-8")
+        elif hooks_text:
+            hooks_path.write_text(hooks_text, encoding="utf-8")
+
+        details_text = clip_data.get("details")
+        if details_text:
+            (clips_dir / f"clip_{clip_key}_details.txt").write_text(details_text, encoding="utf-8")
+
+        subtitles = clip_data.get("subtitles")
+        subtitles_text = clip_data.get("subtitlesText")
+        subtitles_path = clips_dir / f"clip_{clip_key}_subtitles.json"
+        if subtitles is not None:
+            subtitles_path.write_text(json.dumps(subtitles, ensure_ascii=False, indent=2), encoding="utf-8")
+        elif subtitles_text:
+            subtitles_path.write_text(subtitles_text, encoding="utf-8")
+
+        reactions = clip_data.get("reactions")
+        reactions_text = clip_data.get("reactionsText")
+        reactions_path = clips_dir / f"clip_{clip_key}_reactions.json"
+        if reactions is not None:
+            reactions_path.write_text(json.dumps(reactions, ensure_ascii=False, indent=2), encoding="utf-8")
+        elif reactions_text:
+            reactions_path.write_text(reactions_text, encoding="utf-8")
+
+    cut_many(str(video_path), clip_specs, str(clips_dir), quiet=True)
+    return True
 
 def run_command(command, description, cwd=None):
     """Runs a command, streaming its output in real-time."""
@@ -321,9 +462,13 @@ def main():
     persist_state()
 
     stages = state.setdefault("stages", {})
+    artifacts = state.setdefault("artifacts", {})
     for key in ("download", "transcribe", "clips"):
         stage_info = stages.setdefault(key, {})
         stage_info.setdefault("done", False)
+    clips_stage = stages["clips"]
+    clips_manifest_info = artifacts.get("clipsManifest")
+    clips_manifest: dict | None = None
 
     completed_batches = set(state.get("completedBatches", []))
     state["completedBatches"] = sorted(completed_batches)
@@ -435,7 +580,19 @@ def main():
                     raise RuntimeError(f"Transcript not found at {transcript_path}")
 
         # --- 5. Generate Clips ---
-        clips_stage = stages.get("clips", {})
+        if clips_stage.get("done") and not clips_dir.exists():
+            if clips_manifest_info:
+                clips_manifest = load_clips_manifest_from_drive(drive_service, clips_manifest_info)
+                if clips_manifest and restore_clips_from_manifest(clips_manifest, video_path, clips_dir):
+                    print("Restored clips directory from Drive manifest.")
+                else:
+                    print("Clips stage marked done but assets missing; regenerating clips.")
+                    clips_stage["done"] = False
+                    artifacts.pop("clipsManifest", None)
+                    clips_manifest_info = None
+                    clips_manifest = None
+                    persist_state()
+
         need_generate = not clips_stage.get("done") or not clips_dir.exists()
         if need_generate:
             cmd_generate = [
@@ -480,7 +637,26 @@ def main():
                     raise RuntimeError(f"Expected clips directory missing after regeneration: {clips_dir}")
                 clips_stage["done"] = True
                 persist_state()
-        
+
+        if clips_stage.get("done") and clips_dir.exists():
+            manifest = build_clips_manifest(clips_dir)
+            if manifest:
+                manifest_payload = json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8")
+                file_id = upload_json_data(
+                    drive_service,
+                    drive_parent_id,
+                    f"clips_manifest_{args.video_id}.json",
+                    manifest_payload,
+                    clips_manifest_info.get("fileId") if clips_manifest_info else None,
+                )
+                clips_manifest_info = {
+                    "fileId": file_id,
+                    "updatedAt": _utc_now_iso(),
+                }
+                artifacts["clipsManifest"] = clips_manifest_info
+                clips_manifest = manifest
+                persist_state()
+
         # --- 5.5 Generate Reaction Timelines (optional) ---
         if args.reaction:
             candidates_path = clips_dir / "clip_candidates.json"
@@ -598,19 +774,19 @@ def main():
             )
 
             for stale_file in final_output_dir.glob("clip_*.mp4"):
-                # Ensure we only process freshly rendered files below.
-                stale_key = stale_file.stem[5:8] if len(stale_file.stem) >= 8 else ""
-                if stale_key not in pending_keys:
-                    try:
-                        stale_file.unlink()
-                    except OSError:
-                        pass
+                match = RENDERED_CLIP_PATTERN.fullmatch(stale_file.name)
+                if match and match.group(1) in pending_keys:
+                    continue
+                try:
+                    stale_file.unlink()
+                except OSError:
+                    pass
 
             for clip_index in pending_in_batch:
                 clip_key = f"{clip_index:03d}"
-                rendered_file = final_output_dir / f"clip_{clip_key}.mp4"
-                if not rendered_file.exists():
-                    raise RuntimeError(f"Expected rendered clip not found: {rendered_file}")
+                rendered_file = find_rendered_clip_file(final_output_dir, clip_key)
+                if not rendered_file:
+                    raise RuntimeError(f"Expected rendered clip not found for key {clip_key}")
 
                 remote_name = build_safe_filename(sanitized_title, f"_clip_{clip_key}.mp4")
                 file_size = rendered_file.stat().st_size
