@@ -185,39 +185,52 @@ def restore_clips_from_manifest(manifest: dict, video_path: Path, clips_dir: Pat
     cut_many(str(video_path), clip_specs, str(clips_dir), quiet=True)
     return True
 
-def run_command(command, description, cwd=None):
-    """Runs a command, streaming its output in real-time."""
+def run_command(command, description, cwd=None, quiet=False):
+    """Runs a command, optionally silencing real-time output."""
     print(f"--- {description} ---")
     cmd_str = ' '.join(map(str, command))
     print(f"Executing: {cmd_str}")
 
     try:
-        # Use Popen to stream output in real-time
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, # Redirect stderr to stdout
-            text=True,
-            encoding='utf-8',
-            errors='ignore',
-            cwd=cwd
-        )
+        if quiet:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore',
+                cwd=cwd,
+            )
+            if result.returncode != 0:
+                if result.stdout:
+                    print(result.stdout, file=sys.stderr)
+                if result.stderr:
+                    print(result.stderr, file=sys.stderr)
+                raise subprocess.CalledProcessError(result.returncode, command)
+        else:
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding='utf-8',
+                errors='ignore',
+                cwd=cwd
+            )
 
-        # Read and print output line by line
-        for line in iter(process.stdout.readline, ''):
-            print(line, end='')
+            for line in iter(process.stdout.readline, ''):
+                print(line, end='')
 
-        process.stdout.close()
-        return_code = process.wait()
+            process.stdout.close()
+            return_code = process.wait()
 
-        if return_code != 0:
-            raise subprocess.CalledProcessError(return_code, command)
+            if return_code != 0:
+                raise subprocess.CalledProcessError(return_code, command)
 
         print(f"\n--- Finished: {description} ---\n")
 
     except subprocess.CalledProcessError as e:
         print(f"\nERROR during '{description}': Command returned non-zero exit status {e.returncode}.", file=sys.stderr)
-        # Re-raise the exception to be caught by the main pipeline's error handler
         raise e
     except FileNotFoundError:
         print(f"\nERROR: Command not found for '{description}': {command[0]}", file=sys.stderr)
@@ -323,7 +336,7 @@ def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_di
             "public",
             "--overwrite",
         ]
-        run_command(bundle_cmd, "Bundling Remotion project", cwd=remotion_app_dir)
+        run_command(bundle_cmd, "Bundling Remotion project", cwd=remotion_app_dir, quiet=True)
 
     if not bundle_dir.exists():
         raise RuntimeError(f"Remotion bundle not found after bundling step: {bundle_dir}")
@@ -354,7 +367,7 @@ def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_di
         ]
 
         try:
-            run_command(cmd, f"Rendering {absolute_output_file.name}", cwd=remotion_app_dir)
+            run_command(cmd, f"Rendering {absolute_output_file.name}", cwd=remotion_app_dir, quiet=True)
             print(f"  -> Successfully rendered: {absolute_output_file}")
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             print(f"\n[ERROR] Remotion rendering failed for {prop_file.name}.", file=sys.stderr)
@@ -790,9 +803,11 @@ def main():
 
                 remote_name = build_safe_filename(sanitized_title, f"_clip_{clip_key}.mp4")
                 file_size = rendered_file.stat().st_size
+                print(f"Uploading clip {clip_key} ({rendered_file.name}) to Drive as {remote_name}...")
                 file_id = upload_file(drive_service, rendered_file, remote_name, drive_parent_id)
                 if not file_id:
                     raise RuntimeError(f"Drive upload did not return a file ID for {remote_name}")
+                print(f"  -> Drive upload succeeded for clip {clip_key}: id={file_id}, size={file_size} bytes")
 
                 clip_record = clips_state.setdefault(clip_key, {})
                 clip_record["rendered"] = True

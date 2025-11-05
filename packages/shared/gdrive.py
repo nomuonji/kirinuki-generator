@@ -130,25 +130,38 @@ def upload_file(
         raise FileNotFoundError(f"Local file not found: {local_path}")
 
     file_metadata = {"name": remote_name, "parents": [parent_folder_id]}
-    media = MediaFileUpload(str(local_path), resumable=local_path.stat().st_size > resumable_threshold_bytes)
 
-    try:
-        request = service.files().create(body=file_metadata, media_body=media, fields="id")
-        if media.resumable:
-            response = None
-            while response is None:
-                status, response = request.next_chunk()
-                if status:
-                    print(f"  -> Upload progress: {int(status.progress() * 100)}% ({remote_name})")
-        else:
-            response = request.execute()
-        file_id = response.get("id") if isinstance(response, dict) else None
-        if file_id:
-            print(f"  -> Uploaded to Drive: {remote_name} (id={file_id})")
-        return file_id
-    except HttpError as exc:
-        print(f"  -> Google Drive upload failed for {remote_name}: {exc}", file=sys.stderr)
-        raise
+    max_attempts = 4
+    backoff = 1.0
+    last_exc = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            media = MediaFileUpload(str(local_path), resumable=local_path.stat().st_size > resumable_threshold_bytes)
+            request = service.files().create(body=file_metadata, media_body=media, fields="id")
+            if media.resumable:
+                response = None
+                while response is None:
+                    status, response = request.next_chunk()
+                    if status:
+                        print(f"  -> Upload progress: {int(status.progress() * 100)}% ({remote_name})")
+            else:
+                response = request.execute()
+            file_id = response.get("id") if isinstance(response, dict) else None
+            if file_id:
+                print(f"  -> Uploaded to Drive: {remote_name} (id={file_id})")
+            return file_id
+        except (HttpError, OSError, ssl.SSLEOFError) as exc:
+            last_exc = exc
+            if attempt == max_attempts:
+                print(f"  -> Google Drive upload failed for {remote_name}: {exc}", file=sys.stderr)
+                raise
+            print(f"  -> Upload failed ({exc}); retrying in {backoff:.1f}s (attempt {attempt}/{max_attempts})")
+            time.sleep(backoff)
+            backoff *= 2
+
+    if last_exc:
+        raise last_exc
 
 
 def find_file(service, parent_id: str, name: str) -> Optional[dict]:
