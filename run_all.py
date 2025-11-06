@@ -768,7 +768,7 @@ def main():
             cmd_prepare = [sys.executable, "-m", "apps.cli.render_clips", "--input-dir", str(clips_dir)]
             include_arg = ",".join(str(clip) for clip in pending_in_batch)
             cmd_prepare.extend(["--include-clips", include_arg])
-            run_command(cmd_prepare, f"Preparing for Remotion Rendering ({batch_desc})")
+            run_command(cmd_prepare, f"Preparing for Remotion Rendering ({batch_desc})", quiet=True)
 
             if not any(props_dir.glob("clip_*.json")):
                 raise RuntimeError(f"Prop files (clip_*.json) were not generated for {batch_desc}. Cannot proceed with rendering.")

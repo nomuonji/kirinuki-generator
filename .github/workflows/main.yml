@@ -16,13 +16,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Cache last video ID
-      uses: actions/cache@v3
-      id: cache-video-id
-      with:
-        path: last_video_id.txt
-        key: ${{ runner.os }}-last-video-id
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -83,10 +76,3 @@ jobs:
         GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
         GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
       run: python youtube_watcher.py
-
-    - name: Save last video ID to cache
-      uses: actions/cache/save@v3
-      if: always()
-      with:
-        path: last_video_id.txt
-        key: ${{ runner.os }}-last-video-id

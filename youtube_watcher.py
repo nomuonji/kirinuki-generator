@@ -3,7 +3,6 @@ import os
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
@@ -13,9 +12,11 @@ from packages.shared.gdrive import (
     download_file_bytes,
     find_file,
     get_drive_service,
+    upload_json_data,
 )
 
 MIN_VIDEO_DURATION_SECONDS = 360  # 6 minutes
+PROCESSED_LOG_NAME = "processed_videos.json"
 
 
 def run_command(command, description):
@@ -106,17 +107,6 @@ def parse_duration(duration_str):
     return timedelta(seconds=total_seconds)
 
 
-def get_last_processed_video_id(state_file):
-    state_file = Path(state_file)
-    if state_file.exists():
-        return state_file.read_text().strip()
-    return None
-
-
-def set_last_processed_video_id(video_id, state_file):
-    Path(state_file).write_text(video_id)
-
-
 def load_state_from_drive(service, folder_id: str, video_id: str) -> tuple[dict, str | None]:
     """Loads state JSON from Drive, returning (state_dict, drive_file_id)."""
     state_name = f"state_{video_id}.json"
@@ -131,10 +121,32 @@ def load_state_from_drive(service, folder_id: str, video_id: str) -> tuple[dict,
         return {}, state_file["id"]
 
 
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def load_processed_videos(service, folder_id: str) -> tuple[list[dict], str | None]:
+    processed_file = find_file(service, folder_id, PROCESSED_LOG_NAME)
+    if not processed_file:
+        return [], None
+    try:
+        payload = download_file_bytes(service, processed_file["id"])
+        data = json.loads(payload.decode("utf-8"))
+        if isinstance(data, list):
+            return data, processed_file["id"]
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Warning: Failed to parse processed video log: {exc}", file=sys.stderr)
+    return [], processed_file["id"]
+
+
+def save_processed_videos(service, folder_id: str, entries: list[dict], file_id: str | None) -> str:
+    payload = json.dumps(entries, ensure_ascii=False, indent=2).encode("utf-8")
+    return upload_json_data(service, folder_id, PROCESSED_LOG_NAME, payload, file_id)
+
+
 def main():
     load_dotenv()
 
-    state_file_path = os.environ.get("STATE_FILE_PATH", "last_video_id.txt")
     required_vars = {
         "YOUTUBE_API_KEY": os.environ.get("YOUTUBE_API_KEY"),
         "GDRIVE_PARENT_FOLDER_ID": os.environ.get("GDRIVE_PARENT_FOLDER_ID"),
@@ -156,34 +168,23 @@ def main():
 
     drive_service = get_drive_service()
 
-    last_processed_id = get_last_processed_video_id(state_file_path)
-    print(f"Last processed video ID: {last_processed_id}")
+    processed_entries, processed_file_id = load_processed_videos(drive_service, gdrive_parent_folder_id)
+    processed_ids = {entry.get("videoId") for entry in processed_entries if entry.get("videoId")}
+    print(f"Previously processed videos: {len(processed_entries)}")
 
     videos = get_latest_videos(youtube_api_key, youtube_channel_id)
     if not videos:
         print("No videos found or API error.")
         return
 
-    new_videos_to_process = []
-    found_last_processed = last_processed_id is None
-    for video in videos:
-        video_id = video["id"]
-        if video_id == last_processed_id:
-            found_last_processed = True
-            break
-        new_videos_to_process.append(video)
-
-    if not found_last_processed:
-        print("Last processed video not found in the latest 10 videos.")
-
-    if not new_videos_to_process:
+    candidates = [video for video in reversed(videos) if video["id"] not in processed_ids]
+    if not candidates:
         print("No new videos to process.")
         return
 
-    new_videos_to_process.reverse()
-    print(f"Found {len(new_videos_to_process)} new video(s) to process.")
+    print(f"Found {len(candidates)} new video(s) to process.")
 
-    for video in new_videos_to_process:
+    for video in candidates:
         video_id = video["id"]
         title = video["snippet"]["title"]
         duration = parse_duration(video["contentDetails"]["duration"])
@@ -195,14 +196,20 @@ def main():
 
         if duration.total_seconds() < MIN_VIDEO_DURATION_SECONDS:
             print("Video is shorter than the minimum duration. Skipping.")
-            set_last_processed_video_id(video_id, state_file_path)
             continue
 
         cached_state, _file_id = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
         cached_status = cached_state.get("status")
         if cached_status == "completed":
-            print("Remote state indicates this video is already processed. Marking as completed and skipping.")
-            set_last_processed_video_id(video_id, state_file_path)
+            print("Remote state indicates this video is already processed. Skipping.")
+            if video_id not in processed_ids:
+                processed_entries.append({
+                    "videoId": video_id,
+                    "title": title,
+                    "processedAt": cached_state.get("lastUpdated") or _now_iso(),
+                })
+                processed_file_id = save_processed_videos(drive_service, gdrive_parent_folder_id, processed_entries, processed_file_id)
+                processed_ids.add(video_id)
             continue
 
         resume_flag = cached_status in {"in-progress", "failed"}
@@ -237,8 +244,21 @@ def main():
         if uploaded_count is not None:
             print(f"Total clips uploaded so far: {uploaded_count}")
 
-        set_last_processed_video_id(video_id, state_file_path)
-        print(f"Updated last processed video ID to: {video_id}")
+        record = {
+            "videoId": video_id,
+            "title": title,
+            "processedAt": _now_iso(),
+        }
+        existing_entry = next((entry for entry in processed_entries if entry.get("videoId") == video_id), None)
+        if existing_entry:
+            existing_entry.update(record)
+        else:
+            processed_entries.append(record)
+
+        processed_entries = sorted(processed_entries, key=lambda entry: entry.get("processedAt", ""), reverse=True)
+        processed_file_id = save_processed_videos(drive_service, gdrive_parent_folder_id, processed_entries, processed_file_id)
+        processed_ids.add(video_id)
+        print(f"Recorded completion of video {video_id} to Drive log.")
         break
 
 
