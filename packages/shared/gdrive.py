@@ -207,6 +207,15 @@ def _retryable_call(callable_):
             backoff *= 2
 
 
+def delete_file(service, file_id: str) -> None:
+    if not file_id:
+        return
+    try:
+        service.files().delete(fileId=file_id).execute()
+    except HttpError as exc:
+        print(f"  -> Warning: Failed to delete Drive file {file_id}: {exc}", file=sys.stderr)
+
+
 def upload_json_data(service, parent_id: str, name: str, payload: bytes, file_id: Optional[str] = None) -> str:
     """Uploads or updates a JSON file."""
     media = MediaIoBaseUpload(io.BytesIO(payload), mimetype="application/json", resumable=False)

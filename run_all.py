@@ -18,11 +18,13 @@ from packages.shared.gdrive import (
     sanitize_filename,
     upload_file,
     upload_json_data,
+    delete_file,
 )
 MAX_CLIPS_PER_BATCH = 15
 CLIP_FILENAME_PATTERN = re.compile(r"clip_(\d{3})", re.IGNORECASE)
 STATE_FILE_TEMPLATE = "state_{video_id}.json"
 RENDERED_CLIP_PATTERN = re.compile(r"clip_(\d{3})(?:[_-].*)?\.mp4$", re.IGNORECASE)
+PROPS_FILENAME_PATTERN = re.compile(r"clip_(\d{3})(?:[_-].*)?\.json$", re.IGNORECASE)
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -69,6 +71,16 @@ def find_rendered_clip_file(output_dir: Path, clip_key: str) -> Path | None:
     legacy = output_dir / f"clip_{clip_key}.mp4"
     return legacy if legacy.exists() else None
 
+def find_props_file(props_dir: Path, clip_key: str) -> Path | None:
+    """Locate the props JSON file for the given clip key."""
+    pattern_glob = f"clip_{clip_key}*.json"
+    candidates = sorted(props_dir.glob(pattern_glob))
+    for candidate in candidates:
+        match = PROPS_FILENAME_PATTERN.fullmatch(candidate.name)
+        if match and match.group(1) == clip_key:
+            return candidate
+    legacy = props_dir / f"clip_{clip_key}.json"
+    return legacy if legacy.exists() else None
 def build_clips_manifest(clips_dir: Path) -> dict | None:
     """Construct a manifest capturing clip metadata for deterministic regeneration."""
     candidates_path = clips_dir / "clip_candidates.json"
@@ -801,7 +813,8 @@ def main():
                 if not rendered_file:
                     raise RuntimeError(f"Expected rendered clip not found for key {clip_key}")
 
-                remote_name = build_safe_filename(sanitized_title, f"_clip_{clip_key}.mp4")
+                remote_base = build_safe_filename(sanitized_title, f"_clip_{clip_key}")
+                remote_name = f"{remote_base}.mp4"
                 file_size = rendered_file.stat().st_size
                 print(f"Uploading clip {clip_key} ({rendered_file.name}) to Drive as {remote_name}...")
                 file_id = upload_file(drive_service, rendered_file, remote_name, drive_parent_id)
@@ -818,6 +831,26 @@ def main():
                 clip_record["uploadedAt"] = _utc_now_iso()
                 clip_record["sizeBytes"] = file_size
                 persist_state()
+
+                props_file = find_props_file(props_dir, clip_key)
+                if props_file and props_file.exists():
+                    props_remote_name = f"{remote_base}.json"
+                    print(f"Uploading props for clip {clip_key} ({props_file.name}) to Drive as {props_remote_name}...")
+                    props_payload = props_file.read_bytes()
+                    props_file_id = upload_json_data(
+                        drive_service,
+                        drive_parent_id,
+                        props_remote_name,
+                        props_payload,
+                        clip_record.get("propsDriveFileId"),
+                    )
+                    clip_record["propsDriveFileId"] = props_file_id
+                    clip_record["propsRemoteFileName"] = props_remote_name
+                    clip_record["propsUploadedAt"] = _utc_now_iso()
+                    persist_state()
+                    print(f"  -> Drive upload succeeded for props {clip_key}: id={props_file_id}, size={len(props_payload)} bytes")
+                else:
+                    print(f"Warning: Props file not found for clip {clip_key}; skipping props upload.", file=sys.stderr)
 
                 try:
                     rendered_file.unlink()
@@ -842,7 +875,14 @@ def main():
 
         if len(completed_batches) == len(clip_batches):
             state["status"] = "completed"
-            persist_state()
+            manifest_info = artifacts.pop("clipsManifest", None)
+            manifest_file_id = manifest_info.get("fileId") if manifest_info else None
+            if manifest_file_id:
+                delete_file(drive_service, manifest_file_id)
+            state_file_id_to_delete = state_file_id
+            state_file_id = None
+            if state_file_id_to_delete:
+                delete_file(drive_service, state_file_id_to_delete)
 
         print("\n[OK] All steps completed successfully!")
         print(f"Uploaded clips to Google Drive folder: {drive_parent_id}\n")
@@ -855,7 +895,8 @@ def main():
             print(f"  - Error: {e}", file=sys.stderr)
         print("\nIntermediate files are kept in their respective directories for debugging.", file=sys.stderr)
         state["status"] = "failed"
-        persist_state()
+        if state_file_id:
+            persist_state()
         sys.exit(1)
     finally:
         # --- 8. Final Cleanup ---
