@@ -170,12 +170,14 @@ def find_file(service, parent_id: str, name: str) -> Optional[dict]:
         f"'{parent_id}' in parents and name = '{name}' "
         "and trashed = false"
     )
-    response = service.files().list(
-        q=query,
-        spaces="drive",
-        fields="files(id, name, mimeType)",
-        pageSize=1,
-    ).execute()
+    response = _retryable_call(
+        lambda: service.files().list(
+            q=query,
+            spaces="drive",
+            fields="files(id, name, mimeType)",
+            pageSize=1,
+        ).execute()
+    )
     files = response.get("files", [])
     return files[0] if files else None
 
