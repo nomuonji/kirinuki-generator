@@ -10,7 +10,7 @@ on:
       gdrive_folder_id:
         description: 'Google Drive Folder ID'
         required: true
-        default: '12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4'
+        default: '1hnjNbsTqxwhgT98MZrzRvm4rgVNWtxuY'
 
 jobs:
   build-and-upload:
