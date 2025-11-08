@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 import requests
 import ffmpeg
 import sys
@@ -40,6 +41,31 @@ def find_stream_urls(data):
 
     return video_url, audio_url
 
+def _download_stream(label, url, dest_path, timeout=900, retries=3):
+    for attempt in range(1, retries + 1):
+        try:
+            print(f"Downloading {label} to {dest_path} (attempt {attempt}/{retries})...")
+            with requests.get(url, stream=True, timeout=timeout) as r:
+                r.raise_for_status()
+                with open(dest_path, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+            size = os.path.getsize(dest_path)
+            if size == 0:
+                raise IOError(f"{label} download resulted in an empty file.")
+            print(f"{label.capitalize()} part downloaded successfully. Size: {size} bytes")
+            return
+        except Exception as exc:
+            if os.path.exists(dest_path):
+                os.remove(dest_path)
+            if attempt == retries:
+                raise
+            wait = min(30, 2 ** attempt)
+            print(f"  -> {label.capitalize()} download failed ({exc}). Retrying in {wait}s...", file=sys.stderr)
+            time.sleep(wait)
+
+
 def download_youtube_video_from_api(video_id, output_path):
     load_dotenv()
     api_key = os.getenv("RAPIDAPI_KEY")
@@ -71,26 +97,8 @@ def download_youtube_video_from_api(video_id, output_path):
             raise ValueError("Could not find a valid video or audio URL in 'adaptiveFormats'.")
 
         print("--- Starting download of separate streams ---")
-
-        print(f"Downloading video to {video_part_path}...")
-        with requests.get(video_url, stream=True, timeout=900) as r:
-            r.raise_for_status()
-            with open(video_part_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192): f.write(chunk)
-
-        if os.path.getsize(video_part_path) == 0:
-            raise IOError("Video download resulted in an empty file.")
-        print(f"Video part downloaded successfully. Size: {os.path.getsize(video_part_path)} bytes")
-
-        print(f"Downloading audio to {audio_part_path}...")
-        with requests.get(audio_url, stream=True, timeout=900) as r:
-            r.raise_for_status()
-            with open(audio_part_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192): f.write(chunk)
-
-        if os.path.getsize(audio_part_path) == 0:
-            raise IOError("Audio download resulted in an empty file.")
-        print(f"Audio part downloaded successfully. Size: {os.path.getsize(audio_part_path)} bytes")
+        _download_stream("video", video_url, video_part_path)
+        _download_stream("audio", audio_url, audio_part_path)
 
         print("\n--- Merging video and audio streams with ffmpeg ---")
         input_video = ffmpeg.input(video_part_path)

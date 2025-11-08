@@ -648,12 +648,22 @@ def main():
 
         transcribe_stage = stages.get("transcribe", {})
         need_transcribe = not transcribe_stage.get("done") or not transcript_path.exists()
+        transcript_failed = False
         if need_transcribe:
             # --- 4. Transcribe Video ---
             cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
-            run_command(cmd_transcribe, "Transcribing Video")
+            try:
+                run_command(cmd_transcribe, "Transcribing Video")
+            except subprocess.CalledProcessError:
+                transcript_failed = True
             if not transcript_path.exists():
-                raise RuntimeError(f"Transcript not found at {transcript_path}")
+                transcript_failed = True
+            if transcript_failed:
+                print("Transcript generation failed; marking video as failed.", file=sys.stderr)
+                state["status"] = "failed"
+                state["failureReason"] = "transcript"
+                persist_state()
+                return
             transcribe_stage["done"] = True
             persist_state()
         else:
@@ -661,9 +671,18 @@ def main():
             if not transcript_path.exists():
                 print("Transcript missing locally; regenerating to ensure availability.")
                 cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
-                run_command(cmd_transcribe, "Re-transcribing Video")
+                try:
+                    run_command(cmd_transcribe, "Re-transcribing Video")
+                except subprocess.CalledProcessError:
+                    transcript_failed = True
                 if not transcript_path.exists():
-                    raise RuntimeError(f"Transcript not found at {transcript_path}")
+                    transcript_failed = True
+                if transcript_failed:
+                    print("Transcript regeneration failed; marking video as failed.", file=sys.stderr)
+                    state["status"] = "failed"
+                    state["failureReason"] = "transcript"
+                    persist_state()
+                    return
 
         # --- 5. Generate Clips ---
         if clips_stage.get("done") and not clips_dir.exists():
