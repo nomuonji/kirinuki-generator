@@ -69,7 +69,7 @@ jobs:
     - name: Run YouTube Watcher and Processor
       env:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+        GDRIVE_PARENT_FOLDER_ID: 1hnjNbsTqxwhgT98MZrzRvm4rgVNWtxuY
         YOUTUBE_CHANNEL_ID: "UCzXVsEc1h2Elljge0fnQYRg"
         RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

@@ -197,6 +197,60 @@ def restore_clips_from_manifest(manifest: dict, video_path: Path, clips_dir: Pat
     cut_many(str(video_path), clip_specs, str(clips_dir), quiet=True)
     return True
 
+def upload_clip_and_props(
+    clip_key: str,
+    rendered_file: Path,
+    prop_file: Path | None,
+    sanitized_title: str,
+    drive_service,
+    drive_parent_id: str,
+    clips_state: dict,
+    batch_idx: int,
+    persist_state_fn,
+):
+    remote_base = build_safe_filename(sanitized_title, f"_clip_{clip_key}")
+    remote_name = f"{remote_base}.mp4"
+    file_size = rendered_file.stat().st_size
+    print(f"Uploading clip {clip_key} ({rendered_file.name}) to Drive as {remote_name}...")
+    file_id = upload_file(drive_service, rendered_file, remote_name, drive_parent_id)
+    if not file_id:
+        raise RuntimeError(f"Drive upload did not return a file ID for {remote_name}")
+    print(f"  -> Drive upload succeeded for clip {clip_key}: id={file_id}, size={file_size} bytes")
+
+    clip_record = clips_state.setdefault(clip_key, {})
+    clip_record["rendered"] = True
+    clip_record["uploaded"] = True
+    clip_record["batchIndex"] = batch_idx
+    clip_record["driveFileId"] = file_id
+    clip_record["remoteFileName"] = remote_name
+    clip_record["uploadedAt"] = _utc_now_iso()
+    clip_record["sizeBytes"] = file_size
+    persist_state_fn()
+
+    if prop_file and prop_file.exists():
+        props_remote_name = f"{remote_base}.json"
+        print(f"Uploading props for clip {clip_key} ({prop_file.name}) to Drive as {props_remote_name}...")
+        props_payload = prop_file.read_bytes()
+        props_file_id = upload_json_data(
+            drive_service,
+            drive_parent_id,
+            props_remote_name,
+            props_payload,
+            clip_record.get("propsDriveFileId"),
+        )
+        clip_record["propsDriveFileId"] = props_file_id
+        clip_record["propsRemoteFileName"] = props_remote_name
+        clip_record["propsUploadedAt"] = _utc_now_iso()
+        persist_state_fn()
+        print(f"  -> Drive upload succeeded for props {clip_key}: id={props_file_id}, size={len(props_payload)} bytes")
+    else:
+        print(f"Warning: Props file not found for clip {clip_key}; skipping props upload.", file=sys.stderr)
+
+    try:
+        rendered_file.unlink()
+    except OSError:
+        print(f"Warning: Could not delete local clip {rendered_file}", file=sys.stderr)
+
 def run_command(command, description, cwd=None, quiet=False):
     """Runs a command, optionally silencing real-time output."""
     print(f"--- {description} ---")
@@ -313,7 +367,13 @@ def build_clip_batches(clip_indices: list[int], requested_batches: int, max_per_
         batches.append(unique_indices[start:start + chunk_size])
     return batches
 
-def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_dir: Path, reuse_existing_bundle: bool = False):
+def run_remotion_render(
+    props_dir: Path,
+    final_output_dir: Path,
+    remotion_app_dir: Path,
+    reuse_existing_bundle: bool = False,
+    on_clip_rendered=None,
+):
     """
     Finds all prop JSON files and renders a video for each one using Remotion CLI.
     This function replaces the logic from the old render_all.ps1 script.
@@ -381,9 +441,10 @@ def run_remotion_render(props_dir: Path, final_output_dir: Path, remotion_app_di
         try:
             run_command(cmd, f"Rendering {absolute_output_file.name}", cwd=remotion_app_dir, quiet=True)
             print(f"  -> Successfully rendered: {absolute_output_file}")
+            if on_clip_rendered:
+                on_clip_rendered(prop_file, absolute_output_file)
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             print(f"\n[ERROR] Remotion rendering failed for {prop_file.name}.", file=sys.stderr)
-            # The detailed error is already printed by run_command, so we just re-raise
             raise e
 
     print("\n--- Batch Remotion Rendering Complete ---")
@@ -769,6 +830,25 @@ def main():
                 continue
 
             pending_keys = {f"{clip:03d}" for clip in pending_in_batch}
+
+            def handle_rendered_clip(prop_path: Path, rendered_path: Path):
+                match = PROPS_FILENAME_PATTERN.fullmatch(prop_path.name)
+                clip_key = match.group(1) if match else None
+                if not clip_key or clip_key not in pending_keys:
+                    return
+                upload_clip_and_props(
+                    clip_key,
+                    rendered_path,
+                    prop_path,
+                    sanitized_title,
+                    drive_service,
+                    drive_parent_id,
+                    clips_state,
+                    batch_idx,
+                    persist_state,
+                )
+                pending_keys.discard(clip_key)
+
             batch_desc = f"batch {batch_idx}/{len(clip_batches)}"
             print(f"\n=== Starting {batch_desc} ({len(pending_in_batch)} clips) ===")
 
@@ -786,76 +866,13 @@ def main():
                 raise RuntimeError(f"Prop files (clip_*.json) were not generated for {batch_desc}. Cannot proceed with rendering.")
 
             reuse_bundle = batch_idx > 1
-            for existing_file in final_output_dir.glob("clip_*.mp4"):
-                try:
-                    existing_file.unlink()
-                except OSError:
-                    pass
             run_remotion_render(
                 props_dir,
                 final_output_dir,
                 remotion_app_dir,
                 reuse_existing_bundle=reuse_bundle,
+                on_clip_rendered=handle_rendered_clip,
             )
-
-            for stale_file in final_output_dir.glob("clip_*.mp4"):
-                match = RENDERED_CLIP_PATTERN.fullmatch(stale_file.name)
-                if match and match.group(1) in pending_keys:
-                    continue
-                try:
-                    stale_file.unlink()
-                except OSError:
-                    pass
-
-            for clip_index in pending_in_batch:
-                clip_key = f"{clip_index:03d}"
-                rendered_file = find_rendered_clip_file(final_output_dir, clip_key)
-                if not rendered_file:
-                    raise RuntimeError(f"Expected rendered clip not found for key {clip_key}")
-
-                remote_base = build_safe_filename(sanitized_title, f"_clip_{clip_key}")
-                remote_name = f"{remote_base}.mp4"
-                file_size = rendered_file.stat().st_size
-                print(f"Uploading clip {clip_key} ({rendered_file.name}) to Drive as {remote_name}...")
-                file_id = upload_file(drive_service, rendered_file, remote_name, drive_parent_id)
-                if not file_id:
-                    raise RuntimeError(f"Drive upload did not return a file ID for {remote_name}")
-                print(f"  -> Drive upload succeeded for clip {clip_key}: id={file_id}, size={file_size} bytes")
-
-                clip_record = clips_state.setdefault(clip_key, {})
-                clip_record["rendered"] = True
-                clip_record["uploaded"] = True
-                clip_record["batchIndex"] = batch_idx
-                clip_record["driveFileId"] = file_id
-                clip_record["remoteFileName"] = remote_name
-                clip_record["uploadedAt"] = _utc_now_iso()
-                clip_record["sizeBytes"] = file_size
-                persist_state()
-
-                props_file = find_props_file(props_dir, clip_key)
-                if props_file and props_file.exists():
-                    props_remote_name = f"{remote_base}.json"
-                    print(f"Uploading props for clip {clip_key} ({props_file.name}) to Drive as {props_remote_name}...")
-                    props_payload = props_file.read_bytes()
-                    props_file_id = upload_json_data(
-                        drive_service,
-                        drive_parent_id,
-                        props_remote_name,
-                        props_payload,
-                        clip_record.get("propsDriveFileId"),
-                    )
-                    clip_record["propsDriveFileId"] = props_file_id
-                    clip_record["propsRemoteFileName"] = props_remote_name
-                    clip_record["propsUploadedAt"] = _utc_now_iso()
-                    persist_state()
-                    print(f"  -> Drive upload succeeded for props {clip_key}: id={props_file_id}, size={len(props_payload)} bytes")
-                else:
-                    print(f"Warning: Props file not found for clip {clip_key}; skipping props upload.", file=sys.stderr)
-
-                try:
-                    rendered_file.unlink()
-                except OSError:
-                    print(f"Warning: Could not delete local clip {rendered_file}", file=sys.stderr)
 
             # Update completion markers after batch uploads
             if all(clips_state.get(f"{clip:03d}", {}).get("uploaded") for clip in batch):
