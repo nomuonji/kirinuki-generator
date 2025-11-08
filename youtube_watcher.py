@@ -144,6 +144,36 @@ def save_processed_videos(service, folder_id: str, entries: list[dict], file_id:
     return upload_json_data(service, folder_id, PROCESSED_LOG_NAME, payload, file_id)
 
 
+def record_processed_entry(
+    service,
+    folder_id: str,
+    entries: list[dict],
+    file_id: str | None,
+    video_id: str,
+    title: str,
+    status: str,
+    reason: str = "",
+) -> tuple[list[dict], str | None]:
+    record = {
+        "videoId": video_id,
+        "title": title,
+        "processedAt": _now_iso(),
+        "status": status,
+    }
+    if reason:
+        record["reason"] = reason
+
+    existing = next((entry for entry in entries if entry.get("videoId") == video_id), None)
+    if existing:
+        existing.update(record)
+    else:
+        entries.append(record)
+
+    entries.sort(key=lambda entry: entry.get("processedAt", ""), reverse=True)
+    file_id = save_processed_videos(service, folder_id, entries, file_id)
+    return entries, file_id
+
+
 def main():
     load_dotenv()
 
@@ -227,36 +257,49 @@ def main():
             print("Resuming processing based on remote state.")
 
         if not run_command(command, f"Processing video {video_id}"):
-            print(f"Failed to process video {video_id}. Stopping.")
-            sys.exit(1)
+            state_snapshot, _ = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
+            failure_reason = state_snapshot.get("failureReason") if state_snapshot else "pipeline"
+            processed_entries, processed_file_id = record_processed_entry(
+                drive_service,
+                gdrive_parent_folder_id,
+                processed_entries,
+                processed_file_id,
+                video_id,
+                title,
+                "failed",
+                failure_reason or "pipeline",
+            )
+            continue
 
         refreshed_state, _ = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
         refreshed_status = refreshed_state.get("status")
         if refreshed_status != "completed":
-            print(
-                f"Video {video_id} not fully processed yet (status={refreshed_status}). "
-                "Stopping so the next workflow run can resume.",
-                file=sys.stderr,
+            reason = refreshed_state.get("failureReason") if refreshed_state else "pipeline"
+            processed_entries, processed_file_id = record_processed_entry(
+                drive_service,
+                gdrive_parent_folder_id,
+                processed_entries,
+                processed_file_id,
+                video_id,
+                title,
+                refreshed_status or "failed",
+                reason or "",
             )
-            sys.exit(0)
+            continue
 
         uploaded_count = refreshed_state.get("uploadedClips")
         if uploaded_count is not None:
             print(f"Total clips uploaded so far: {uploaded_count}")
 
-        record = {
-            "videoId": video_id,
-            "title": title,
-            "processedAt": _now_iso(),
-        }
-        existing_entry = next((entry for entry in processed_entries if entry.get("videoId") == video_id), None)
-        if existing_entry:
-            existing_entry.update(record)
-        else:
-            processed_entries.append(record)
-
-        processed_entries = sorted(processed_entries, key=lambda entry: entry.get("processedAt", ""), reverse=True)
-        processed_file_id = save_processed_videos(drive_service, gdrive_parent_folder_id, processed_entries, processed_file_id)
+        processed_entries, processed_file_id = record_processed_entry(
+            drive_service,
+            gdrive_parent_folder_id,
+            processed_entries,
+            processed_file_id,
+            video_id,
+            title,
+            "completed",
+        )
         processed_ids.add(video_id)
         print(f"Recorded completion of video {video_id} to Drive log.")
         break
