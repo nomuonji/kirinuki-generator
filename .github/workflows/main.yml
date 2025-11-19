@@ -3,7 +3,7 @@ name: Automatic Kirinuki Generator
 on:
   workflow_dispatch: # Allows manual triggering
   schedule:
-#    - cron: '0 5 * * *' # Runs every day at 5 AM UTC
+    - cron: '0 5 * * *' # Runs every day at 5 AM UTC
 
 jobs:
   build-and-upload:
@@ -20,8 +20,8 @@ jobs:
       uses: actions/cache@v3
       id: cache-video-id
       with:
-        path: last_video_id.txt
-        key: ${{ runner.os }}-last-video-id
+        path: last_video_id_UCzXVsEc1h2Elljge0fnQYRg.txt
+        key: ${{ runner.os }}-last-video-id-UCzXVsEc1h2Elljge0fnQYRg
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -78,6 +78,7 @@ jobs:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
         YOUTUBE_CHANNEL_ID: "UCzXVsEc1h2Elljge0fnQYRg"
+        STATE_FILE_PATH: last_video_id_UCzXVsEc1h2Elljge0fnQYRg.txt
         RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
@@ -88,5 +89,5 @@ jobs:
       uses: actions/cache/save@v3
       if: always()
       with:
-        path: last_video_id.txt
-        key: ${{ runner.os }}-last-video-id
+        path: last_video_id_UCzXVsEc1h2Elljge0fnQYRg.txt
+        key: ${{ runner.os }}-last-video-id-UCzXVsEc1h2Elljge0fnQYRg

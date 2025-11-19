@@ -269,6 +269,35 @@ def rename_and_upload_files(video_title, parent_folder_id):
     print("\n--- All file uploads attempted. Proceeding... ---")
     return True
 
+def count_gdrive_videos(service, folder_id):
+    """Counts the number of .mp4 files in a specific Google Drive folder."""
+    print(f"--- Checking Google Drive folder '{folder_id}' for video count ---")
+    try:
+        query = f"'{folder_id}' in parents and mimeType='video/mp4' and trashed=false"
+        fields = "files(id)"
+        page_token = None
+        count = 0
+        while True:
+            response = service.files().list(q=query,
+                                            spaces='drive',
+                                            fields=f"nextPageToken, {fields}",
+                                            pageToken=page_token).execute()
+            count += len(response.get('files', []))
+            page_token = response.get('nextPageToken', None)
+            if page_token is None:
+                break
+        print(f"Found {count} video(s) in the folder.")
+        return count
+    except HttpError as e:
+        print(f"An HTTP error {e.resp.status} occurred while counting files: {e.content}", file=sys.stderr)
+        # Return a high number to prevent processing on error
+        return 999
+    except Exception as e:
+        print(f"An unexpected error occurred while counting files: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return 999
+
+
 def main():
     """Main function to check for videos and process them."""
     load_dotenv()
@@ -327,6 +356,20 @@ def main():
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         print(f"ERROR: Failed to parse Google Drive credentials from environment variables: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # --- Check GDrive video count before proceeding ---
+    try:
+        gdrive_creds = get_gdrive_credentials()
+        gdrive_service = build('drive', 'v3', credentials=gdrive_creds)
+        video_count = count_gdrive_videos(gdrive_service, gdrive_parent_folder_id)
+
+        if video_count >= 10:
+            print(f"Folder already contains {video_count} videos. Skipping this run.")
+            sys.exit(0) # Exit gracefully, not an error
+    except Exception as e:
+        print(f"ERROR: Failed to initialize Google Drive service or count videos: {e}", file=sys.stderr)
+        sys.exit(1)
+
 
     last_processed_id = get_last_processed_video_id(state_file)
     print(f"Last processed video ID: {last_processed_id}")
