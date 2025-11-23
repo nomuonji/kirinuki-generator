@@ -11,6 +11,8 @@ on:
         description: 'Google Drive Folder ID'
         required: true
         default: '12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4'
+  schedule:
+    - cron: '0 7 * * *' # Runs every day at 7 AM UTC
 
 jobs:
   build-and-upload:
@@ -18,6 +20,8 @@ jobs:
     env:
       PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
+      YOUTUBE_CHANNEL_ID_SCHEDULED: "UC0yQ2h4gQXmVUFWZSqlMVOA"
+      GDRIVE_FOLDER_ID_SCHEDULED: "12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4"
 
     steps:
     - name: Checkout repository
@@ -27,8 +31,8 @@ jobs:
       uses: actions/cache@v3
       id: cache-video-id
       with:
-        path: last_video_id_${{ github.event.inputs.youtube_channel_id }}.txt
-        key: ${{ runner.os }}-last-video-id-${{ github.event.inputs.youtube_channel_id }}
+        path: last_video_id_${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}.txt
+        key: ${{ runner.os }}-last-video-id-${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -83,9 +87,9 @@ jobs:
     - name: Run YouTube Watcher and Processor
       env:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        YOUTUBE_CHANNEL_ID: ${{ github.event.inputs.youtube_channel_id }}
-        GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id }}
-        STATE_FILE_PATH: last_video_id_${{ github.event.inputs.youtube_channel_id }}.txt
+        YOUTUBE_CHANNEL_ID: ${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}
+        GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id || env.GDRIVE_FOLDER_ID_SCHEDULED }}
+        STATE_FILE_PATH: last_video_id_${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}.txt
         RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
@@ -96,5 +100,5 @@ jobs:
       uses: actions/cache/save@v3
       if: always()
       with:
-        path: last_video_id_${{ github.event.inputs.youtube_channel_id }}.txt
-        key: ${{ runner.os }}-last-video-id-${{ github.event.inputs.youtube_channel_id }}
+        path: last_video_id_${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}.txt
+        key: ${{ runner.os }}-last-video-id-${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}
