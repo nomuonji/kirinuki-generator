@@ -57,6 +57,8 @@ def find_stream_urls(data):
 def _download_stream(label, url, dest_path, timeout=900, retries=3):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+        "Referer": "https://www.youtube.com/",
+        "Origin": "https://www.youtube.com",
     }
     for attempt in range(1, retries + 1):
         try:
