@@ -60,10 +60,23 @@ def _download_stream(label, url, dest_path, timeout=900, retries=3):
         "Referer": "https://www.youtube.com/",
         "Origin": "https://www.youtube.com",
     }
+    cookies = {}
+    if os.path.exists("cookies.txt"):
+        try:
+            with open("cookies.txt", "r") as f:
+                # Netscape format parser
+                for line in f:
+                    if not line.startswith("#") and line.strip():
+                        parts = line.strip().split("\t")
+                        if len(parts) >= 7:
+                            cookies[parts[5]] = parts[6]
+        except Exception as e:
+            print(f"Warning: Failed to load cookies.txt: {e}", file=sys.stderr)
+
     for attempt in range(1, retries + 1):
         try:
             print(f"Downloading {label} to {dest_path} (attempt {attempt}/{retries})...")
-            with requests.get(url, stream=True, timeout=timeout, headers=headers) as r:
+            with requests.get(url, stream=True, timeout=timeout, headers=headers, cookies=cookies) as r:
                 if r.status_code != 200:
                     print(f"Error downloading stream. Status: {r.status_code}, Response: {r.text[:200]}", file=sys.stderr)
                 r.raise_for_status()
