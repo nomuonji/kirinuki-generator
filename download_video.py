@@ -124,18 +124,22 @@ def download_with_playwright(video_id, output_path):
         nonlocal video_url, audio_url
         url = request.url
         if "googlevideo.com/videoplayback" in url:
-            # Simple heuristic: check mime type in query params or response headers if possible
-            # But request object doesn't have response headers yet.
-            # We can check URL params.
-            if "mime=video" in url and not video_url:
-                # Prefer 1080p/720p if possible, but for now just grab the first video stream
-                # In a real browser playback, adaptive streaming might switch. 
-                # We'll try to catch the first one.
-                print("Captured Video URL from Playwright")
-                video_url = url
-            elif "mime=audio" in url and not audio_url:
-                print("Captured Audio URL from Playwright")
-                audio_url = url
+            # Check for mime type in URL parameters
+            if "mime=video" in url:
+                if not video_url:
+                    print(f"Captured Video URL: {url[:50]}...")
+                    video_url = url
+            elif "mime=audio" in url:
+                if not audio_url:
+                    print(f"Captured Audio URL: {url[:50]}...")
+                    audio_url = url
+            else:
+                # If no mime type specified in URL, it might be a muxed stream or we need to check headers (harder here)
+                # For now, if we don't have a video url, assume this might be it if it's large enough? 
+                # Or just take the first one as video if we have nothing.
+                if not video_url:
+                    print(f"Captured potential Video URL (no mime): {url[:50]}...")
+                    video_url = url
 
     with sync_playwright() as p:
         # Launch browser (headless=True for CI)
@@ -207,13 +211,17 @@ def download_with_playwright(video_id, output_path):
                     print(f"Waiting... ({i}s)")
                 time.sleep(1)
                 
-            if not video_url or not audio_url:
-                print("Could not capture both video and audio streams via Playwright.", file=sys.stderr)
+            if not video_url:
+                print("Could not capture video stream via Playwright.", file=sys.stderr)
                 print(f"Captured Video: {bool(video_url)}, Captured Audio: {bool(audio_url)}")
                 page.screenshot(path="error_capture_failed.png")
                 browser.close()
                 return False
-                
+            
+            if not audio_url:
+                print("Warning: Audio stream not captured. Assuming video stream contains audio (muxed) or using video stream as fallback.")
+                audio_url = video_url
+
             # Now download using the captured URLs
             # Important: Use the cookies/headers from the Playwright context for the download request
             # For simplicity, we'll use requests with the cookies we loaded. 
