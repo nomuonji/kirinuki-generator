@@ -8,6 +8,33 @@ import ffmpeg
 
 FRAME_RATE = 30
 
+def _parse_include_clips(value: str) -> set[int]:
+    """Parses a comma-separated list of clip indices (supports simple ranges)."""
+    include: set[int] = set()
+    if not value:
+        return include
+
+    for part in value.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        if "-" in token:
+            start_str, end_str = token.split("-", 1)
+            try:
+                start = int(start_str, 10)
+                end = int(end_str, 10)
+            except ValueError:
+                continue
+            if start > end:
+                start, end = end, start
+            include.update(range(start, end + 1))
+        else:
+            try:
+                include.add(int(token, 10))
+            except ValueError:
+                continue
+    return {idx for idx in include if idx > 0}
+
 
 def _normalize_plain_text(text: str) -> str:
     text = (text or "").replace("\r\n", "\n").replace("\r", "\n")
@@ -117,7 +144,14 @@ def main():
     parser = argparse.ArgumentParser(description="Prepare clips for Remotion rendering.")
     parser.add_argument("--input-dir", required=True, help="Directory containing the original clips and hooks.")
     parser.add_argument("--skip-optimization", action="store_true", help="Skip the ffmpeg re-encoding step.")
+    parser.add_argument(
+        "--include-clips",
+        type=str,
+        default="",
+        help="Comma-separated clip indices (e.g. '1,4,7-9') to include; others are skipped.",
+    )
     args = parser.parse_args()
+    include_filter = _parse_include_clips(args.include_clips)
 
     project_root = pathlib.Path(__file__).parent.parent.parent
     input_dir = project_root / args.input_dir
@@ -139,6 +173,10 @@ def main():
                     print(f"  -> Warning: Could not read {candidate_name}: {exc}")
                 if source_title:
                     break
+
+    if include_filter:
+        include_label = ", ".join(f"{idx:03d}" for idx in sorted(include_filter))
+        print(f"Filtering to specified clips: {include_label}")
 
     clip_files = sorted(input_dir.glob("clip_*.mp4"))
     if not clip_files:
@@ -199,6 +237,9 @@ def main():
     for clip_path in clip_files:
         match = re.search(r"clip_(\d{3})", clip_path.name)
         if not match: continue
+        clip_index = int(match.group(1))
+        if include_filter and clip_index not in include_filter:
+            continue
 
         video_for_props = source_video_dir / clip_path.name
         duration_frames = get_duration_in_frames(video_for_props)

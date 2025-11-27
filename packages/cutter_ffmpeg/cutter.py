@@ -83,12 +83,13 @@ def _prepare_command(video_path: pathlib.Path, spec: ClipSpec, out_file: pathlib
     cmd = [FFMPEG_BIN, "-hide_banner", "-loglevel", "error"] + input_opts + filter_opts + output_opts
     return cmd
 
-def cut_many(video: str, clips: List[ClipSpec], out_dir: str) -> None:
+def cut_many(video: str, clips: List[ClipSpec], out_dir: str, quiet: bool = False) -> None:
     video_path = pathlib.Path(video)
     outp = pathlib.Path(out_dir)
     outp.mkdir(parents=True, exist_ok=True)
 
-    print(f"\nCutting {len(clips)} clips using up to {MAX_CONCURRENT_TASKS} parallel tasks...")
+    if not quiet:
+        print(f"\nCutting {len(clips)} clips using up to {MAX_CONCURRENT_TASKS} parallel tasks...")
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TASKS) as executor:
         future_to_spec = {}
@@ -108,10 +109,12 @@ def cut_many(video: str, clips: List[ClipSpec], out_dir: str) -> None:
                 success = future.result()
                 if success:
                     successful_cuts += 1
-                    print(f"({i+1}/{len(clips)}) Successfully cut clip {spec.index:03d} -> {out_file.name}")
+                    if not quiet:
+                        print(f"({i+1}/{len(clips)}) Successfully cut clip {spec.index:03d} -> {out_file.name}")
                 else:
                     print(f"({i+1}/{len(clips)}) Failed to cut clip {spec.index:03d}")
             except Exception as exc:
                 print(f"({i+1}/{len(clips)}) Clip {spec.index:03d} generated an exception: {exc}")
 
-    print(f"\nDone. {successful_cuts}/{len(clips)} clips were cut successfully and saved in '{out_dir}'.")
+    if not quiet:
+        print(f"\nDone. {successful_cuts}/{len(clips)} clips were cut successfully and saved in '{out_dir}'.")
