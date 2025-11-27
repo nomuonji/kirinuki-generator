@@ -124,27 +124,34 @@ def download_with_playwright(video_id, output_path):
         nonlocal video_url, audio_url
         url = request.url
         if "googlevideo.com/videoplayback" in url:
-            # Check for mime type in URL parameters
+            # Remove 'range' parameter to request the full file
+            import urllib.parse
+            parsed = urllib.parse.urlparse(url)
+            qs = urllib.parse.parse_qs(parsed.query)
+            
+            if 'range' in qs:
+                del qs['range']
+            
+            new_query = urllib.parse.urlencode(qs, doseq=True)
+            clean_url = urllib.parse.urlunparse(parsed._replace(query=new_query))
+
             if "mime=video" in url:
                 if not video_url:
-                    print(f"Captured Video URL: {url[:50]}...")
-                    video_url = url
+                    print(f"Captured Video URL: {clean_url[:50]}...")
+                    video_url = clean_url
             elif "mime=audio" in url:
                 if not audio_url:
-                    print(f"Captured Audio URL: {url[:50]}...")
-                    audio_url = url
+                    print(f"Captured Audio URL: {clean_url[:50]}...")
+                    audio_url = clean_url
             else:
-                # If no mime type specified in URL, it might be a muxed stream or we need to check headers (harder here)
-                # For now, if we don't have a video url, assume this might be it if it's large enough? 
-                # Or just take the first one as video if we have nothing.
+                # Fallback for no mime type (potentially muxed)
                 if not video_url:
-                    print(f"Captured potential Video URL (no mime): {url[:50]}...")
-                    video_url = url
+                    print(f"Captured potential Video URL (no mime): {clean_url[:50]}...")
+                    video_url = clean_url
 
     with sync_playwright() as p:
         # Launch browser (headless=True for CI)
         browser = p.chromium.launch(headless=True)
-        # Create a context with specific user agent and locale to look legitimate
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
             locale="ja-JP"
@@ -183,7 +190,6 @@ def download_with_playwright(video_id, output_path):
         try:
             page.goto(youtube_url, timeout=60000)
             
-            # Wait for video player
             try:
                 page.wait_for_selector("video", timeout=30000)
             except Exception:
@@ -191,29 +197,31 @@ def download_with_playwright(video_id, output_path):
                 page.screenshot(path="error_no_video.png")
                 raise
 
-            # Attempt to click play (sometimes needed if autoplay is blocked)
             try:
                 page.click("video", timeout=5000)
                 print("Clicked video element.")
             except Exception:
-                print("Could not click video element (might be obscured or playing).")
+                pass
 
-            # Force play via JS
             page.evaluate("document.querySelector('video').play()")
             
-            # Wait loop for requests
             print("Waiting for stream URLs...")
             for i in range(60): # Wait up to 60 seconds
                 if video_url and audio_url:
-                    print(f"Captured both streams! Video: {video_url[:50]}... Audio: {audio_url[:50]}...")
+                    print("Captured both streams!")
                     break
+                
+                # Seek to trigger audio stream if missing
+                if i == 10 and video_url and not audio_url:
+                    print("Seeking to trigger audio stream...")
+                    page.evaluate("document.querySelector('video').currentTime = document.querySelector('video').duration / 2")
+
                 if i % 5 == 0:
                     print(f"Waiting... ({i}s)")
                 time.sleep(1)
                 
             if not video_url:
                 print("Could not capture video stream via Playwright.", file=sys.stderr)
-                print(f"Captured Video: {bool(video_url)}, Captured Audio: {bool(audio_url)}")
                 page.screenshot(path="error_capture_failed.png")
                 browser.close()
                 return False
@@ -222,11 +230,6 @@ def download_with_playwright(video_id, output_path):
                 print("Warning: Audio stream not captured. Assuming video stream contains audio (muxed) or using video stream as fallback.")
                 audio_url = video_url
 
-            # Now download using the captured URLs
-            # Important: Use the cookies/headers from the Playwright context for the download request
-            # For simplicity, we'll use requests with the cookies we loaded. 
-            # Ideally we should copy headers from the captured request, but standard headers + cookies might suffice.
-            
             browser.close()
             
             print("--- Downloading streams captured by Playwright ---")
@@ -236,20 +239,34 @@ def download_with_playwright(video_id, output_path):
             
             # Use the same cookies for download
             _download_stream("video (Playwright)", video_url, video_part_path)
-            _download_stream("audio (Playwright)", audio_url, audio_part_path)
             
-            print("--- Merging Playwright streams with ffmpeg ---")
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", video_part_path,
-                "-i", audio_part_path,
-                "-c:v", "copy",
-                "-c:a", "copy",
-                output_path
-            ]
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            print(f"Successfully merged to {output_path}")
-            
+            if audio_url != video_url:
+                _download_stream("audio (Playwright)", audio_url, audio_part_path)
+                
+                print("--- Merging Playwright streams with ffmpeg ---")
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", video_part_path,
+                    "-i", audio_part_path,
+                    "-c:v", "copy",
+                    "-c:a", "copy",
+                    output_path
+                ]
+                try:
+                    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    print(f"Successfully merged to {output_path}")
+                except subprocess.CalledProcessError as e:
+                    print(f"Error merging streams with ffmpeg: {e}", file=sys.stderr)
+                    if e.stderr:
+                        print(f"FFmpeg stderr: {e.stderr.decode('utf-8', errors='ignore')}", file=sys.stderr)
+                    return False
+            else:
+                print("--- Single stream detected (Muxed). Renaming video part to output. ---")
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                os.rename(video_part_path, output_path)
+                print(f"Successfully saved to {output_path}")
+
             # Cleanup
             if os.path.exists(video_part_path): os.remove(video_part_path)
             if os.path.exists(audio_part_path): os.remove(audio_part_path)
