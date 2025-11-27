@@ -19,6 +19,8 @@ def find_stream_urls(data):
 
     # Find the best available video stream (MP4, preferring 1080p, then 720p, etc.)
     preferred_video_itags = ['137', '136', '135', '134']
+    
+    # First pass: look for preferred itags
     for stream in adaptive_formats:
         itag = str(stream.get('itag'))
         mime_type = stream.get('mimeType', '')
@@ -27,6 +29,17 @@ def find_stream_urls(data):
             if video_url:
                 print(f"Found preferred video stream (itag {itag}).")
                 break
+    
+    # Second pass: if no preferred video found, take any mp4 video
+    if not video_url:
+        for stream in adaptive_formats:
+            mime_type = stream.get('mimeType', '')
+            if 'video/mp4' in mime_type:
+                video_url = stream.get('url')
+                itag = str(stream.get('itag'))
+                if video_url:
+                    print(f"Found fallback video stream (itag {itag}).")
+                    break
 
     # Find the best available audio stream (m4a)
     preferred_audio_itag = '140'
@@ -42,10 +55,15 @@ def find_stream_urls(data):
     return video_url, audio_url
 
 def _download_stream(label, url, dest_path, timeout=900, retries=3):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    }
     for attempt in range(1, retries + 1):
         try:
             print(f"Downloading {label} to {dest_path} (attempt {attempt}/{retries})...")
-            with requests.get(url, stream=True, timeout=timeout) as r:
+            with requests.get(url, stream=True, timeout=timeout, headers=headers) as r:
+                if r.status_code != 200:
+                    print(f"Error downloading stream. Status: {r.status_code}, Response: {r.text[:200]}", file=sys.stderr)
                 r.raise_for_status()
                 with open(dest_path, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=8192):
