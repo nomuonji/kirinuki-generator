@@ -178,20 +178,39 @@ def download_with_playwright(video_id, output_path):
         
         try:
             page.goto(youtube_url, timeout=60000)
-            # Wait for video player to load and potentially start
-            page.wait_for_selector("video", timeout=30000)
             
-            # Try to play the video to trigger network requests
+            # Wait for video player
+            try:
+                page.wait_for_selector("video", timeout=30000)
+            except Exception:
+                print("Video element not found. Saving screenshot...", file=sys.stderr)
+                page.screenshot(path="error_no_video.png")
+                raise
+
+            # Attempt to click play (sometimes needed if autoplay is blocked)
+            try:
+                page.click("video", timeout=5000)
+                print("Clicked video element.")
+            except Exception:
+                print("Could not click video element (might be obscured or playing).")
+
+            # Force play via JS
             page.evaluate("document.querySelector('video').play()")
             
-            # Wait a bit for requests to fire
-            for _ in range(20):
+            # Wait loop for requests
+            print("Waiting for stream URLs...")
+            for i in range(60): # Wait up to 60 seconds
                 if video_url and audio_url:
+                    print(f"Captured both streams! Video: {video_url[:50]}... Audio: {audio_url[:50]}...")
                     break
+                if i % 5 == 0:
+                    print(f"Waiting... ({i}s)")
                 time.sleep(1)
                 
             if not video_url or not audio_url:
                 print("Could not capture both video and audio streams via Playwright.", file=sys.stderr)
+                print(f"Captured Video: {bool(video_url)}, Captured Audio: {bool(audio_url)}")
+                page.screenshot(path="error_capture_failed.png")
                 browser.close()
                 return False
                 
