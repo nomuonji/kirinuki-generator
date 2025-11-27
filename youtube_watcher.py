@@ -255,6 +255,17 @@ def main():
 
         if duration.total_seconds() < MIN_VIDEO_DURATION_SECONDS:
             print("Video is shorter than the minimum duration. Skipping.")
+            processed_entries, processed_file_id = record_processed_entry(
+                drive_service,
+                gdrive_parent_folder_id,
+                processed_entries,
+                processed_file_id,
+                video_id,
+                title,
+                "skipped",
+                "duration_too_short"
+            )
+            processed_ids.add(video_id)
             continue
 
         cached_state, _file_id = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
