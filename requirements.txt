@@ -1,6 +1,7 @@
 google-generativeai>=0.8.3
 pydantic>=2.8.0
-python-dotenv>=1.0.1
+python-dotenv
+yt-dlp>=1.0.1
 ffmpeg-python>=0.2.0
 numpy>=1.26.0
 tqdm>=4.66.0
