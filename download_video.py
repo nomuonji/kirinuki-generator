@@ -108,6 +108,13 @@ def download_with_playwright(video_id, output_path):
         return False
 
     print(f"--- Attempting Playwright Fallback for {video_id} ---")
+
+    # Force install browsers to ensure they exist in the current environment
+    try:
+        print("Ensuring Playwright browsers are installed...")
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+    except Exception as e:
+        print(f"Warning: Failed to run playwright install: {e}", file=sys.stderr)
     
     video_url = None
     audio_url = None
