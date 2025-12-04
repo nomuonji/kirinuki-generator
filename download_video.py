@@ -4,6 +4,7 @@ import subprocess
 import sys
 import time
 import requests
+import shutil
 from dotenv import load_dotenv
 
 # Try importing playwright, but don't fail immediately if not present (e.g. during initial setup)
@@ -11,6 +12,94 @@ try:
     from playwright.sync_api import sync_playwright
 except ImportError:
     sync_playwright = None
+
+
+def download_with_ytdlp(video_id, output_path):
+    """
+    Primary method: Uses yt-dlp with JavaScript Challenge Solver (Deno) 
+    to bypass YouTube's 403 errors and bot detection.
+    
+    This is the most reliable method as of late 2025.
+    """
+    # Convert to absolute path to avoid path resolution issues
+    output_path = os.path.abspath(output_path)
+    print(f"--- Attempting yt-dlp download with JS Challenge Solver for {video_id} ---")
+    print(f"Output path: {output_path}")
+    
+    # Check if yt-dlp is available
+    ytdlp_cmd = [sys.executable, "-m", "yt_dlp"]
+    
+    # Check if Deno is available
+    deno_path = shutil.which("deno")
+    if not deno_path:
+        print("Warning: Deno not found. JS Challenge Solver may not work optimally.", file=sys.stderr)
+        print("Install Deno with: winget install DenoLand.Deno", file=sys.stderr)
+    
+    youtube_url = f"https://www.youtube.com/watch?v={video_id}"
+    
+    # Build the yt-dlp command with new options for bypassing 403 errors
+    cmd = ytdlp_cmd + [
+        "--js-runtimes", "deno",  # Use Deno for JS challenge solving
+        "--remote-components", "ejs:npm",  # Download required NPM packages for JS challenge
+        "-f", "bestvideo[height<=1080]+bestaudio/best",  # Best quality up to 1080p
+        "--merge-output-format", "mp4",  # Output as MP4
+        "--no-check-certificates",  # Skip certificate verification
+        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "-o", output_path,
+        youtube_url
+    ]
+    
+    # Add cookies if available (use absolute path)
+    cookies_path = os.path.abspath("cookies.txt")
+    if os.path.exists(cookies_path):
+        # Insert before the URL (last element)
+        cmd.insert(-1, "--cookies")
+        cmd.insert(-1, cookies_path)
+        print(f"Using cookies for authentication: {cookies_path}")
+    
+    print(f"Executing: {' '.join(cmd)}")
+    
+    try:
+        # Use Popen for real-time output streaming
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="ignore"
+        )
+        
+        # Stream output in real-time
+        for line in iter(process.stdout.readline, ""):
+            print(line, end="")
+        process.stdout.close()
+        return_code = process.wait()
+        
+        # Check if file was created (success even if return code is non-zero)
+        if os.path.exists(output_path):
+            file_size = os.path.getsize(output_path)
+            if file_size > 0:
+                print(f"\nSuccessfully downloaded to {output_path} ({file_size} bytes)")
+                return True
+            else:
+                print(f"\nOutput file exists but is empty: {output_path}", file=sys.stderr)
+                os.remove(output_path)
+                return False
+        
+        if return_code != 0:
+            print(f"\nyt-dlp exited with code {return_code} and no output file", file=sys.stderr)
+            return False
+            
+        print(f"\nyt-dlp completed but output file not found at {output_path}", file=sys.stderr)
+        return False
+            
+    except FileNotFoundError:
+        print("yt-dlp not found. Install with: pip install -U yt-dlp", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"Error during yt-dlp download: {e}", file=sys.stderr)
+        return False
 
 
 def _download_stream(label, url, dest_path, timeout=900, retries=3, headers=None, cookies=None):
@@ -315,19 +404,25 @@ def download_youtube_video_from_api(video_id, output_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Download YouTube video via RapidAPI with Playwright fallback.")
+    parser = argparse.ArgumentParser(description="Download YouTube video via yt-dlp with fallbacks.")
     parser.add_argument("video_id", help="The YouTube Video ID")
     parser.add_argument("--output", required=True, help="Output path for the video file")
     args = parser.parse_args()
 
     load_dotenv()
 
-    # 1. Try RapidAPI
+    # 1. Try yt-dlp with JS Challenge Solver (most reliable as of late 2025)
+    if download_with_ytdlp(args.video_id, args.output):
+        print("Download completed using yt-dlp with JS Challenge Solver.")
+        sys.exit(0)
+    
+    # 2. Fallback to RapidAPI
+    print("\n!!! yt-dlp method failed. Switching to RapidAPI fallback !!!\n")
     if download_youtube_video_from_api(args.video_id, args.output):
         print("Download completed using RapidAPI.")
         sys.exit(0)
     
-    # 2. Fallback to Playwright
+    # 3. Fallback to Playwright
     print("\n!!! RapidAPI method failed. Switching to Playwright fallback !!!\n")
     if download_with_playwright(args.video_id, args.output):
         print("Download completed using Playwright fallback.")
