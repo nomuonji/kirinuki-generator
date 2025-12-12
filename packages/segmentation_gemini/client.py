@@ -108,14 +108,15 @@ def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30
 - Clip Length: {min_sec}s to {max_sec}s
 - Minimum Gap Between Clips: {min_gap}s
 - **Crucial:** The 'end' time for each proposed clip MUST exactly match the 'end' time of one of the transcript segments provided. Do not invent timestamps.
+- **LANGUAGE:** All output text (title, punchline, reason) MUST be in Japanese.
 
 **Output Format:**
 Return a JSON array of objects. Each object must have these fields:
 - `start`: The start time in seconds.
 - `end`: The end time of the clip in seconds.
-- `title`: A concise, engaging title for the clip. **Highlight the most important word** with `**`.
+- `title`: A concise, engaging title for the clip in Japanese. **Highlight the most important word** with `**`.
 - `punchline`: Extract the single most impactful, funny, or memorable punchline spoken in the clip. This must be a verbatim quote from the transcript, not a summary. It must be very short (under 15 characters) and readable in one second. **Highlight the key word** with `**`.
-- `reason`: Explain why this segment is a good, self-contained clip.
+- `reason`: Explain why this segment is a good, self-contained clip (in Japanese).
 - `confidence`: A score from 0 to 1.
 
 Output JSON only."""
@@ -230,7 +231,7 @@ def generate_hook_text(clip_transcript: str) -> HookText:
 
     sys = (
         "You are a viral video producer crafting overlay text for short-form clips. "
-        "Write in energetic Japanese youth slang. Follow these formatting rules strictly: "
+        "Write in energetic Japanese youth slang. Ensure ALL generated text is in Japanese. Follow these formatting rules strictly: "
         "1) Provide decorated text using **double asterisks** around up to three key phrases that must pop. "
         "2) Use \\n (newline) to break the copy into at most two short lines that read naturally. "
         "3) Avoid any markup besides the **emphasis** markers. No emojis that break encoding. "
@@ -291,6 +292,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
     sys = (
         "You are a viral video producer. "
         f"{concept_prompt}For each item, craft youth-slang overlay text for vertical video top/bottom bands. "
+        "Ensure ALL text is in Japanese. "
         "Top overlay text (upperDecorated) should quickly set context or tease the setup in 1-2 short lines. "
         "Bottom overlay text (lowerDecorated) must be a bold punchline-style catchphrase that captures the clip's climax—"
         "keep it to a single, high-impact phrase (ideally under 14 Japanese characters), and spotlight the key word with **bold** if needed. "

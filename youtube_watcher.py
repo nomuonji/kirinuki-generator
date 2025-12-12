@@ -49,37 +49,52 @@ def run_command(command, description):
     return True
 
 
-def get_latest_videos(api_key, channel_id):
-    """Fetch latest videos from the specified YouTube channel."""
+def get_uploads_playlist_id(api_key, channel_id):
+    """Retrieve the uploads playlist ID for the given channel."""
     try:
         youtube = build("youtube", "v3", developerKey=api_key)
         channel_request = youtube.channels().list(part="contentDetails", id=channel_id)
         channel_response = channel_request.execute()
         if not channel_response.get("items"):
             print(f"Channel not found for ID: {channel_id}")
-            return []
+            return None
+        return channel_response["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+    except HttpError as exc:
+        print(f"HTTP error retrieving channel info: {exc}")
+        return None
 
-        uploads_playlist_id = channel_response["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+
+def fetch_videos_batch(api_key, playlist_id, page_token=None, max_results=10):
+    """Fetch a batch of videos from the playlist, returning (videos, next_page_token)."""
+    try:
+        youtube = build("youtube", "v3", developerKey=api_key)
         playlist_request = youtube.playlistItems().list(
             part="snippet,contentDetails",
-            playlistId=uploads_playlist_id,
-            maxResults=10,
+            playlistId=playlist_id,
+            maxResults=max_results,
+            pageToken=page_token
         )
         playlist_response = playlist_request.execute()
+        
         video_ids = [item["contentDetails"]["videoId"] for item in playlist_response.get("items", [])]
+        next_page_token = playlist_response.get("nextPageToken")
+
         if not video_ids:
-            return []
+            return [], next_page_token
 
         videos_request = youtube.videos().list(part="contentDetails,snippet", id=",".join(video_ids))
         videos_response = videos_request.execute()
+        
+        # Sort by publishedAt (newest first)
         videos = sorted(videos_response.get("items", []), key=lambda x: x["snippet"]["publishedAt"], reverse=True)
-        return videos
+        return videos, next_page_token
+
     except HttpError as exc:
         print(f"An HTTP error {exc.resp.status} occurred: {exc.content}")
-        return []
-    except Exception as exc:  # pylint: disable=broad-except
+        return [], None
+    except Exception as exc:
         print(f"An error occurred: {exc}")
-        return []
+        return [], None
 
 
 def parse_duration(duration_str):
@@ -231,30 +246,132 @@ def main():
     processed_ids = {entry.get("videoId") for entry in processed_entries if entry.get("videoId")}
     print(f"Previously processed videos: {len(processed_entries)}")
 
-    videos = get_latest_videos(youtube_api_key, youtube_channel_id)
-    if not videos:
-        print("No videos found or API error.")
+    uploads_playlist_id = get_uploads_playlist_id(youtube_api_key, youtube_channel_id)
+    if not uploads_playlist_id:
+        print("Could not resolve uploads playlist. Exiting.")
         return
 
-    candidates = [video for video in reversed(videos) if video["id"] not in processed_ids]
-    if not candidates:
-        print("No new videos to process.")
-        return
+    page_token = None
+    videos_checked = 0
+    MAX_SEARCH_VIDEOS = 60  # Approximately 6 batches of 10
+    
+    # Loop to fetch batches until we find a target to process or hit the limit
+    while videos_checked < MAX_SEARCH_VIDEOS:
+        print(f"\nFetching video batch (checked {videos_checked}/{MAX_SEARCH_VIDEOS})...")
+        videos, next_page_token = fetch_videos_batch(youtube_api_key, uploads_playlist_id, page_token=page_token)
+        
+        if not videos:
+            print("No videos returned in this batch.")
+            if not next_page_token:
+                break
+            page_token = next_page_token
+            continue
 
-    print(f"Found {len(candidates)} new video(s) to process.")
+        # We process the oldest of the batch first to "catch up", consistent with previous logic.
+        # But since we are looking for *any* target, and if we are here it means we skipped previous batches (newer videos),
+        # we check these candidates.
+        candidates = [video for video in reversed(videos) if video["id"] not in processed_ids]
+        
+        if not candidates:
+            print("All videos in this batch have been processed already.")
+            if not next_page_token:
+                print("No more pages available.")
+                break
+            page_token = next_page_token
+            videos_checked += len(videos)
+            continue
 
-    for video in candidates:
-        video_id = video["id"]
-        title = video["snippet"]["title"]
-        duration = parse_duration(video["contentDetails"]["duration"])
+        print(f"Found {len(candidates)} candidate(s) in this batch.")
+        
+        found_target = False
+        for video in candidates:
+            video_id = video["id"]
+            title = video["snippet"]["title"]
+            duration = parse_duration(video["contentDetails"]["duration"])
 
-        print("\n--- Checking Video ---")
-        print(f"ID: {video_id}")
-        print(f"Title: {title}")
-        print(f"Duration: {duration.total_seconds()}s")
+            print("\n--- Checking Video ---")
+            print(f"ID: {video_id}")
+            print(f"Title: {title}")
+            print(f"Duration: {duration.total_seconds()}s")
 
-        if duration.total_seconds() < MIN_VIDEO_DURATION_SECONDS:
-            print("Video is shorter than the minimum duration. Skipping.")
+            if duration.total_seconds() < MIN_VIDEO_DURATION_SECONDS:
+                print("Video is shorter than the minimum duration. Skipping.")
+                processed_entries, processed_file_id = record_processed_entry(
+                    drive_service,
+                    gdrive_parent_folder_id,
+                    processed_entries,
+                    processed_file_id,
+                    video_id,
+                    title,
+                    "skipped",
+                    "duration_too_short"
+                )
+                processed_ids.add(video_id)
+                continue
+
+            cached_state, _file_id = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
+            cached_status = cached_state.get("status")
+            if cached_status == "completed":
+                print("Remote state indicates this video is already processed. Skipping.")
+                if video_id not in processed_ids:
+                    processed_entries.append({
+                        "videoId": video_id,
+                        "title": title,
+                        "processedAt": cached_state.get("lastUpdated") or _now_iso(),
+                    })
+                    processed_file_id = save_processed_videos(drive_service, gdrive_parent_folder_id, processed_entries, processed_file_id)
+                    processed_ids.add(video_id)
+                continue
+
+            resume_flag = cached_status in {"in-progress", "failed"}
+            os.environ["SOURCE_VIDEO_TITLE"] = cached_state.get("sourceTitle") or title
+
+            command = [
+                sys.executable,
+                "run_all.py",
+                video_id,
+                "--subs",
+                "--reaction",
+            ]
+            if resume_flag:
+                command.append("--resume")
+                print("Resuming processing based on remote state.")
+
+            if not run_command(command, f"Processing video {video_id}"):
+                state_snapshot, _ = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
+                failure_reason = state_snapshot.get("failureReason") if state_snapshot else "pipeline"
+                processed_entries, processed_file_id = record_processed_entry(
+                    drive_service,
+                    gdrive_parent_folder_id,
+                    processed_entries,
+                    processed_file_id,
+                    video_id,
+                    title,
+                    "failed",
+                    failure_reason or "pipeline",
+                )
+                continue
+
+            refreshed_state, _ = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
+            refreshed_status = refreshed_state.get("status")
+            if refreshed_status != "completed":
+                reason = refreshed_state.get("failureReason") if refreshed_state else "pipeline"
+                processed_entries, processed_file_id = record_processed_entry(
+                    drive_service,
+                    gdrive_parent_folder_id,
+                    processed_entries,
+                    processed_file_id,
+                    video_id,
+                    title,
+                    refreshed_status or "failed",
+                    reason or "",
+                )
+                continue
+
+            uploaded_count = refreshed_state.get("uploadedClips")
+            if uploaded_count is not None:
+                print(f"Total clips uploaded so far: {uploaded_count}")
+
             processed_entries, processed_file_id = record_processed_entry(
                 drive_service,
                 gdrive_parent_folder_id,
@@ -262,87 +379,22 @@ def main():
                 processed_file_id,
                 video_id,
                 title,
-                "skipped",
-                "duration_too_short"
+                "completed",
             )
             processed_ids.add(video_id)
-            continue
-
-        cached_state, _file_id = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
-        cached_status = cached_state.get("status")
-        if cached_status == "completed":
-            print("Remote state indicates this video is already processed. Skipping.")
-            if video_id not in processed_ids:
-                processed_entries.append({
-                    "videoId": video_id,
-                    "title": title,
-                    "processedAt": cached_state.get("lastUpdated") or _now_iso(),
-                })
-                processed_file_id = save_processed_videos(drive_service, gdrive_parent_folder_id, processed_entries, processed_file_id)
-                processed_ids.add(video_id)
-            continue
-
-        resume_flag = cached_status in {"in-progress", "failed"}
-        os.environ["SOURCE_VIDEO_TITLE"] = cached_state.get("sourceTitle") or title
-
-        command = [
-            sys.executable,
-            "run_all.py",
-            video_id,
-            "--subs",
-            "--reaction",
-        ]
-        if resume_flag:
-            command.append("--resume")
-            print("Resuming processing based on remote state.")
-
-        if not run_command(command, f"Processing video {video_id}"):
-            state_snapshot, _ = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
-            failure_reason = state_snapshot.get("failureReason") if state_snapshot else "pipeline"
-            processed_entries, processed_file_id = record_processed_entry(
-                drive_service,
-                gdrive_parent_folder_id,
-                processed_entries,
-                processed_file_id,
-                video_id,
-                title,
-                "failed",
-                failure_reason or "pipeline",
-            )
-            continue
-
-        refreshed_state, _ = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
-        refreshed_status = refreshed_state.get("status")
-        if refreshed_status != "completed":
-            reason = refreshed_state.get("failureReason") if refreshed_state else "pipeline"
-            processed_entries, processed_file_id = record_processed_entry(
-                drive_service,
-                gdrive_parent_folder_id,
-                processed_entries,
-                processed_file_id,
-                video_id,
-                title,
-                refreshed_status or "failed",
-                reason or "",
-            )
-            continue
-
-        uploaded_count = refreshed_state.get("uploadedClips")
-        if uploaded_count is not None:
-            print(f"Total clips uploaded so far: {uploaded_count}")
-
-        processed_entries, processed_file_id = record_processed_entry(
-            drive_service,
-            gdrive_parent_folder_id,
-            processed_entries,
-            processed_file_id,
-            video_id,
-            title,
-            "completed",
-        )
-        processed_ids.add(video_id)
-        print(f"Recorded completion of video {video_id} to Drive log.")
-        break
+            print(f"Recorded completion of video {video_id} to Drive log.")
+            found_target = True
+            break
+        
+        if found_target:
+            break
+        
+        # Prepare for next batch
+        videos_checked += len(videos)
+        page_token = next_page_token
+        if not page_token:
+            print("Reached end of playlist.")
+            break
 
 
 if __name__ == "__main__":
