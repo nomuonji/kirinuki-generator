@@ -519,7 +519,9 @@ def main():
     if resuming:
         print(f"Resuming progress for video {args.video_id} using Drive-backed state.")
         if state.get("status") == "completed":
-            print("State indicates this video has already completed processing. Exiting.")
+            print("State indicates this video has already completed processing. Cleaning up leftover state file and exiting.")
+            if state_file_id:
+                delete_file(drive_service, state_file_id)
             return
     else:
         if state and not args.resume:
@@ -946,7 +948,10 @@ def main():
                 shutil.rmtree(path, ignore_errors=True)
         # Note: We keep tmp_dir, props_dir, and final_output_dir for inspection after the run.
         print("--- Final cleanup complete ---\n")
-        persist_state()
+        
+        # Only persist state if we haven't completed (and thus deleted) the state file.
+        if state.get("status") != "completed":
+            persist_state()
 
 if __name__ == "__main__":
     main()
