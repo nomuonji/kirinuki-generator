@@ -11,8 +11,8 @@ on:
         description: 'Google Drive Folder ID'
         required: true
         default: '1hnjNbsTqxwhgT98MZrzRvm4rgVNWtxuY'
-  schedule:
-    - cron: '0 7 * * *' # Runs every day at 7 AM UTC
+  # schedule:
+  #   - cron: '0 7 * * *' # Runs every day at 7 AM UTC
 
 jobs:
   build-and-upload:

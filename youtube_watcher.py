@@ -329,15 +329,13 @@ def main():
             command = [
                 sys.executable,
                 "run_all.py",
+                video_id,
                 "--subs",
                 "--reaction",
             ]
             if resume_flag:
                 command.append("--resume")
                 print("Resuming processing based on remote state.")
-
-            # Pass video_id last, preceded by -- to handle IDs starting with hyphen
-            command.extend(["--", video_id])
 
             if not run_command(command, f"Processing video {video_id}"):
                 state_snapshot, _ = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)

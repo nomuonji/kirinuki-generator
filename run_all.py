@@ -603,7 +603,7 @@ def main():
         need_download = not download_stage.get("done") or not video_path.exists()
         if need_download:
             # --- 3. Download Video ---
-            cmd_download = [sys.executable, "download_video.py", "--output", str(video_path), "--", args.video_id]
+            cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
             run_command(cmd_download, "Downloading YouTube Video")
             if not video_path.exists() or video_path.stat().st_size == 0:
                 raise RuntimeError(f"Video download failed; file not found or empty at {video_path}")
@@ -617,7 +617,7 @@ def main():
             print("Download stage already marked complete; reusing existing video if present.")
             if not video_path.exists():
                 print("Local video missing; re-downloading to ensure availability.")
-                cmd_download = [sys.executable, "download_video.py", "--output", str(video_path), "--", args.video_id]
+                cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
                 run_command(cmd_download, "Re-downloading YouTube Video")
                 if not video_path.exists() or video_path.stat().st_size == 0:
                     raise RuntimeError(f"Video download failed; file not found or empty at {video_path}")
@@ -653,7 +653,7 @@ def main():
         transcript_failed = False
         if need_transcribe:
             # --- 4. Transcribe Video ---
-            cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", "--output", str(transcript_path), "--", args.video_id]
+            cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
             try:
                 run_command(cmd_transcribe, "Transcribing Video")
             except subprocess.CalledProcessError:
@@ -672,7 +672,7 @@ def main():
             print("Transcription stage already completed; reusing existing transcript.")
             if not transcript_path.exists():
                 print("Transcript missing locally; regenerating to ensure availability.")
-                cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", "--output", str(transcript_path), "--", args.video_id]
+                cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
                 try:
                     run_command(cmd_transcribe, "Re-transcribing Video")
                 except subprocess.CalledProcessError:
