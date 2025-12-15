@@ -182,6 +182,23 @@ def find_file(service, parent_id: str, name: str) -> Optional[dict]:
     return files[0] if files else None
 
 
+def list_state_files(service, parent_id: str, prefix: str = "state_") -> list[dict]:
+    """Lists all state files in the specified parent folder."""
+    query = (
+        f"'{parent_id}' in parents and name contains '{prefix}' "
+        "and mimeType = 'application/json' and trashed = false"
+    )
+    response = _retryable_call(
+        lambda: service.files().list(
+            q=query,
+            spaces="drive",
+            fields="files(id, name, modifiedTime)",
+            pageSize=100,
+        ).execute()
+    )
+    return response.get("files", [])
+
+
 def download_file_bytes(service, file_id: str) -> bytes:
     """Downloads the contents of a file as bytes."""
     request = service.files().get_media(fileId=file_id)

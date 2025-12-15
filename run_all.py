@@ -10,11 +10,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from packages.cutter_ffmpeg.cutter import ClipSpec, cut_many
+from datetime import timedelta
 from packages.shared.gdrive import (
     build_safe_filename,
     download_file_bytes,
     find_file,
     get_drive_service,
+    list_state_files,
     sanitize_filename,
     upload_file,
     upload_json_data,
@@ -25,6 +27,19 @@ CLIP_FILENAME_PATTERN = re.compile(r"clip_(\d{3})", re.IGNORECASE)
 STATE_FILE_TEMPLATE = "state_{video_id}.json"
 RENDERED_CLIP_PATTERN = re.compile(r"clip_(\d{3})(?:[_-].*)?\.mp4$", re.IGNORECASE)
 PROPS_FILENAME_PATTERN = re.compile(r"clip_(\d{3})(?:[_-].*)?\.json$", re.IGNORECASE)
+
+# Rate limit error patterns to detect 429 errors from subprocesses
+RATE_LIMIT_PATTERNS = [
+    "429",
+    "ResourceExhausted",
+    "exceeded your current quota",
+    "rate limit",
+    "too many requests",
+]
+
+class RateLimitError(Exception):
+    """Raised when a rate limit (429) error is detected from a subprocess."""
+    pass
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -47,6 +62,80 @@ def save_state_to_drive(service, parent_folder_id: str, state_file_name: str, st
     state["lastUpdated"] = _utc_now_iso()
     payload = json.dumps(state, ensure_ascii=False, indent=2).encode("utf-8")
     return upload_json_data(service, parent_folder_id, state_file_name, payload, file_id)
+
+
+def cleanup_old_state_files(
+    service,
+    parent_folder_id: str,
+    current_video_id: str,
+    max_age_days: int = 7,
+) -> int:
+    """
+    Remove old state files from Google Drive.
+    
+    Deletes state files that are:
+    - Older than max_age_days (based on modifiedTime)
+    - Not the current video being processed
+    
+    Returns the number of files deleted.
+    """
+    try:
+        state_files = list_state_files(service, parent_folder_id)
+    except Exception as exc:
+        print(f"Warning: Failed to list state files for cleanup: {exc}", file=sys.stderr)
+        return 0
+    
+    if not state_files:
+        return 0
+    
+    current_state_name = STATE_FILE_TEMPLATE.format(video_id=current_video_id)
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=max_age_days)
+    deleted_count = 0
+    
+    for file_info in state_files:
+        file_name = file_info.get("name", "")
+        file_id = file_info.get("id")
+        modified_time_str = file_info.get("modifiedTime", "")
+        
+        # Skip the current video's state file
+        if file_name == current_state_name:
+            continue
+        
+        # Only delete files older than the cutoff
+        try:
+            # Parse ISO 8601 timestamp (e.g., "2025-01-01T12:00:00.000Z")
+            modified_time = datetime.fromisoformat(modified_time_str.replace("Z", "+00:00"))
+            if modified_time > cutoff:
+                continue  # File is still fresh, keep it
+        except (ValueError, TypeError):
+            # If we can't parse the timestamp, skip deletion to be safe
+            continue
+        
+        # Try to check if the state is "failed" before deleting
+        # This adds safety but costs an extra API call per file
+        try:
+            payload = download_file_bytes(service, file_id)
+            state_data = json.loads(payload.decode("utf-8"))
+            status = state_data.get("status", "")
+            
+            # Delete only if status is 'failed' or 'completed' (completed should already be gone, but just in case)
+            if status not in ("failed", "completed"):
+                # Still in-progress, might be from a concurrent run, skip
+                continue
+        except Exception:
+            # If we can't read the file, it might be corrupted - safe to delete
+            pass
+        
+        # Delete the old state file
+        try:
+            delete_file(service, file_id)
+            print(f"  -> Cleaned up old state file: {file_name}")
+            deleted_count += 1
+        except Exception as exc:
+            print(f"Warning: Failed to delete old state file {file_name}: {exc}", file=sys.stderr)
+    
+    return deleted_count
 
 def load_clips_manifest_from_drive(service, artifact_info: dict) -> dict | None:
     """Load the stored clips manifest JSON from Drive."""
@@ -284,13 +373,20 @@ def run_command(command, description, cwd=None, quiet=False):
                 cwd=cwd
             )
 
+            captured_output = []
             for line in iter(process.stdout.readline, ''):
                 print(line, end='')
+                captured_output.append(line)
 
             process.stdout.close()
             return_code = process.wait()
 
             if return_code != 0:
+                # Check if this is a rate limit error
+                full_output = ''.join(captured_output)
+                for pattern in RATE_LIMIT_PATTERNS:
+                    if pattern.lower() in full_output.lower():
+                        raise RateLimitError(f"Rate limit detected in '{description}': {pattern}")
                 raise subprocess.CalledProcessError(return_code, command)
 
         print(f"\n--- Finished: {description} ---\n")
@@ -594,6 +690,14 @@ def main():
 
     tmp_dir.mkdir()
     final_output_dir.mkdir()
+
+    # Cleanup old state files from Google Drive (failed states older than 7 days)
+    print("Cleaning up old state files from Google Drive...")
+    cleaned_count = cleanup_old_state_files(drive_service, drive_parent_id, args.video_id)
+    if cleaned_count > 0:
+        print(f"  -> Removed {cleaned_count} old state file(s)")
+    else:
+        print("  -> No old state files to remove")
 
     print("--- Pre-run cleanup complete ---\n")
 
@@ -925,6 +1029,15 @@ def main():
         print("\n[OK] All steps completed successfully!")
         print(f"Uploaded clips to Google Drive folder: {drive_parent_id}\n")
 
+    except RateLimitError as e:
+        # Rate limit errors (429) should NOT persist failure state to Drive
+        # This allows the video to be retried later without being marked as permanently failed
+        print("\n[RATE LIMIT] The pipeline hit a rate limit (429 error).", file=sys.stderr)
+        print(f"  - {e}", file=sys.stderr)
+        print("\nThis video will NOT be marked as failed. Please retry after the rate limit resets.", file=sys.stderr)
+        print("Intermediate files are kept in their respective directories for debugging.", file=sys.stderr)
+        # Do NOT persist state - leave it as "in-progress" so it can be retried
+        sys.exit(1)
     except (subprocess.CalledProcessError, FileNotFoundError, RuntimeError) as e:
         print("\n[ERROR] The pipeline did not finish successfully.", file=sys.stderr)
         if isinstance(e, subprocess.CalledProcessError):

@@ -70,11 +70,17 @@ def download_with_ytdlp(video_id, output_path):
             errors="ignore"
         )
         
-        # Stream output in real-time
+        # Stream output in real-time, but suppress [download] progress lines to reduce log spam
+        print("Download started...")
         for line in iter(process.stdout.readline, ""):
+            # Filter out download progress lines (they start with [download])
+            stripped = line.strip()
+            if stripped.startswith("[download]"):
+                continue
             print(line, end="")
         process.stdout.close()
         return_code = process.wait()
+        print("Download stream finished.")
         
         # Check if file was created (success even if return code is non-zero)
         if os.path.exists(output_path):
