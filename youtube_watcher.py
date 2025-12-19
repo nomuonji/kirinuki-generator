@@ -243,8 +243,14 @@ def main():
     drive_service = get_drive_service()
 
     processed_entries, processed_file_id = load_processed_videos(drive_service, gdrive_parent_folder_id)
-    processed_ids = {entry.get("videoId") for entry in processed_entries if entry.get("videoId")}
-    print(f"Previously processed videos: {len(processed_entries)}")
+    # Treat entries with status="failed" and reason="pipeline" as unprocessed (legacy bug workaround)
+    processed_ids = {
+        entry.get("videoId")
+        for entry in processed_entries
+        if entry.get("videoId")
+        and not (entry.get("status") == "failed" and entry.get("reason") == "pipeline")
+    }
+    print(f"Previously processed videos: {len(processed_entries)} (retryable: {len(processed_entries) - len(processed_ids)})")
 
     uploads_playlist_id = get_uploads_playlist_id(youtube_api_key, youtube_channel_id)
     if not uploads_playlist_id:
@@ -354,6 +360,11 @@ def main():
 
             refreshed_state, _ = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
             refreshed_status = refreshed_state.get("status")
+            # run_all.py deletes the state file upon successful completion, so an empty
+            # state (no file) combined with a successful command exit means "completed".
+            if not refreshed_state:
+                # State file was deleted, which indicates run_all.py finished successfully
+                refreshed_status = "completed"
             if refreshed_status != "completed":
                 reason = refreshed_state.get("failureReason") if refreshed_state else "pipeline"
                 processed_entries, processed_file_id = record_processed_entry(
