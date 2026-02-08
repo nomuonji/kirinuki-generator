@@ -193,6 +193,59 @@ def find_stream_urls(data):
     return video_url, audio_url
 
 
+def merge_streams(video_path, audio_path, output_path):
+    """Merges video and audio streams with ffmpeg, providing detailed error info on failure."""
+    if not os.path.exists(video_path):
+        raise FileNotFoundError(f"Video part file not found: {video_path}")
+
+    video_size = os.path.getsize(video_path)
+    if video_size == 0:
+        raise ValueError(f"Video part file is empty: {video_path}")
+
+    # Check if audio_path exists and is valid
+    has_audio = os.path.exists(audio_path) and os.path.getsize(audio_path) > 0
+
+    # If they are the same file, we only need one input (it's likely a muxed stream)
+    if video_path == audio_path:
+        print("Video and audio paths are identical; attempting to treat as muxed stream.")
+        cmd = ["ffmpeg", "-y", "-i", video_path, "-c", "copy", output_path]
+    elif not has_audio:
+        print("Audio part file missing or empty; attempting to use video part only.")
+        cmd = ["ffmpeg", "-y", "-i", video_path, "-c", "copy", output_path]
+    else:
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", video_path,
+            "-i", audio_path,
+            "-c:v", "copy",
+            "-c:a", "copy",
+            output_path
+        ]
+
+    print(f"Executing ffmpeg: {' '.join(cmd)}")
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+
+    if result.returncode != 0:
+        # Check for a specific error: missing audio stream in a merge attempt
+        err_msg = result.stderr or ""
+        if "matches no streams" in err_msg and "-i" in str(cmd) and len([arg for arg in cmd if arg == "-i"]) > 1:
+             print("Detected missing stream (likely audio) during merge. Retrying with video only...")
+             cmd_retry = ["ffmpeg", "-y", "-i", video_path, "-c", "copy", output_path]
+             result_retry = subprocess.run(cmd_retry, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+             if result_retry.returncode == 0:
+                 print("Retry with video-only succeeded.")
+                 return True
+
+        print(f"ffmpeg failed with exit code {result.returncode}", file=sys.stderr)
+        if result.stdout:
+            print(f"ffmpeg stdout:\n{result.stdout}", file=sys.stderr)
+        if result.stderr:
+            print(f"ffmpeg stderr:\n{result.stderr}", file=sys.stderr)
+        raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
+
+    return True
+
+
 def download_with_playwright(video_id, output_path):
     """
     Fallback method: Uses Playwright to capture stream URLs and download them.
@@ -207,6 +260,8 @@ def download_with_playwright(video_id, output_path):
     # Force install browsers to ensure they exist in the current environment
     try:
         print("Ensuring Playwright browsers are installed...")
+        # Note: In CI, we expect browsers to be pre-installed via workflow steps for efficiency,
+        # but we keep this as a last-resort safety measure.
         subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
     except Exception as e:
         print(f"Warning: Failed to run playwright install: {e}", file=sys.stderr)
@@ -334,16 +389,8 @@ def download_with_playwright(video_id, output_path):
             _download_stream("audio (Playwright)", audio_url, audio_part_path)
             
             print("--- Merging Playwright streams with ffmpeg ---")
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", video_part_path,
-                "-i", audio_part_path,
-                "-c:v", "copy",
-                "-c:a", "copy",
-                output_path
-            ]
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            print(f"Successfully merged to {output_path}")
+            merge_streams(video_part_path, audio_part_path, output_path)
+            print(f"Successfully created final video at {output_path}")
             
             # Cleanup
             if os.path.exists(video_part_path): os.remove(video_part_path)
@@ -388,17 +435,9 @@ def download_youtube_video_from_api(video_id, output_path):
         _download_stream("video", video_url, video_part_path)
         _download_stream("audio", audio_url, audio_part_path)
 
-        print("--- Merging video and audio with ffmpeg ---")
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", video_part_path,
-            "-i", audio_part_path,
-            "-c:v", "copy",
-            "-c:a", "copy",
-            output_path
-        ]
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print(f"Successfully merged to {output_path}")
+        print("--- Merging RapidAPI streams with ffmpeg ---")
+        merge_streams(video_part_path, audio_part_path, output_path)
+        print(f"Successfully created final video at {output_path}")
         
         if os.path.exists(video_part_path): os.remove(video_part_path)
         if os.path.exists(audio_part_path): os.remove(audio_part_path)

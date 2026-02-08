@@ -46,6 +46,11 @@ jobs:
         cache: 'npm'
         cache-dependency-path: apps/remotion/package-lock.json
 
+    - name: Set up Deno
+      uses: denoland/setup-deno@v2
+      with:
+        deno-version: v2.x
+
     - name: Prepare browser cache directories
       run: |
         mkdir -p ~/.cache/puppeteer
