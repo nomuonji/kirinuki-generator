@@ -47,6 +47,11 @@ jobs:
         cache: 'npm'
         cache-dependency-path: apps/remotion/package-lock.json
 
+    - name: Set up Deno
+      uses: denoland/setup-deno@v2
+      with:
+        deno-version: v2.x
+
     - name: Prepare browser cache directories
       run: |
         mkdir -p ~/.cache/puppeteer
@@ -71,6 +76,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        playwright install chromium --with-deps
 
     - name: Install Node.js dependencies for Remotion
       run: npm install
