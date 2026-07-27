@@ -3,7 +3,12 @@ name: Geo Probe (diagnostic)
 # Throwaway diagnostic: works out whether a region-locked video can be reached from a
 # GitHub-hosted runner using only free, built-in means. Delete once the answer is known.
 
+# Runs on push to this file so it can be exercised from a branch. workflow_dispatch would
+# require the workflow to already exist on the default branch.
 on:
+  push:
+    paths:
+      - '.github/workflows/geo-probe.yml'
   workflow_dispatch:
     inputs:
       video_id:
@@ -42,7 +47,7 @@ jobs:
 
     - name: Probe each free bypass option
       env:
-        VIDEO_ID: ${{ github.event.inputs.video_id }}
+        VIDEO_ID: ${{ github.event.inputs.video_id || 'QtJaxvkkT_8' }}
       run: |
         url="https://www.youtube.com/watch?v=$VIDEO_ID"
 
