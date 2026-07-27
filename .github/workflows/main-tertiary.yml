@@ -11,28 +11,28 @@ on:
         description: 'Google Drive Folder ID'
         required: true
         default: '1hnjNbsTqxwhgT98MZrzRvm4rgVNWtxuY'
-  # schedule:
-  #   - cron: '0 7 * * *' # Runs every day at 7 AM UTC
+  schedule:
+    # Staggered an hour after the secondary channel so two 2h+ pipelines never overlap.
+    - cron: '7 7 * * *' # Runs every day at 07:07 UTC
 
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
+    # GitHub kills a job at 6h with no chance to save state. Stop short of that so the
+    # run ends cleanly and the next one can resume.
+    timeout-minutes: 340
     env:
       PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
       YOUTUBE_CHANNEL_ID_SCHEDULED: "UC0yQ2h4gQXmVUFWZSqlMVOA"
+      # NOTE: intentionally left as-is, but this differs from the workflow_dispatch default
+      # above (1hnjNbsTqxwhgT98MZrzRvm4rgVNWtxuY) — scheduled and manual runs upload to
+      # different Drive folders.
       GDRIVE_FOLDER_ID_SCHEDULED: "12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4"
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-
-    - name: Cache last video ID
-      uses: actions/cache@v3
-      id: cache-video-id
-      with:
-        path: last_video_id_${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}.txt
-        key: ${{ runner.os }}-last-video-id-${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -75,6 +75,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        # YouTube breaks older yt-dlp releases regularly; a pinned floor is not enough.
+        python -m pip install --upgrade yt-dlp
+        python -m yt_dlp --version
         playwright install chromium --with-deps
 
     - name: Install Node.js dependencies for Remotion
@@ -88,23 +91,20 @@ jobs:
     - name: Create cookie file from secret
       env:
         YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
-      run: echo "$YT_COOKIES_TXT" > cookies.txt
+      # `echo` writes a 1-byte newline when the secret is unset, and download_video.py used
+      # to hand any existing file to yt-dlp. An empty or rotated cookie jar makes YouTube
+      # reject requests that succeed anonymously, so only keep a non-empty file.
+      run: |
+        printf '%s' "$YT_COOKIES_TXT" > cookies.txt
+        [ -s cookies.txt ] || rm -f cookies.txt
 
     - name: Run YouTube Watcher and Processor
       env:
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         YOUTUBE_CHANNEL_ID: ${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}
         GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id || env.GDRIVE_FOLDER_ID_SCHEDULED }}
-        STATE_FILE_PATH: last_video_id_${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}.txt
         RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
         GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
       run: python youtube_watcher.py
-
-    - name: Save last video ID to cache
-      uses: actions/cache/save@v3
-      if: always()
-      with:
-        path: last_video_id_${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}.txt
-        key: ${{ runner.os }}-last-video-id-${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}

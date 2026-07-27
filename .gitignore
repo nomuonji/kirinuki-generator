@@ -10,6 +10,16 @@ apps/remotion/public/out_clips/
 remotion_tmp
 cookies.txt
 last_video_id.txt
+last_video_id_*.txt
+
+# Python
+__pycache__/
+*.pyc
+
+# Debug artifacts written to the repo root by the Playwright fallback
+debug_screenshot.png
+error_no_video.png
+error_capture_failed.png
 
 # Google OAuth
 client_secret.json

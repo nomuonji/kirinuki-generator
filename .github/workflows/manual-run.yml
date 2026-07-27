@@ -13,6 +13,7 @@ on:
 jobs:
   manual-build-and-upload:
     runs-on: ubuntu-latest
+    timeout-minutes: 340
     env:
       PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
@@ -32,6 +33,13 @@ jobs:
         node-version: '18'
         cache: 'npm'
         cache-dependency-path: apps/remotion/package-lock.json
+
+    # download_video.py passes --js-runtimes deno to solve YouTube's JS challenge; without
+    # a JS runtime the format list comes back thinned out.
+    - name: Set up Deno
+      uses: denoland/setup-deno@v2
+      with:
+        deno-version: v2.x
 
     - name: Prepare browser cache directories
       run: |
@@ -57,6 +65,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        # YouTube breaks older yt-dlp releases regularly; a pinned floor is not enough.
+        python -m pip install --upgrade yt-dlp
+        python -m yt_dlp --version
+        playwright install chromium --with-deps
 
     - name: Install Node.js dependencies for Remotion
       run: npm install
@@ -69,13 +81,23 @@ jobs:
     - name: Create cookie file from secret
       env:
         YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
-      run: echo "$YT_COOKIES_TXT" > cookies.txt
+      # `echo` writes a 1-byte newline when the secret is unset, and download_video.py used
+      # to hand any existing file to yt-dlp. An empty or rotated cookie jar makes YouTube
+      # reject requests that succeed anonymously, so only keep a non-empty file.
+      run: |
+        printf '%s' "$YT_COOKIES_TXT" > cookies.txt
+        [ -s cookies.txt ] || rm -f cookies.txt
 
-    - name: Run Manual Processor
+    # Calls run_all.py directly. The old manual_process.py wrapper imported functions that
+    # no longer exist in youtube_watcher.py (rename_and_upload_files, get_gdrive_credentials)
+    # and so failed at import; run_all.py already uploads each clip to Drive itself.
+    - name: Run Pipeline
       env:
+        VIDEO_ID: ${{ github.event.inputs.video_id }}
+        GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id }}
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
         GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
         RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      run: python manual_process.py ${{ github.event.inputs.video_id }} ${{ github.event.inputs.gdrive_folder_id }}
+      run: python run_all.py "$VIDEO_ID" --subs --reaction
