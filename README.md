@@ -82,12 +82,11 @@ python run_all.py <YouTubeのビデオID> --reaction
 -   **ローカルの動画ファイルを使う場合:**
 
     1.  **ファイルの配置:**
-        -   お手持ちの動画ファイル (例: `my_video.mp4`) を `tmp` フォルダにコピーします。
+        -   お手持ちの動画ファイル (例: `my_video.mp4`) を `tmp` フォルダに `video.mp4` としてコピーします。
     2.  **文字起こし:**
-        -   `transcribe.py` を実行して文字起こしを行います。
-        ```bash
-        python transcribe.py
-        ```
+        -   ローカル文字起こし用の `transcribe.py` は削除されました（依存関係が未インストールで動作しませんでした）。
+            `tmp/transcript.json` を手動で用意するか、元動画の YouTube ID がわかる場合は
+            上記の `transcribe_rapidapi.py` を使ってください。
 
 完了後、`tmp`フォルダに`video.mp4`（動画ファイル）と`transcript.json`（文字起こしデータ）が準備できている状態になります。
 

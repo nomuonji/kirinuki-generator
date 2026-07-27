@@ -2,6 +2,7 @@ import argparse
 import os
 import subprocess
 import sys
+import threading
 import time
 import requests
 import shutil
@@ -14,11 +15,169 @@ except ImportError:
     sync_playwright = None
 
 
+# Progressively looser selectors: prefer a clean mp4/m4a pair, but accept any muxed
+# stream rather than aborting when YouTube has thinned the format list (SABR).
+FORMAT_SELECTOR = (
+    "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/"
+    "bv*[height<=1080]+ba/"
+    "b[height<=1080]/"
+    "bv*+ba/b"
+)
+FORMAT_SORT = "res:1080,fps:30,codec:h264,ext:mp4"
+
+# Hard ceiling for a single yt-dlp invocation. Without this the process can hang until
+# the GitHub Actions 6-hour job limit kills the whole run.
+YTDLP_TIMEOUT_SECONDS = int(os.environ.get("YTDLP_TIMEOUT_SECONDS", "2700"))
+
+
+# Cookies that actually authenticate a YouTube session. A cookie file without any
+# of these is useless for bypassing bot detection.
+_AUTH_COOKIE_NAMES = {
+    "SID", "HSID", "SSID", "APISID", "SAPISID",
+    "__Secure-1PSID", "__Secure-3PSID", "LOGIN_INFO",
+}
+
+
+def has_video_stream(path):
+    """
+    True if the file actually contains a video track.
+
+    When YouTube thins the format list (SABR, or a failed n-challenge), the tail of the
+    format selector can match an audio-only format: yt-dlp then exits 0 having written a
+    perfectly valid m4a to video.mp4. Everything downstream — ffmpeg cutting, Remotion
+    rendering — either fails confusingly or produces a black clip, so catch it here.
+    """
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=codec_type", "-of", "csv=p=0", path],
+            capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=60,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        # Without ffprobe we cannot tell; assume the download is fine rather than
+        # discarding a good file.
+        print(f"Warning: could not verify video stream ({exc}).", file=sys.stderr)
+        return True
+    return "video" in result.stdout
+
+
+def _terminate(process):
+    """Terminates a subprocess, escalating to kill if it ignores the polite request."""
+    if process.poll() is not None:
+        return
+    try:
+        process.terminate()
+        process.wait(timeout=15)
+    except subprocess.TimeoutExpired:
+        print("Process ignored terminate(); killing.", file=sys.stderr)
+        process.kill()
+    except OSError:
+        pass
+
+
+def _watchdog(process, timeout_seconds, flag):
+    """
+    Kills `process` after `timeout_seconds` unless it exits first.
+
+    A deadline checked inside the output loop is not enough: if yt-dlp wedges without
+    printing, readline() blocks forever and nothing ever re-evaluates the deadline. That
+    is how a run reaches the GitHub Actions 6-hour ceiling.
+    """
+    def _run():
+        try:
+            process.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            flag["timed_out"] = True
+            print(
+                f"\nWatchdog: process exceeded {timeout_seconds}s; terminating.",
+                file=sys.stderr,
+            )
+            _terminate(process)
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    return thread
+
+
+def usable_cookie_file(path):
+    """
+    Returns the path if it holds a plausible Netscape cookie jar, else None.
+
+    The CI step used to run `echo "$YT_COOKIES_TXT" > cookies.txt` unconditionally, so a
+    missing secret produced a 1-byte file that was still handed to yt-dlp. Worse, an
+    *expired* YouTube session cookie makes yt-dlp fail where no cookies at all succeed
+    ("The provided YouTube account cookies are no longer valid"), so an unusable jar must
+    be dropped rather than passed along.
+    """
+    if not path or not os.path.exists(path):
+        return None
+
+    if os.path.getsize(path) <= 32:
+        print(f"Ignoring cookie file (too small to be a cookie jar): {path}", file=sys.stderr)
+        return None
+
+    now = time.time()
+    auth_cookies_seen = 0
+    auth_cookies_live = 0
+    try:
+        for cookie in parse_netscape_cookies(path):
+            if cookie["name"] not in _AUTH_COOKIE_NAMES:
+                continue
+            auth_cookies_seen += 1
+            # expires == 0 means a session cookie, which never reports as expired.
+            if cookie["expires"] == 0 or cookie["expires"] > now:
+                auth_cookies_live += 1
+    except OSError as exc:
+        print(f"Ignoring cookie file (unreadable: {exc}): {path}", file=sys.stderr)
+        return None
+
+    if auth_cookies_seen == 0:
+        print(f"Ignoring cookie file (no YouTube auth cookies found): {path}", file=sys.stderr)
+        return None
+    if auth_cookies_live == 0:
+        print(f"Ignoring cookie file (all auth cookies expired): {path}", file=sys.stderr)
+        return None
+
+    print(f"Using cookies for authentication: {path} ({auth_cookies_live} live auth cookies)")
+    return path
+
+
+def parse_netscape_cookies(path):
+    """Parses a Netscape-format cookie jar into a list of dicts."""
+    cookies = []
+    with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+        for line in handle:
+            line = line.strip()
+            # "#HttpOnly_" is a real prefix, not a comment.
+            if line.startswith("#HttpOnly_"):
+                line = line[len("#HttpOnly_"):]
+            elif line.startswith("#") or not line:
+                continue
+
+            parts = line.split("\t")
+            if len(parts) < 7:
+                continue
+            try:
+                expires = int(float(parts[4]))
+            except ValueError:
+                expires = 0
+            cookies.append({
+                "domain": parts[0],
+                "include_subdomains": parts[1] == "TRUE",
+                "path": parts[2],
+                "secure": parts[3] == "TRUE",
+                "expires": expires,
+                "name": parts[5],
+                "value": parts[6],
+            })
+    return cookies
+
+
 def download_with_ytdlp(video_id, output_path):
     """
-    Primary method: Uses yt-dlp with JavaScript Challenge Solver (Deno) 
+    Primary method: Uses yt-dlp with JavaScript Challenge Solver (Deno)
     to bypass YouTube's 403 errors and bot detection.
-    
+
     This is the most reliable method as of late 2025.
     """
     # Convert to absolute path to avoid path resolution issues
@@ -36,29 +195,83 @@ def download_with_ytdlp(video_id, output_path):
         print("Install Deno with: winget install DenoLand.Deno", file=sys.stderr)
     
     youtube_url = f"https://www.youtube.com/watch?v={video_id}"
-    
-    # Build the yt-dlp command with new options for bypassing 403 errors
+
+    # Anonymous first. A YouTube session cookie that has been rotated in the browser makes
+    # yt-dlp fail on videos it downloads fine without any cookies at all, and static
+    # inspection of the jar cannot tell a rotated cookie from a live one. So only reach for
+    # cookies once the anonymous attempt has failed, i.e. when the video plausibly needs auth.
+    cookies_path = usable_cookie_file(os.path.abspath("cookies.txt"))
+    attempts = [("anonymous", None)]
+    if cookies_path:
+        attempts.append(("with cookies", cookies_path))
+
+    for label, cookies in attempts:
+        print(f"\n--- yt-dlp attempt: {label} ---")
+        cmd = _build_ytdlp_command(ytdlp_cmd, youtube_url, output_path, cookies)
+        if _run_ytdlp(cmd, output_path):
+            return True
+
+    return False
+
+
+def _handle_unavailable(exc):
+    print(f"\n!!! Video is unavailable from this location: {exc}", file=sys.stderr)
+    print("Skipping the remaining fallbacks -- they run from the same IP and will "
+          "hit the same restriction.", file=sys.stderr)
+
+
+def _build_ytdlp_command(ytdlp_cmd, youtube_url, output_path, cookies_path):
     cmd = ytdlp_cmd + [
         "--js-runtimes", "deno",  # Use Deno for JS challenge solving
         "--remote-components", "ejs:npm",  # Download required NPM packages for JS challenge
-        "-f", "bestvideo[height<=1080]+bestaudio/best",  # Best quality up to 1080p
+        # tv_simply is rarely subject to the SABR-only experiment and needs no PO token, so
+        # try it first; missing_pot keeps PO-token-less formats as candidates instead of
+        # dropping them and leaving nothing for the format selector to match.
+        "--extractor-args",
+        "youtube:player_client=tv_simply,web_safari,default;formats=missing_pot",
+        # Multi-tier so that a client with a thinned-out format list still yields something
+        # rather than failing with "Requested format is not available".
+        "-f", FORMAT_SELECTOR,
+        "-S", FORMAT_SORT,
         "--merge-output-format", "mp4",  # Output as MP4
-        "--no-check-certificates",  # Skip certificate verification
-        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "--retries", "5",
+        "--fragment-retries", "10",
+        "--concurrent-fragments", "4",
+        "--socket-timeout", "30",
+        "--no-playlist",
         "-o", output_path,
-        youtube_url
     ]
-    
-    # Add cookies if available (use absolute path)
-    cookies_path = os.path.abspath("cookies.txt")
-    if os.path.exists(cookies_path):
-        # Insert before the URL (last element)
-        cmd.insert(-1, "--cookies")
-        cmd.insert(-1, cookies_path)
-        print(f"Using cookies for authentication: {cookies_path}")
-    
+    if cookies_path:
+        cmd += ["--cookies", cookies_path]
+    cmd.append(youtube_url)
+    return cmd
+
+
+# YouTube refuses these regardless of client, cookies or retry. Nothing downstream can
+# help, so stop immediately rather than spending 45 minutes in the Playwright fallback.
+FATAL_PATTERNS = (
+    "not made this video available in your country",
+    "video is not available in your country",
+    "Video unavailable",
+    "This video is private",
+    "This video has been removed",
+    "members-only content",
+)
+
+
+class UnavailableVideo(Exception):
+    """The video cannot be fetched from this location, by any method."""
+
+
+def _run_ytdlp(cmd, output_path):
+    """
+    Runs one yt-dlp invocation under a watchdog. Returns True if a non-empty file exists.
+
+    Raises UnavailableVideo when YouTube reports the video as blocked here, so callers can
+    skip the remaining fallbacks -- they hit the same wall from the same IP.
+    """
     print(f"Executing: {' '.join(cmd)}")
-    
+
     try:
         # Use Popen for real-time output streaming
         process = subprocess.Popen(
@@ -69,37 +282,61 @@ def download_with_ytdlp(video_id, output_path):
             encoding="utf-8",
             errors="ignore"
         )
-        
+
         # Stream output in real-time, but suppress [download] progress lines to reduce log spam
         print("Download started...")
+        flag = {"timed_out": False}
+        _watchdog(process, YTDLP_TIMEOUT_SECONDS, flag)
+        fatal_reason = None
         for line in iter(process.stdout.readline, ""):
             # Filter out download progress lines (they start with [download])
             stripped = line.strip()
             if stripped.startswith("[download]"):
                 continue
-            print(line, end="")
+            print(line, end="", flush=True)
+            for pattern in FATAL_PATTERNS:
+                if pattern.lower() in stripped.lower():
+                    fatal_reason = stripped
+                    break
         process.stdout.close()
         return_code = process.wait()
         print("Download stream finished.")
-        
+
+        if fatal_reason:
+            raise UnavailableVideo(fatal_reason)
+
+        if flag["timed_out"]:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            return False
+
         # Check if file was created (success even if return code is non-zero)
         if os.path.exists(output_path):
             file_size = os.path.getsize(output_path)
-            if file_size > 0:
-                print(f"\nSuccessfully downloaded to {output_path} ({file_size} bytes)")
-                return True
-            else:
+            if file_size == 0:
                 print(f"\nOutput file exists but is empty: {output_path}", file=sys.stderr)
                 os.remove(output_path)
                 return False
-        
+            if not has_video_stream(output_path):
+                print(
+                    f"\nDownloaded file has no video stream (audio-only format selected): "
+                    f"{output_path}",
+                    file=sys.stderr,
+                )
+                os.remove(output_path)
+                return False
+            print(f"\nSuccessfully downloaded to {output_path} ({file_size} bytes)")
+            return True
+
         if return_code != 0:
             print(f"\nyt-dlp exited with code {return_code} and no output file", file=sys.stderr)
             return False
-            
+
         print(f"\nyt-dlp completed but output file not found at {output_path}", file=sys.stderr)
         return False
-            
+
+    except UnavailableVideo:
+        raise  # Not a download error to retry past; the caller must stop.
     except FileNotFoundError:
         print("yt-dlp not found. Install with: pip install -U yt-dlp", file=sys.stderr)
         return False
@@ -108,7 +345,9 @@ def download_with_ytdlp(video_id, output_path):
         return False
 
 
-def _download_stream(label, url, dest_path, timeout=900, retries=3, headers=None, cookies=None):
+def _download_stream(label, url, dest_path, timeout=300, retries=2, headers=None, cookies=None):
+    # 900s x 3 retries meant a single dead stream URL burned 45 minutes before the caller
+    # even learned it had failed.
     if headers is None:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
@@ -117,17 +356,13 @@ def _download_stream(label, url, dest_path, timeout=900, retries=3, headers=None
         }
     
     # Load cookies from file if not provided
-    if cookies is None and os.path.exists("cookies.txt"):
-        cookies = {}
-        try:
-            with open("cookies.txt", "r") as f:
-                for line in f:
-                    if not line.startswith("#") and line.strip():
-                        parts = line.strip().split("\t")
-                        if len(parts) >= 7:
-                            cookies[parts[5]] = parts[6]
-        except Exception as e:
-            print(f"Warning: Failed to load cookies.txt: {e}", file=sys.stderr)
+    if cookies is None:
+        cookie_path = usable_cookie_file(os.path.abspath("cookies.txt"))
+        if cookie_path:
+            try:
+                cookies = {c["name"]: c["value"] for c in parse_netscape_cookies(cookie_path)}
+            except OSError as e:
+                print(f"Warning: Failed to load cookies.txt: {e}", file=sys.stderr)
 
     for attempt in range(1, retries + 1):
         try:
@@ -301,24 +536,22 @@ def download_with_playwright(video_id, output_path):
         )
         
         # Load cookies if available
-        if os.path.exists("cookies.txt"):
-            cookies_list = []
+        cookie_path = usable_cookie_file(os.path.abspath("cookies.txt"))
+        if cookie_path:
             try:
-                with open("cookies.txt", "r") as f:
-                    for line in f:
-                        if not line.startswith("#") and line.strip():
-                            parts = line.strip().split("\t")
-                            if len(parts) >= 7:
-                                cookies_list.append({
-                                    "name": parts[5],
-                                    "value": parts[6].strip(),
-                                    "domain": parts[0],
-                                    "path": parts[2],
-                                    "expires": int(parts[4]),
-                                    "httpOnly": False,
-                                    "secure": parts[3] == "TRUE",
-                                    "sameSite": "Lax"
-                                })
+                cookies_list = [
+                    {
+                        "name": c["name"],
+                        "value": c["value"].strip(),
+                        "domain": c["domain"],
+                        "path": c["path"],
+                        "expires": c["expires"],
+                        "httpOnly": False,
+                        "secure": c["secure"],
+                        "sameSite": "Lax",
+                    }
+                    for c in parse_netscape_cookies(cookie_path)
+                ]
                 context.add_cookies(cookies_list)
                 print("Loaded cookies into Playwright context.")
             except Exception as e:
@@ -457,10 +690,14 @@ def main():
     load_dotenv()
 
     # 1. Try yt-dlp with JS Challenge Solver (most reliable as of late 2025)
-    if download_with_ytdlp(args.video_id, args.output):
-        print("Download completed using yt-dlp with JS Challenge Solver.")
-        sys.exit(0)
-    
+    try:
+        if download_with_ytdlp(args.video_id, args.output):
+            print("Download completed using yt-dlp with JS Challenge Solver.")
+            sys.exit(0)
+    except UnavailableVideo as exc:
+        _handle_unavailable(exc)
+        sys.exit(2)
+
     # 2. Fallback to RapidAPI
     print("\n!!! yt-dlp method failed. Switching to RapidAPI fallback !!!\n")
     if download_youtube_video_from_api(args.video_id, args.output):

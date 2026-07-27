@@ -2,6 +2,8 @@ import json
 import os
 import subprocess
 import sys
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
@@ -18,11 +20,102 @@ from packages.shared.gdrive import (
 MIN_VIDEO_DURATION_SECONDS = 360  # 6 minutes
 PROCESSED_LOG_NAME = "processed_videos.json"
 
+# A transient failure is retried, but only a few times and never twice in the same day, so a
+# systemically broken step (expired cookies, a yt-dlp the site has outgrown) can no longer
+# burn a whole run's worth of time re-failing on every candidate video.
+MAX_RETRY_ATTEMPTS = 3
+RETRY_BACKOFF_HOURS = (6, 24, 72)
 
-def run_command(command, description):
+# Failures that will never resolve on their own. Retrying them wastes the entire budget.
+# "unavailable" covers geo-restricted, private and removed videos: the runner's IP will
+# not change, so a retry hits exactly the same wall.
+PERMANENT_FAILURE_REASONS = {"transcript", "duration_too_short", "unavailable"}
+
+# A failure older than this is abandoned rather than retried: the clip has lost its news
+# value, and chasing the backlog would starve newly published videos.
+STALE_FAILURE_DAYS = 30
+
+
+def _older_than(timestamp: str | None, days: int) -> bool:
+    if not timestamp:
+        return False
+    try:
+        when = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return datetime.now(timezone.utc) - when > timedelta(days=days)
+
+
+def _is_retryable(entry: dict) -> bool:
+    """Decides whether a previously-seen video should be attempted again."""
+    status = entry.get("status")
+    if status not in {"failed", "in-progress"}:
+        return False  # completed / skipped / unknown -> leave alone
+
+    if entry.get("reason") in PERMANENT_FAILURE_REASONS:
+        return False
+
+    last_attempt = entry.get("processedAt")
+    if _older_than(last_attempt, STALE_FAILURE_DAYS):
+        # The pipeline was broken from 2025-12 to 2026-07, leaving a backlog of failures.
+        # Clips are worth most soon after a video is published, so working through
+        # months-old misses would starve new uploads for weeks. Let them go.
+        return False
+
+    attempts = int(entry.get("attempts") or 1)
+    if attempts >= MAX_RETRY_ATTEMPTS:
+        return False
+
+    last_attempt = entry.get("processedAt")
+    if not last_attempt:
+        return True
+    try:
+        last = datetime.fromisoformat(last_attempt.replace("Z", "+00:00"))
+    except ValueError:
+        return True
+
+    backoff = RETRY_BACKOFF_HOURS[min(attempts, len(RETRY_BACKOFF_HOURS)) - 1]
+    return datetime.now(timezone.utc) - last >= timedelta(hours=backoff)
+
+
+class Deadline:
+    """
+    Wall-clock budget for a single watcher run.
+
+    GitHub Actions kills a job at 6 hours with no chance to record anything. Finishing
+    voluntarily before that means the run ends cleanly, state is written to Drive, and the
+    next run resumes instead of starting over.
+    """
+
+    def __init__(self, minutes: float, min_video_minutes: float):
+        self._end = time.monotonic() + minutes * 60
+        self._min_video_seconds = min_video_minutes * 60
+
+    def remaining(self) -> float:
+        return self._end - time.monotonic()
+
+    def exhausted(self) -> bool:
+        return self.remaining() <= 0
+
+    def can_start_video(self) -> bool:
+        """Refuses to begin a video we almost certainly cannot finish."""
+        return self.remaining() >= self._min_video_seconds
+
+    def summary(self) -> str:
+        remaining = max(0.0, self.remaining())
+        return f"{remaining / 60:.1f} min remaining"
+
+
+def run_command(command, description, timeout=None):
     """Runs a command and prints its description, streaming output in real-time."""
     print(f"--- {description} ---")
     print("Executing:", " ".join(map(str, command)))
+
+    # PYTHONUNBUFFERED: Python block-buffers stdout when it is a pipe, so anything still
+    # in the buffer is lost when we kill a hung child. That is how a five-hour hang
+    # produced zero diagnostic output.
+    child_env = os.environ.copy()
+    child_env["PYTHONUNBUFFERED"] = "1"
 
     process = subprocess.Popen(
         command,
@@ -31,12 +124,38 @@ def run_command(command, description):
         text=True,
         encoding="utf-8",
         errors="ignore",
+        env=child_env,
     )
 
+    timed_out = {"value": False}
+    if timeout is not None:
+        def _watch():
+            try:
+                process.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                timed_out["value"] = True
+                print(
+                    f"\nTimeout: '{description}' exceeded {timeout / 60:.0f} min; terminating.",
+                    file=sys.stderr,
+                )
+                try:
+                    process.terminate()
+                    process.wait(timeout=30)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                except OSError:
+                    pass
+
+        threading.Thread(target=_watch, daemon=True).start()
+
     for line in iter(process.stdout.readline, ""):
-        print(line, end="")
+        print(line, end="", flush=True)
     process.stdout.close()
     return_code = process.wait()
+
+    if timed_out["value"]:
+        print(f"\nERROR: '{description}' timed out.", file=sys.stderr)
+        return False
 
     if return_code != 0:
         print(
@@ -179,6 +298,10 @@ def record_processed_entry(
         record["reason"] = reason
 
     existing = next((entry for entry in entries if entry.get("videoId") == video_id), None)
+    if status == "failed":
+        # Count attempts so _is_retryable can eventually give up on a video.
+        record["attempts"] = int((existing or {}).get("attempts") or 0) + 1
+
     if existing:
         existing.update(record)
     else:
@@ -189,37 +312,14 @@ def record_processed_entry(
     return entries, file_id
 
 
-def count_gdrive_videos(service, folder_id):
-    """Counts the number of .mp4 files in a specific Google Drive folder."""
-    print(f"--- Checking Google Drive folder '{folder_id}' for video count ---")
-    try:
-        query = f"'{folder_id}' in parents and mimeType='video/mp4' and trashed=false"
-        fields = "files(id)"
-        page_token = None
-        count = 0
-        while True:
-            response = service.files().list(q=query,
-                                            spaces='drive',
-                                            fields=f"nextPageToken, {fields}",
-                                            pageToken=page_token).execute()
-            count += len(response.get('files', []))
-            page_token = response.get('nextPageToken', None)
-            if page_token is None:
-                break
-        print(f"Found {count} video(s) in the folder.")
-        return count
-    except HttpError as e:
-        print(f"An HTTP error {e.resp.status} occurred while counting files: {e.content}", file=sys.stderr)
-        # Return a high number to prevent processing on error
-        return 999
-    except Exception as e:
-        print(f"An unexpected error occurred while counting files: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return 999
-
-
 def main():
     load_dotenv()
+
+    deadline = Deadline(
+        minutes=float(os.environ.get("KIRINUKI_BUDGET_MINUTES", "300")),
+        min_video_minutes=float(os.environ.get("KIRINUKI_MIN_VIDEO_MINUTES", "40")),
+    )
+    print(f"Run budget: {deadline.summary()}")
 
     required_vars = {
         "YOUTUBE_API_KEY": os.environ.get("YOUTUBE_API_KEY"),
@@ -243,12 +343,14 @@ def main():
     drive_service = get_drive_service()
 
     processed_entries, processed_file_id = load_processed_videos(drive_service, gdrive_parent_folder_id)
-    # Treat entries with status="failed" and reason="pipeline" as unprocessed (legacy bug workaround)
+    # Every video we have already seen is skipped, failures included. Retrying failures
+    # unconditionally meant a broken download made each run chew through every candidate
+    # until the GitHub Actions 6-hour ceiling killed it, every day, producing nothing.
+    # A failed video is retried by clearing its entry (see MAX_RETRY_ATTEMPTS below).
     processed_ids = {
         entry.get("videoId")
         for entry in processed_entries
-        if entry.get("videoId")
-        and not (entry.get("status") == "failed" and entry.get("reason") == "pipeline")
+        if entry.get("videoId") and not _is_retryable(entry)
     }
     print(f"Previously processed videos: {len(processed_entries)} (retryable: {len(processed_entries) - len(processed_ids)})")
 
@@ -259,10 +361,14 @@ def main():
 
     page_token = None
     videos_checked = 0
-    MAX_SEARCH_VIDEOS = 60  # Approximately 6 batches of 10
-    
+    MAX_SEARCH_VIDEOS = 20  # Approximately 2 batches of 10
+
     # Loop to fetch batches until we find a target to process or hit the limit
     while videos_checked < MAX_SEARCH_VIDEOS:
+        if deadline.exhausted():
+            print(f"\nTime budget exhausted ({deadline.summary()}). Stopping.")
+            break
+
         print(f"\nFetching video batch (checked {videos_checked}/{MAX_SEARCH_VIDEOS})...")
         videos, next_page_token = fetch_videos_batch(youtube_api_key, uploads_playlist_id, page_token=page_token)
         
@@ -273,10 +379,10 @@ def main():
             page_token = next_page_token
             continue
 
-        # We process the oldest of the batch first to "catch up", consistent with previous logic.
-        # But since we are looking for *any* target, and if we are here it means we skipped previous batches (newer videos),
-        # we check these candidates.
-        candidates = [video for video in reversed(videos) if video["id"] not in processed_ids]
+        # Newest first. A clip is worth most shortly after the source video is published,
+        # so a fresh upload should never wait behind older ones. (`videos` is already
+        # sorted newest-first by fetch_videos_batch.)
+        candidates = [video for video in videos if video["id"] not in processed_ids]
         
         if not candidates:
             print("All videos in this batch have been processed already.")
@@ -294,6 +400,13 @@ def main():
             video_id = video["id"]
             title = video["snippet"]["title"]
             duration = parse_duration(video["contentDetails"]["duration"])
+
+            if not deadline.can_start_video():
+                # Starting a video we cannot finish just burns the remainder of the run and
+                # leaves a half-done state behind.
+                print(f"\nNot enough budget to start another video ({deadline.summary()}).")
+                found_target = True  # stop the outer paging loop too
+                break
 
             print("\n--- Checking Video ---")
             print(f"ID: {video_id}")
@@ -343,7 +456,13 @@ def main():
                 command.append("--resume")
                 print("Resuming processing based on remote state.")
 
-            if not run_command(command, f"Processing video {video_id}"):
+            # Hand the child the remaining budget so it is killed before GitHub Actions
+            # would kill the whole job.
+            if not run_command(
+                command,
+                f"Processing video {video_id}",
+                timeout=max(60.0, deadline.remaining()),
+            ):
                 state_snapshot, _ = load_state_from_drive(drive_service, gdrive_parent_folder_id, video_id)
                 failure_reason = state_snapshot.get("failureReason") if state_snapshot else "pipeline"
                 processed_entries, processed_file_id = record_processed_entry(
