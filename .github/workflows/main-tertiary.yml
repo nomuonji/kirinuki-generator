@@ -24,6 +24,9 @@ jobs:
     env:
       PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
+      # Without this Python block-buffers stdout into the Actions log pipe, so a run that
+      # is killed mid-flight reports nothing about where it got stuck.
+      PYTHONUNBUFFERED: '1'
       YOUTUBE_CHANNEL_ID_SCHEDULED: "UC0yQ2h4gQXmVUFWZSqlMVOA"
       # NOTE: intentionally left as-is, but this differs from the workflow_dispatch default
       # above (1hnjNbsTqxwhgT98MZrzRvm4rgVNWtxuY) — scheduled and manual runs upload to

@@ -7,8 +7,9 @@ on:
         description: 'YouTube Video ID to process'
         required: true
       gdrive_folder_id:
-        description: 'Google Drive Folder ID for upload'
-        required: true
+        description: 'Google Drive Folder ID for upload (blank = the GDRIVE_PARENT_FOLDER_ID secret)'
+        required: false
+        default: ''
 
 jobs:
   manual-build-and-upload:
@@ -17,6 +18,9 @@ jobs:
     env:
       PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
+      # Without this Python block-buffers stdout into the Actions log pipe, so a run that
+      # is killed mid-flight reports nothing about where it got stuck.
+      PYTHONUNBUFFERED: '1'
 
     steps:
     - name: Checkout repository
@@ -94,7 +98,9 @@ jobs:
     - name: Run Pipeline
       env:
         VIDEO_ID: ${{ github.event.inputs.video_id }}
-        GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id }}
+        # Falling back to the secret means re-running a video from the primary channel does
+        # not require pasting that folder ID around.
+        GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id || secrets.GDRIVE_PARENT_FOLDER_ID }}
         YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
         GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
