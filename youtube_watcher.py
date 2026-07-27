@@ -29,6 +29,20 @@ RETRY_BACKOFF_HOURS = (6, 24, 72)
 # Failures that will never resolve on their own. Retrying them wastes the entire budget.
 PERMANENT_FAILURE_REASONS = {"transcript", "duration_too_short"}
 
+# A failure older than this is abandoned rather than retried: the clip has lost its news
+# value, and chasing the backlog would starve newly published videos.
+STALE_FAILURE_DAYS = 30
+
+
+def _older_than(timestamp: str | None, days: int) -> bool:
+    if not timestamp:
+        return False
+    try:
+        when = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return datetime.now(timezone.utc) - when > timedelta(days=days)
+
 
 def _is_retryable(entry: dict) -> bool:
     """Decides whether a previously-seen video should be attempted again."""
@@ -37,6 +51,13 @@ def _is_retryable(entry: dict) -> bool:
         return False  # completed / skipped / unknown -> leave alone
 
     if entry.get("reason") in PERMANENT_FAILURE_REASONS:
+        return False
+
+    last_attempt = entry.get("processedAt")
+    if _older_than(last_attempt, STALE_FAILURE_DAYS):
+        # The pipeline was broken from 2025-12 to 2026-07, leaving a backlog of failures.
+        # Clips are worth most soon after a video is published, so working through
+        # months-old misses would starve new uploads for weeks. Let them go.
         return False
 
     attempts = int(entry.get("attempts") or 1)
@@ -349,10 +370,10 @@ def main():
             page_token = next_page_token
             continue
 
-        # We process the oldest of the batch first to "catch up", consistent with previous logic.
-        # But since we are looking for *any* target, and if we are here it means we skipped previous batches (newer videos),
-        # we check these candidates.
-        candidates = [video for video in reversed(videos) if video["id"] not in processed_ids]
+        # Newest first. A clip is worth most shortly after the source video is published,
+        # so a fresh upload should never wait behind older ones. (`videos` is already
+        # sorted newest-first by fetch_videos_batch.)
+        candidates = [video for video in videos if video["id"] not in processed_ids]
         
         if not candidates:
             print("All videos in this batch have been processed already.")
