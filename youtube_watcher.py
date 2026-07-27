@@ -27,7 +27,9 @@ MAX_RETRY_ATTEMPTS = 3
 RETRY_BACKOFF_HOURS = (6, 24, 72)
 
 # Failures that will never resolve on their own. Retrying them wastes the entire budget.
-PERMANENT_FAILURE_REASONS = {"transcript", "duration_too_short"}
+# "unavailable" covers geo-restricted, private and removed videos: the runner's IP will
+# not change, so a retry hits exactly the same wall.
+PERMANENT_FAILURE_REASONS = {"transcript", "duration_too_short", "unavailable"}
 
 # A failure older than this is abandoned rather than retried: the clip has lost its news
 # value, and chasing the backlog would starve newly published videos.

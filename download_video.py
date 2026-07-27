@@ -214,6 +214,12 @@ def download_with_ytdlp(video_id, output_path):
     return False
 
 
+def _handle_unavailable(exc):
+    print(f"\n!!! Video is unavailable from this location: {exc}", file=sys.stderr)
+    print("Skipping the remaining fallbacks -- they run from the same IP and will "
+          "hit the same restriction.", file=sys.stderr)
+
+
 def _build_ytdlp_command(ytdlp_cmd, youtube_url, output_path, cookies_path):
     cmd = ytdlp_cmd + [
         "--js-runtimes", "deno",  # Use Deno for JS challenge solving
@@ -241,8 +247,29 @@ def _build_ytdlp_command(ytdlp_cmd, youtube_url, output_path, cookies_path):
     return cmd
 
 
+# YouTube refuses these regardless of client, cookies or retry. Nothing downstream can
+# help, so stop immediately rather than spending 45 minutes in the Playwright fallback.
+FATAL_PATTERNS = (
+    "not made this video available in your country",
+    "video is not available in your country",
+    "Video unavailable",
+    "This video is private",
+    "This video has been removed",
+    "members-only content",
+)
+
+
+class UnavailableVideo(Exception):
+    """The video cannot be fetched from this location, by any method."""
+
+
 def _run_ytdlp(cmd, output_path):
-    """Runs one yt-dlp invocation under a watchdog. Returns True if a non-empty file exists."""
+    """
+    Runs one yt-dlp invocation under a watchdog. Returns True if a non-empty file exists.
+
+    Raises UnavailableVideo when YouTube reports the video as blocked here, so callers can
+    skip the remaining fallbacks -- they hit the same wall from the same IP.
+    """
     print(f"Executing: {' '.join(cmd)}")
 
     try:
@@ -260,15 +287,23 @@ def _run_ytdlp(cmd, output_path):
         print("Download started...")
         flag = {"timed_out": False}
         _watchdog(process, YTDLP_TIMEOUT_SECONDS, flag)
+        fatal_reason = None
         for line in iter(process.stdout.readline, ""):
             # Filter out download progress lines (they start with [download])
             stripped = line.strip()
             if stripped.startswith("[download]"):
                 continue
-            print(line, end="")
+            print(line, end="", flush=True)
+            for pattern in FATAL_PATTERNS:
+                if pattern.lower() in stripped.lower():
+                    fatal_reason = stripped
+                    break
         process.stdout.close()
         return_code = process.wait()
         print("Download stream finished.")
+
+        if fatal_reason:
+            raise UnavailableVideo(fatal_reason)
 
         if flag["timed_out"]:
             if os.path.exists(output_path):
@@ -300,6 +335,8 @@ def _run_ytdlp(cmd, output_path):
         print(f"\nyt-dlp completed but output file not found at {output_path}", file=sys.stderr)
         return False
 
+    except UnavailableVideo:
+        raise  # Not a download error to retry past; the caller must stop.
     except FileNotFoundError:
         print("yt-dlp not found. Install with: pip install -U yt-dlp", file=sys.stderr)
         return False
@@ -308,7 +345,9 @@ def _run_ytdlp(cmd, output_path):
         return False
 
 
-def _download_stream(label, url, dest_path, timeout=900, retries=3, headers=None, cookies=None):
+def _download_stream(label, url, dest_path, timeout=300, retries=2, headers=None, cookies=None):
+    # 900s x 3 retries meant a single dead stream URL burned 45 minutes before the caller
+    # even learned it had failed.
     if headers is None:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
@@ -651,10 +690,14 @@ def main():
     load_dotenv()
 
     # 1. Try yt-dlp with JS Challenge Solver (most reliable as of late 2025)
-    if download_with_ytdlp(args.video_id, args.output):
-        print("Download completed using yt-dlp with JS Challenge Solver.")
-        sys.exit(0)
-    
+    try:
+        if download_with_ytdlp(args.video_id, args.output):
+            print("Download completed using yt-dlp with JS Challenge Solver.")
+            sys.exit(0)
+    except UnavailableVideo as exc:
+        _handle_unavailable(exc)
+        sys.exit(2)
+
     # 2. Fallback to RapidAPI
     print("\n!!! yt-dlp method failed. Switching to RapidAPI fallback !!!\n")
     if download_youtube_video_from_api(args.video_id, args.output):

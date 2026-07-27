@@ -38,6 +38,11 @@ RATE_LIMIT_PATTERNS = [
     "too many requests",
 ]
 
+# download_video.py uses this exit code for "blocked here, by any method" (geo-restricted,
+# private, removed) as opposed to a transient failure.
+DOWNLOAD_EXIT_UNAVAILABLE = 2
+
+
 class RateLimitError(Exception):
     """Raised when a rate limit (429) error is detected from a subprocess."""
     pass
@@ -1134,6 +1139,9 @@ def main():
         # instead of a bare "pipeline".
         if isinstance(e, StageTimeout):
             state["failureReason"] = "timeout"
+        elif isinstance(e, subprocess.CalledProcessError) and e.returncode == DOWNLOAD_EXIT_UNAVAILABLE:
+            # Geo-blocked, private or removed. Retrying from the same runner cannot help.
+            state["failureReason"] = "unavailable"
         if state_file_id:
             persist_state()
         sys.exit(1)
