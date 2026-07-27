@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -340,22 +341,69 @@ def upload_clip_and_props(
     except OSError:
         print(f"Warning: Could not delete local clip {rendered_file}", file=sys.stderr)
 
-def run_command(command, description, cwd=None, quiet=False):
+# Per-stage wall-clock ceilings, in seconds. Every stage needs one: a stage that hangs
+# silently consumes the entire run. A 12-minute video once burned the full 300-minute
+# budget without emitting a single line, because nothing here was bounded.
+STAGE_TIMEOUTS = {
+    "download": int(os.environ.get("TIMEOUT_DOWNLOAD", 45 * 60)),
+    "transcribe": int(os.environ.get("TIMEOUT_TRANSCRIBE", 15 * 60)),
+    "clips": int(os.environ.get("TIMEOUT_CLIPS", 40 * 60)),
+    "reactions": int(os.environ.get("TIMEOUT_REACTIONS", 25 * 60)),
+    "props": int(os.environ.get("TIMEOUT_PROPS", 10 * 60)),
+    "bundle": int(os.environ.get("TIMEOUT_BUNDLE", 20 * 60)),
+    "render": int(os.environ.get("TIMEOUT_RENDER", 15 * 60)),
+}
+
+
+def _fmt_duration(seconds):
+    return f"{seconds:.0f}s" if seconds < 60 else f"{seconds / 60:.0f} min"
+
+
+def _child_env():
+    """
+    Environment for child processes, with output buffering disabled.
+
+    Python block-buffers stdout when it is a pipe rather than a terminal. If the child is
+    then killed, everything still sitting in that buffer is lost -- which is how a
+    five-hour hang produced zero diagnostic output.
+    """
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
+    return env
+
+
+class StageTimeout(RuntimeError):
+    """Raised when a stage exceeds its wall-clock ceiling."""
+
+
+def run_command(command, description, cwd=None, quiet=False, timeout=None):
     """Runs a command, optionally silencing real-time output."""
-    print(f"--- {description} ---")
+    print(f"--- {description} ---", flush=True)
     cmd_str = ' '.join(map(str, command))
-    print(f"Executing: {cmd_str}")
+    print(f"Executing: {cmd_str}", flush=True)
+    if timeout:
+        print(f"(timeout: {_fmt_duration(timeout)})", flush=True)
 
     try:
         if quiet:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='ignore',
-                cwd=cwd,
-            )
+            try:
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='ignore',
+                    cwd=cwd,
+                    env=_child_env(),
+                    timeout=timeout,
+                )
+            except subprocess.TimeoutExpired as exc:
+                # capture_output means the child's output is only available here.
+                for stream in (exc.stdout, exc.stderr):
+                    if stream:
+                        text = stream.decode('utf-8', 'ignore') if isinstance(stream, bytes) else stream
+                        print(text[-4000:], file=sys.stderr)
+                raise StageTimeout(f"'{description}' exceeded {_fmt_duration(timeout)}") from exc
             if result.returncode != 0:
                 if result.stdout:
                     print(result.stdout, file=sys.stderr)
@@ -370,16 +418,22 @@ def run_command(command, description, cwd=None, quiet=False):
                 text=True,
                 encoding='utf-8',
                 errors='ignore',
-                cwd=cwd
+                cwd=cwd,
+                env=_child_env(),
             )
+
+            timed_out = _start_timeout_watchdog(process, description, timeout)
 
             captured_output = []
             for line in iter(process.stdout.readline, ''):
-                print(line, end='')
+                print(line, end='', flush=True)
                 captured_output.append(line)
 
             process.stdout.close()
             return_code = process.wait()
+
+            if timed_out["value"]:
+                raise StageTimeout(f"'{description}' exceeded {_fmt_duration(timeout)}")
 
             if return_code != 0:
                 # Check if this is a rate limit error
@@ -389,7 +443,7 @@ def run_command(command, description, cwd=None, quiet=False):
                         raise RateLimitError(f"Rate limit detected in '{description}': {pattern}")
                 raise subprocess.CalledProcessError(return_code, command)
 
-        print(f"\n--- Finished: {description} ---\n")
+        print(f"\n--- Finished: {description} ---\n", flush=True)
 
     except subprocess.CalledProcessError as e:
         print(f"\nERROR during '{description}': Command returned non-zero exit status {e.returncode}.", file=sys.stderr)
@@ -397,6 +451,33 @@ def run_command(command, description, cwd=None, quiet=False):
     except FileNotFoundError:
         print(f"\nERROR: Command not found for '{description}': {command[0]}", file=sys.stderr)
         raise
+
+
+def _start_timeout_watchdog(process, description, timeout):
+    """Kills `process` once `timeout` elapses. Returns a dict whose 'value' flips on kill."""
+    flag = {"value": False}
+    if not timeout:
+        return flag
+
+    def _watch():
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            flag["value"] = True
+            print(
+                f"\nTimeout: '{description}' exceeded {_fmt_duration(timeout)}; terminating.",
+                file=sys.stderr, flush=True,
+            )
+            try:
+                process.terminate()
+                process.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            except OSError:
+                pass
+
+    threading.Thread(target=_watch, daemon=True).start()
+    return flag
 def probe_video_duration(video_path: Path) -> float:
     """Returns the duration of the downloaded video in seconds (0.0 if unknown)."""
     if not video_path.exists():
@@ -504,7 +585,8 @@ def run_remotion_render(
             "public",
             "--overwrite",
         ]
-        run_command(bundle_cmd, "Bundling Remotion project", cwd=remotion_app_dir, quiet=True)
+        run_command(bundle_cmd, "Bundling Remotion project", cwd=remotion_app_dir, quiet=True,
+                    timeout=STAGE_TIMEOUTS["bundle"])
 
     if not bundle_dir.exists():
         raise RuntimeError(f"Remotion bundle not found after bundling step: {bundle_dir}")
@@ -535,7 +617,8 @@ def run_remotion_render(
         ]
 
         try:
-            run_command(cmd, f"Rendering {absolute_output_file.name}", cwd=remotion_app_dir, quiet=True)
+            run_command(cmd, f"Rendering {absolute_output_file.name}", cwd=remotion_app_dir, quiet=True,
+                        timeout=STAGE_TIMEOUTS["render"])
             print(f"  -> Successfully rendered: {absolute_output_file}")
             if on_clip_rendered:
                 on_clip_rendered(prop_file, absolute_output_file)
@@ -708,7 +791,7 @@ def main():
         if need_download:
             # --- 3. Download Video ---
             cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
-            run_command(cmd_download, "Downloading YouTube Video")
+            run_command(cmd_download, "Downloading YouTube Video", timeout=STAGE_TIMEOUTS["download"])
             if not video_path.exists() or video_path.stat().st_size == 0:
                 raise RuntimeError(f"Video download failed; file not found or empty at {video_path}")
             download_stage["done"] = True
@@ -722,7 +805,7 @@ def main():
             if not video_path.exists():
                 print("Local video missing; re-downloading to ensure availability.")
                 cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
-                run_command(cmd_download, "Re-downloading YouTube Video")
+                run_command(cmd_download, "Re-downloading YouTube Video", timeout=STAGE_TIMEOUTS["download"])
                 if not video_path.exists() or video_path.stat().st_size == 0:
                     raise RuntimeError(f"Video download failed; file not found or empty at {video_path}")
             duration_seconds = float(state.get("durationSeconds", 0.0) or 0.0)
@@ -759,7 +842,7 @@ def main():
             # --- 4. Transcribe Video ---
             cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
             try:
-                run_command(cmd_transcribe, "Transcribing Video")
+                run_command(cmd_transcribe, "Transcribing Video", timeout=STAGE_TIMEOUTS["transcribe"])
             except subprocess.CalledProcessError:
                 transcript_failed = True
             if not transcript_path.exists():
@@ -778,7 +861,7 @@ def main():
                 print("Transcript missing locally; regenerating to ensure availability.")
                 cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
                 try:
-                    run_command(cmd_transcribe, "Re-transcribing Video")
+                    run_command(cmd_transcribe, "Re-transcribing Video", timeout=STAGE_TIMEOUTS["transcribe"])
                 except subprocess.CalledProcessError:
                     transcript_failed = True
                 if not transcript_path.exists():
@@ -819,7 +902,7 @@ def main():
             if requested_batches > 1:
                 max_clips_total = requested_batches * MAX_CLIPS_PER_BATCH
                 cmd_generate.extend(["--max-clips", str(max_clips_total)])
-            run_command(cmd_generate, "Generating Clips with AI")
+            run_command(cmd_generate, "Generating Clips with AI", timeout=STAGE_TIMEOUTS["clips"])
             if not clips_dir.exists():
                 raise RuntimeError(f"Expected clips directory missing: {clips_dir}")
             clips_stage["done"] = True
@@ -843,7 +926,7 @@ def main():
                 if requested_batches > 1:
                     max_clips_total = requested_batches * MAX_CLIPS_PER_BATCH
                     cmd_generate.extend(["--max-clips", str(max_clips_total)])
-                run_command(cmd_generate, "Regenerating Clips with AI")
+                run_command(cmd_generate, "Regenerating Clips with AI", timeout=STAGE_TIMEOUTS["clips"])
                 if not clips_dir.exists():
                     raise RuntimeError(f"Expected clips directory missing after regeneration: {clips_dir}")
                 clips_stage["done"] = True
@@ -882,7 +965,7 @@ def main():
                 "--max-reactions", str(max(1, args.reaction_max)),
                 "--character-name", args.reaction_character,
             ]
-            run_command(cmd_reaction, "Generating reactions for all clips")
+            run_command(cmd_reaction, "Generating reactions for all clips", timeout=STAGE_TIMEOUTS["reactions"])
 
         clips_state: dict = state["clips"]
 
@@ -985,7 +1068,8 @@ def main():
             cmd_prepare = [sys.executable, "-m", "apps.cli.render_clips", "--input-dir", str(clips_dir)]
             include_arg = ",".join(str(clip) for clip in pending_in_batch)
             cmd_prepare.extend(["--include-clips", include_arg])
-            run_command(cmd_prepare, f"Preparing for Remotion Rendering ({batch_desc})", quiet=True)
+            run_command(cmd_prepare, f"Preparing for Remotion Rendering ({batch_desc})", quiet=True,
+                        timeout=STAGE_TIMEOUTS["props"])
 
             if not any(props_dir.glob("clip_*.json")):
                 raise RuntimeError(f"Prop files (clip_*.json) were not generated for {batch_desc}. Cannot proceed with rendering.")
@@ -1046,6 +1130,10 @@ def main():
             print(f"  - Error: {e}", file=sys.stderr)
         print("\nIntermediate files are kept in their respective directories for debugging.", file=sys.stderr)
         state["status"] = "failed"
+        # Record which stage ran out of time so the watcher's log says something useful
+        # instead of a bare "pipeline".
+        if isinstance(e, StageTimeout):
+            state["failureReason"] = "timeout"
         if state_file_id:
             persist_state()
         sys.exit(1)

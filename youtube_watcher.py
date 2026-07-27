@@ -109,6 +109,12 @@ def run_command(command, description, timeout=None):
     print(f"--- {description} ---")
     print("Executing:", " ".join(map(str, command)))
 
+    # PYTHONUNBUFFERED: Python block-buffers stdout when it is a pipe, so anything still
+    # in the buffer is lost when we kill a hung child. That is how a five-hour hang
+    # produced zero diagnostic output.
+    child_env = os.environ.copy()
+    child_env["PYTHONUNBUFFERED"] = "1"
+
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -116,6 +122,7 @@ def run_command(command, description, timeout=None):
         text=True,
         encoding="utf-8",
         errors="ignore",
+        env=child_env,
     )
 
     timed_out = {"value": False}
@@ -140,7 +147,7 @@ def run_command(command, description, timeout=None):
         threading.Thread(target=_watch, daemon=True).start()
 
     for line in iter(process.stdout.readline, ""):
-        print(line, end="")
+        print(line, end="", flush=True)
     process.stdout.close()
     return_code = process.wait()
 
