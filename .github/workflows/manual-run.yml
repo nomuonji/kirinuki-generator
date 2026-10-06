@@ -13,7 +13,7 @@ on:
       max_clips:
         description: 'Maximum clips to generate from this source'
         required: false
-        default: '8'
+        default: '6'
 
 concurrency:
   # Blank folder means the primary production folder. Known secondary/tertiary folders
@@ -30,7 +30,7 @@ jobs:
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
       SAVETUBE_QUALITY: '720'
       PYTHONUNBUFFERED: '1'
-      KIRINUKI_TARGET_CLIPS: ${{ github.event.inputs.max_clips || '8' }}
+      KIRINUKI_TARGET_CLIPS: ${{ github.event.inputs.max_clips || '6' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -42,9 +42,6 @@ jobs:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: apps/remotion/package-lock.json
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
       - name: Prepare browser cache directories
         run: mkdir -p ~/.cache/puppeteer ~/.cache/remotion ~/.remotion
       - uses: actions/cache@v4
@@ -60,7 +57,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          python -m pip install -U --pre "yt-dlp[default]" bgutil-ytdlp-pot-provider
+          # yt-dlp/PO-token dependencies are installed by download_video.py only if SaveTube fails.
       - name: Install Remotion dependencies
         working-directory: ./apps/remotion
         run: npm ci

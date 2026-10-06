@@ -1,0 +1,33 @@
+name: Operations Logic Tests
+
+on:
+  pull_request:
+    paths:
+      - 'youtube_watcher.py'
+      - 'run_all.py'
+      - 'download_video.py'
+      - 'packages/operations.py'
+      - 'packages/shared/gdrive.py'
+      - 'apps/cli/generate_clips.py'
+      - 'tests/test_operations.py'
+      - '.github/workflows/main.yml'
+      - '.github/workflows/main-secondary.yml'
+      - '.github/workflows/main-tertiary.yml'
+      - '.github/workflows/manual-run.yml'
+      - '.github/workflows/operations-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  operations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile changed Python modules
+        run: |
+          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py
+      - name: Run operations unit tests
+        run: python -m unittest -v tests.test_operations

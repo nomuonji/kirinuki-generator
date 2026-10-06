@@ -4,6 +4,7 @@ import unittest
 from packages.operations import (
     OperationsConfig,
     clips_needed_for_source,
+    estimate_drive_clip_stock,
     estimate_effective_stock,
     rank_source_candidates,
 )
@@ -45,6 +46,28 @@ class OperationsTests(unittest.TestCase):
             places=4,
         )
 
+    def test_drive_files_are_the_physical_stock_source(self):
+        now = datetime(2026, 10, 7, tzinfo=timezone.utc)
+        files = [
+            {
+                "name": "source_clip_001.mp4",
+                "createdTime": (now - timedelta(hours=6)).isoformat(),
+            },
+            {
+                "name": "source_clip_002.mp4",
+                "createdTime": (now - timedelta(hours=12)).isoformat(),
+            },
+            {
+                "name": "source_clip_003.json",
+                "createdTime": (now - timedelta(hours=1)).isoformat(),
+            },
+        ]
+        self.assertAlmostEqual(
+            estimate_drive_clip_stock(files, posts_per_day=2, now=now),
+            1.0,
+            places=4,
+        )
+
     def test_velocity_can_beat_pure_recency(self):
         now = datetime(2026, 10, 7, tzinfo=timezone.utc)
         ranked = rank_source_candidates(
@@ -71,14 +94,15 @@ class OperationsTests(unittest.TestCase):
         self.assertEqual(ranked[0]["videoId"], "hot")
 
     def test_clip_request_is_capped_by_source(self):
-        self.assertEqual(clips_needed_for_source(2, 14, 8), 8)
-        self.assertEqual(clips_needed_for_source(10, 14, 8), 4)
-        self.assertEqual(clips_needed_for_source(14, 14, 8), 0)
+        self.assertEqual(clips_needed_for_source(2, 14, 6), 6)
+        self.assertEqual(clips_needed_for_source(10, 14, 6), 4)
+        self.assertEqual(clips_needed_for_source(14, 14, 6), 0)
 
     def test_default_stock_targets(self):
         config = OperationsConfig()
         self.assertEqual(config.target_stock_clips, 14)
         self.assertEqual(config.reorder_stock_clips, 6)
+        self.assertEqual(config.clips_per_source_cap, 6)
 
 
 if __name__ == "__main__":

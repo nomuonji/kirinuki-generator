@@ -1,6 +1,10 @@
 name: SaveTube Primary Download Smoke Test
 
 on:
+  schedule:
+    # Daily lightweight canary at 07:47 JST. It catches SaveTube protocol/CDN changes
+    # before a stock-replenishment run needs the downloader.
+    - cron: '47 22 * * *'
   pull_request:
     paths:
       - 'download_video.py'

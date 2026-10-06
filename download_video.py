@@ -27,8 +27,8 @@ FORMAT_SORT = "res:1080,fps:30,codec:h264,ext:mp4"
 
 # Hard ceiling for a single yt-dlp invocation. Without this the process can hang until
 # the GitHub Actions 6-hour job limit kills the whole run.
-YTDLP_TIMEOUT_SECONDS = int(os.environ.get("YTDLP_TIMEOUT_SECONDS", "2700"))
-SAVETUBE_TIMEOUT_SECONDS = int(os.environ.get("SAVETUBE_TIMEOUT_SECONDS", "900"))
+YTDLP_TIMEOUT_SECONDS = int(os.environ.get("YTDLP_TIMEOUT_SECONDS", "120"))
+SAVETUBE_TIMEOUT_SECONDS = int(os.environ.get("SAVETUBE_TIMEOUT_SECONDS", "480"))
 
 
 class GeoRestrictedError(RuntimeError):
@@ -263,6 +263,40 @@ def parse_netscape_cookies(path):
     return cookies
 
 
+def ensure_ytdlp_fallback():
+    """Install yt-dlp and its PO-token plugin only after SaveTube has failed."""
+    probe = subprocess.run(
+        [sys.executable, "-m", "yt_dlp", "--version"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="ignore",
+        check=False,
+    )
+    if probe.returncode == 0:
+        version = probe.stdout.strip()
+        if version:
+            print(f"yt-dlp fallback already available: {version}")
+        return True
+
+    print("Installing yt-dlp fallback dependencies on demand...")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--disable-pip-version-check",
+            "-U",
+            "--pre",
+            "yt-dlp[default]",
+            "bgutil-ytdlp-pot-provider>=2.0.1",
+        ],
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def ensure_pot_provider():
     """Start the bgutil PO Token provider only when yt-dlp fallback is actually needed."""
     ping_url = "http://127.0.0.1:4416/ping"
@@ -333,14 +367,13 @@ def download_with_ytdlp(video_id, output_path):
     print(f"--- Attempting yt-dlp download with JS Challenge Solver for {video_id} ---")
     print(f"Output path: {output_path}")
     
-    # Check if yt-dlp is available
+    if not ensure_ytdlp_fallback():
+        print("Unable to prepare yt-dlp fallback.", file=sys.stderr)
+        return False
+
     ytdlp_cmd = [sys.executable, "-m", "yt_dlp"]
-    
-    # Check if Deno is available
-    deno_path = shutil.which("deno")
-    if not deno_path:
-        print("Warning: Deno not found. JS Challenge Solver may not work optimally.", file=sys.stderr)
-        print("Install Deno with: winget install DenoLand.Deno", file=sys.stderr)
+    if not shutil.which("node"):
+        print("Warning: Node.js not found; yt-dlp EJS challenge solving may be limited.", file=sys.stderr)
 
     # SaveTube normally prevents us reaching this path. Avoid paying Docker startup/pull
     # cost on healthy runs; initialize the provider only after the primary path fails.
@@ -399,7 +432,7 @@ def _build_ytdlp_command(
     ytdlp_cmd, youtube_url, output_path, cookies_path, extractor_args
 ):
     cmd = ytdlp_cmd + [
-        "--js-runtimes", "deno",  # Use Deno for JS challenge solving
+        "--js-runtimes", "node",  # Node is already present for Remotion/SaveTube
         "--remote-components", "ejs:npm",  # Download required NPM packages for JS challenge
         "--extractor-args",
         extractor_args,

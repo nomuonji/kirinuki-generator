@@ -259,6 +259,35 @@ GitHub Actions の自動運用は、単純な「最新動画を毎回処理」�
 
 ---
 
+
+
+## 自動運用ポリシー
+
+GitHub Actions の定期実行は、毎回フルパイプラインを回すのではなく、最初に軽量な在庫・候補判定だけを行います。
+
+- 投稿想定: 1日2本
+- 目標ストック: 7日分 = 14本
+- 補充ライン: 3日分 = 6本
+- 1つの元動画から作る上限: 6本
+- 1回のActionsで処理する元動画: 最大2本
+- 通常の候補探索: 直近30本 / 21日 / 元動画180分以内
+- 在庫が危険域で候補がない場合のみ: 最大100本 / 90日 / 360分まで探索を拡張
+- 公開直後30分は評価を待ち、再生速度・エンゲージメント・鮮度・尺から候補を順位付け
+- 強い新着動画は在庫が十分でも最大2本だけ先行確保できる
+- 在庫数は Google Drive に実在する `_clip_*.mp4` を基準にし、投稿API未接続の間は古い順に1日2本消費したものとして実効在庫を推定
+- 同じストックフォルダは GitHub Actions `concurrency` で直列化し、二重生成を防止
+- primary / tertiary は6時間ごとに軽量plan、現在休眠中の secondary は1日1回だけ新規投稿を確認
+- SaveTube を第一取得経路とし、失敗した時だけ yt-dlp / PO-token fallback をオンデマンドで準備
+- transcript等の一時失敗は再試行対象、尺不足や明確な地域制限は再試行しない
+
+主な調整値は環境変数で変更できます。
+
+`CLIP_POSTS_PER_DAY`, `CLIP_STOCK_TARGET_DAYS`, `CLIP_STOCK_REORDER_DAYS`,
+`MAX_VIDEOS_PER_RUN`, `CLIPS_PER_SOURCE_CAP`, `MAX_SEARCH_VIDEOS`,
+`MAX_SOURCE_AGE_DAYS`, `FALLBACK_MAX_SEARCH_VIDEOS`,
+`FALLBACK_MAX_SOURCE_AGE_DAYS`, `MAX_SOURCE_DURATION_MINUTES`,
+`FALLBACK_MAX_SOURCE_DURATION_MINUTES`, `MIN_SELECTION_SCORE`。
+
 ## YouTube ダウンロードの現在の構成
 
 GitHub Actions では、まず SaveTube CDN から完成した media bytes を取得します。ダウンロード後は `ffprobe` で video / audio の両 stream を検証します。
