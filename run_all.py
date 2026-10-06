@@ -960,7 +960,15 @@ def main():
                 if args.subs: cmd_generate.append("--subs")
                 if args.soft_subs: cmd_generate.append("--soft-subs")
                 if args.subs or args.soft_subs: cmd_generate.extend(["--subs-format", args.subs_format])
-                if requested_batches > 1:
+                target_clips_env = os.environ.get("KIRINUKI_TARGET_CLIPS", "").strip()
+                if target_clips_env:
+                    try:
+                        max_clips_total = max(1, min(MAX_CLIPS_PER_BATCH, int(target_clips_env)))
+                    except ValueError:
+                        max_clips_total = requested_batches * MAX_CLIPS_PER_BATCH if requested_batches > 1 else MAX_CLIPS_PER_BATCH
+                    cmd_generate.extend(["--max-clips", str(max_clips_total)])
+                    print(f"Stock-aware clip cap: {max_clips_total}")
+                elif requested_batches > 1:
                     max_clips_total = requested_batches * MAX_CLIPS_PER_BATCH
                     cmd_generate.extend(["--max-clips", str(max_clips_total)])
                 run_command(cmd_generate, "Regenerating Clips with AI", timeout=STAGE_TIMEOUTS["clips"])
