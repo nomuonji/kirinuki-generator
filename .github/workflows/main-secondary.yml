@@ -25,7 +25,7 @@ env:
   CLIP_STOCK_TARGET_DAYS: '7'
   CLIP_STOCK_REORDER_DAYS: '3'
   MAX_VIDEOS_PER_RUN: '2'
-  CLIPS_PER_SOURCE_CAP: '8'
+  CLIPS_PER_SOURCE_CAP: '6'
   MAX_SEARCH_VIDEOS: '30'
   SAVETUBE_QUALITY: '720'
   PYTHONUNBUFFERED: '1'
@@ -44,7 +44,7 @@ jobs:
           python-version: '3.11'
       - name: Install planning dependencies
         run: |
-          python -m pip install --disable-pip-version-check             python-dotenv google-api-python-client google-auth-httplib2 google-auth-oauthlib
+          python -m pip install --disable-pip-version-check python-dotenv google-api-python-client google-auth-httplib2 google-auth-oauthlib
       - name: Evaluate posting stock and source candidates
         id: plan
         env:
@@ -77,9 +77,6 @@ jobs:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: apps/remotion/package-lock.json
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
       - name: Prepare and cache Remotion browser
         run: mkdir -p ~/.cache/puppeteer ~/.cache/remotion ~/.remotion
       - uses: actions/cache@v4
@@ -95,7 +92,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          python -m pip install -U --pre "yt-dlp[default]" bgutil-ytdlp-pot-provider
+          # yt-dlp/PO-token dependencies are installed by download_video.py only if SaveTube fails.
       - name: Install Remotion dependencies
         working-directory: ./apps/remotion
         run: npm ci
