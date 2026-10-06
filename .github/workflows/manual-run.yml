@@ -16,7 +16,9 @@ on:
         default: '8'
 
 concurrency:
-  group: kirinuki-manual-${{ github.event.inputs.video_id }}
+  # Blank folder means the primary production folder. Known secondary/tertiary folders
+  # share their scheduled lock; other explicit folders get an isolated folder lock.
+  group: ${{ github.event.inputs.gdrive_folder_id == '' && 'kirinuki-primary' || format('kirinuki-folder-{0}', github.event.inputs.gdrive_folder_id) }}
   cancel-in-progress: false
 
 jobs:
