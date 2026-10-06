@@ -15,7 +15,7 @@ on:
         default: '1jMRNXRibmoOShZi1EJMcUySNoXwe1LNX'
 
 concurrency:
-  group: kirinuki-secondary
+  group: kirinuki-folder-1jMRNXRibmoOShZi1EJMcUySNoXwe1LNX
   cancel-in-progress: false
 
 env:
