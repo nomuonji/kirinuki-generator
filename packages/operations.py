@@ -19,6 +19,8 @@ class OperationsConfig:
     min_source_age_minutes: float = 30.0
     max_source_age_days: float = 21.0
     fallback_max_source_age_days: float = 90.0
+    max_source_duration_minutes: float = 180.0
+    fallback_max_source_duration_minutes: float = 360.0
     min_selection_score: float = 0.35
 
     @property
@@ -49,6 +51,12 @@ class OperationsConfig:
             ),
             fallback_max_source_age_days=max(
                 1.0, float(os.environ.get("FALLBACK_MAX_SOURCE_AGE_DAYS", "90"))
+            ),
+            max_source_duration_minutes=max(
+                10.0, float(os.environ.get("MAX_SOURCE_DURATION_MINUTES", "180"))
+            ),
+            fallback_max_source_duration_minutes=max(
+                10.0, float(os.environ.get("FALLBACK_MAX_SOURCE_DURATION_MINUTES", "360"))
             ),
             min_selection_score=min(
                 1.0, max(0.0, float(os.environ.get("MIN_SELECTION_SCORE", "0.35")))
