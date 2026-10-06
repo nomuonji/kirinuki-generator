@@ -1,0 +1,34 @@
+name: Probe SaveTube on live Kirinuki channel
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/probe-savetube-channel.mjs'
+      - '.github/workflows/probe-savetube-channel.yml'
+  workflow_dispatch:
+
+jobs:
+  savetube-live-channel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      YOUTUBE_CHANNEL_ID: UCzXVsEc1h2Elljge0fnQYRg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Download a current source from the monitored channel
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          mkdir -p tmp
+          node scripts/probe-savetube-channel.mjs tmp/savetube-channel.mp4 720
+      - name: Verify downloaded media
+        run: |
+          test -s tmp/savetube-channel.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/savetube-channel.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/savetube-channel.mp4 | grep -qx audio
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 tmp/savetube-channel.mp4
