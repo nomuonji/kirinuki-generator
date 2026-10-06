@@ -2,15 +2,9 @@ name: Authenticated YouTube Download Probe
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'download_video.py'
-      - 'requirements.txt'
-      - '.github/workflows/**'
 
 jobs:
   authenticated-download:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
