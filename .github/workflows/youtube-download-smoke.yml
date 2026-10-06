@@ -1,5 +1,7 @@
 name: YouTube Download Smoke Test
 
+# Credential-free: verifies downloader behavior on GitHub-hosted runners.
+
 on:
   workflow_dispatch:
   pull_request:
