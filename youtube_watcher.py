@@ -475,6 +475,10 @@ def make_plan(
                 "viewsPerHour": round(item["viewsPerHour"], 1),
                 "ageHours": round(item["ageHours"], 1),
                 "durationMinutes": round(item["durationSeconds"] / 60.0, 1),
+                "regionRestriction": (
+                    (item.get("video") or {}).get("contentDetails", {})
+                    .get("regionRestriction")
+                ),
             }
             for item in strong_candidates[:5]
         ],
