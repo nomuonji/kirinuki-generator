@@ -15,7 +15,17 @@ instances = [
     "https://pipedapi.leptons.xyz",
     "https://pipedapi.nosebs.ru",
     "https://pipedapi-libre.kavin.rocks",
+    "https://piped-api.privacy.com.de",
     "https://pipedapi.adminforge.de",
+    "https://api.piped.yt",
+    "https://pipedapi.drgns.space",
+    "https://pipedapi.owo.si",
+    "https://pipedapi.ducks.party",
+    "https://piped-api.codespace.cz",
+    "https://pipedapi.reallyaweso.me",
+    "https://api.piped.private.coffee",
+    "https://pipedapi.darkness.services",
+    "https://pipedapi.orangenet.cc",
 ]
 
 def get_bytes(url, path):
@@ -35,7 +45,7 @@ errors = []
 for base in instances:
     print("instance=", base)
     try:
-        r = requests.get(f"{base}/streams/{video_id}", timeout=45, headers={"User-Agent": "Mozilla/5.0"})
+        r = requests.get(f"{base}/streams/{video_id}", timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         print("api_status=", r.status_code)
         if r.status_code != 200:
             errors.append(f"{base}: api {r.status_code}")
