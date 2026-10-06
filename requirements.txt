@@ -4,7 +4,8 @@ python-dotenv
 playwright
 # yt-dlp uses date-based versions, so ">=1.0.1" imposed no floor at all. YouTube breaks
 # older releases regularly; CI additionally upgrades to the newest build on every run.
-yt-dlp>=2026.07.04
+yt-dlp>=2026.08.19
+bgutil-ytdlp-pot-provider>=2.0.1
 ffmpeg-python>=0.2.0
 numpy>=1.26.0
 tqdm>=4.66.0
