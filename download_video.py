@@ -263,6 +263,64 @@ def parse_netscape_cookies(path):
     return cookies
 
 
+def ensure_pot_provider():
+    """Start the bgutil PO Token provider only when yt-dlp fallback is actually needed."""
+    ping_url = "http://127.0.0.1:4416/ping"
+    try:
+        response = requests.get(ping_url, timeout=2)
+        if response.ok:
+            print("PO Token provider is already ready.")
+            return True
+    except requests.RequestException:
+        pass
+
+    docker = shutil.which("docker")
+    if not docker:
+        print("Docker not available; continuing yt-dlp without local PO Token provider.", file=sys.stderr)
+        return False
+
+    image = os.environ.get(
+        "BGUTIL_PROVIDER_IMAGE",
+        "brainicism/bgutil-ytdlp-pot-provider:2.0.1-deno",
+    )
+    print(f"Starting PO Token provider lazily from {image}...")
+    subprocess.run(
+        [docker, "rm", "-f", "bgutil-provider"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    result = subprocess.run(
+        [
+            docker, "run", "-d", "--rm", "--name", "bgutil-provider", "--init",
+            "-p", "127.0.0.1:4416:4416",
+            image,
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="ignore",
+        check=False,
+    )
+    if result.returncode != 0:
+        print(f"Could not start PO Token provider: {result.stderr[-1000:]}", file=sys.stderr)
+        return False
+
+    for _ in range(30):
+        try:
+            response = requests.get(ping_url, timeout=2)
+            if response.ok:
+                print("PO Token provider is ready.")
+                return True
+        except requests.RequestException:
+            pass
+        time.sleep(1)
+
+    print("PO Token provider did not become ready; continuing without it.", file=sys.stderr)
+    return False
+
+
 def download_with_ytdlp(video_id, output_path):
     """
     Primary method: Uses current yt-dlp with Deno/EJS challenge solving and,
@@ -283,7 +341,11 @@ def download_with_ytdlp(video_id, output_path):
     if not deno_path:
         print("Warning: Deno not found. JS Challenge Solver may not work optimally.", file=sys.stderr)
         print("Install Deno with: winget install DenoLand.Deno", file=sys.stderr)
-    
+
+    # SaveTube normally prevents us reaching this path. Avoid paying Docker startup/pull
+    # cost on healthy runs; initialize the provider only after the primary path fails.
+    ensure_pot_provider()
+
     youtube_url = f"https://www.youtube.com/watch?v={video_id}"
 
     # Anonymous first. A YouTube session cookie that has been rotated in the browser makes
@@ -819,20 +881,22 @@ def main():
         print(f"YouTube authentication required: {exc}", file=sys.stderr)
         sys.exit(4)
     
-    # 3. Legacy RapidAPI fallback
-    print("\n!!! yt-dlp method failed. Switching to RapidAPI fallback !!!\n")
-    if download_youtube_video_from_api(args.video_id, args.output):
-        print("Download completed using RapidAPI.")
-        sys.exit(0)
-    
-    # 4. Legacy Playwright fallback
-    print("\n!!! RapidAPI method failed. Switching to Playwright fallback !!!\n")
-    if download_with_playwright(args.video_id, args.output):
-        print("Download completed using Playwright fallback.")
-        sys.exit(0)
-    else:
-        print("All download methods failed.", file=sys.stderr)
-        sys.exit(1)
+    # GitHub-hosted tests showed that RapidAPI direct googlevideo URLs and Playwright
+    # inherit the same datacenter-IP restrictions. Keep them only as an opt-in local
+    # escape hatch; production Actions should fail fast rather than burn time here.
+    if os.environ.get("ENABLE_LEGACY_DOWNLOAD_FALLBACKS") == "1":
+        print("\n!!! yt-dlp failed. Trying opt-in legacy RapidAPI fallback !!!\n")
+        if download_youtube_video_from_api(args.video_id, args.output):
+            print("Download completed using RapidAPI.")
+            sys.exit(0)
+
+        print("\n!!! RapidAPI failed. Trying opt-in Playwright fallback !!!\n")
+        if download_with_playwright(args.video_id, args.output):
+            print("Download completed using Playwright fallback.")
+            sys.exit(0)
+
+    print("All enabled download methods failed.", file=sys.stderr)
+    sys.exit(1)
 
 
 if __name__ == "__main__":

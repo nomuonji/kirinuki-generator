@@ -101,7 +101,11 @@ def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30
 3.  **Speaker & Context Boundaries:** Ideal boundaries occur when a speaker concludes their point, a new topic or speaker begins, or there is a natural pause. Never break in the middle of a punchline or key explanation.
 4.  **Length Guidance:** Aim for clips that feel perfectly timed around 30-120 seconds. Prioritize a clean conversational break over rigid timing, and go shorter/longer only when it keeps the story intact.
 5.  **Natural Endings:** Prioritize ending on transcript segments that finish a sentence or idea, are followed by a noticeable pause, or clearly close a conversational beat.
-6.  **AVOID:** Do not end on conjunctions, filler, or before a reveal lands.
+6.  **Feed Hook:** Prefer clips whose first 1-3 seconds immediately create curiosity, tension, surprise, utility, or a clear question. Avoid segments that need a long setup.
+7.  **Standalone Comprehension:** A viewer who has not seen the source video should understand the people/topic and why the moment matters from the clip itself.
+8.  **Payoff Density:** Prefer segments with a clear reveal, punchline, decision, conflict, useful conclusion, or emotional turn. Reject merely pleasant conversation with no payoff.
+9.  **Confidence Calibration:** Treat confidence as a publishing-quality score, not certainty about timestamps. 0.90+ = exceptional post candidate, 0.75-0.89 = strong, 0.65-0.74 = usable, below 0.65 = weak and should usually be omitted.
+10. **AVOID:** Do not end on conjunctions, filler, or before a reveal lands. Avoid near-duplicate moments that make the same point.
 
 **Constraints:**
 - Preset: {preset}
