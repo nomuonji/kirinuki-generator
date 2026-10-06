@@ -18,9 +18,10 @@ headers = {
 resp = requests.get(
     "https://yt-api.p.rapidapi.com/dl",
     headers=headers,
-    params={"id": video_id},
+    params={"id": video_id, "cgeo": os.environ.get("YT_API_CGEO", "US")},
     timeout=60,
 )
+print("cgeo=", os.environ.get("YT_API_CGEO", "US"))
 print("api_status=", resp.status_code)
 if resp.status_code != 200:
     print(resp.text[:1000], file=sys.stderr)
