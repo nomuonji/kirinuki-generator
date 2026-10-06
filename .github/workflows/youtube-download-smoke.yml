@@ -31,7 +31,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
-          python -m pip install --upgrade yt-dlp bgutil-ytdlp-pot-provider python-dotenv requests
+          python -m pip install -U --pre "yt-dlp[default]" bgutil-ytdlp-pot-provider python-dotenv requests
 
       - name: Start PO Token provider
         run: |
@@ -48,6 +48,8 @@ jobs:
           exit 1
 
       - name: Download a small public YouTube video
+        env:
+          YTDLP_VERBOSE: '1'
         run: |
           mkdir -p tmp
           python download_video.py jNQXAC9IVRw --output tmp/smoke.mp4
