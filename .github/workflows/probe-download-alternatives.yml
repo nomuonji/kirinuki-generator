@@ -6,6 +6,7 @@ on:
       - 'scripts/probe-youtubejs.mjs'
       - 'scripts/probe-rapidapi-yt-api.py'
       - 'scripts/probe-rapidapi-youtube-cdn.py'
+      - 'scripts/probe-cobalt.py'
       - '.github/workflows/probe-download-alternatives.yml'
   workflow_dispatch:
 
@@ -73,3 +74,71 @@ jobs:
           test -s tmp/rapidapi-cdn.mp4
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/rapidapi-cdn.mp4 | grep -qx video
           ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/rapidapi-cdn.mp4 | grep -qx audio
+
+
+  cobalt-session-generator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install probe dependencies
+        run: python -m pip install requests
+      - name: Start Cobalt and YouTube session generator
+        run: |
+          docker network create cobalt-probe
+          docker run -d --rm --name yt-session-generator \
+            --network cobalt-probe \
+            -p 127.0.0.1:8080:8080 \
+            --init \
+            ghcr.io/imputnet/yt-session-generator:webserver
+
+          echo "Waiting for yt-session-generator..."
+          ready=0
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8080/token >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "yt-session-generator did not become ready." >&2
+            docker ps -a --filter name=yt-session-generator
+            exit 1
+          fi
+
+          docker run -d --rm --name cobalt-probe \
+            --network cobalt-probe \
+            -p 127.0.0.1:9000:9000 \
+            -e API_URL=http://127.0.0.1:9000/ \
+            -e YOUTUBE_SESSION_SERVER=http://yt-session-generator:8080/ \
+            -e YOUTUBE_SESSION_INNERTUBE_CLIENT=WEB_EMBEDDED \
+            --init \
+            ghcr.io/imputnet/cobalt:11
+
+          echo "Waiting for Cobalt..."
+          ready=0
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:9000/ >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Cobalt did not become ready." >&2
+            docker ps -a --filter name=cobalt-probe
+            exit 1
+          fi
+      - name: Download through local Cobalt tunnel
+        run: |
+          mkdir -p tmp
+          python scripts/probe-cobalt.py jNQXAC9IVRw tmp/cobalt.mp4
+      - name: Verify output
+        run: |
+          test -s tmp/cobalt.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/cobalt.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/cobalt.mp4 | grep -qx audio
