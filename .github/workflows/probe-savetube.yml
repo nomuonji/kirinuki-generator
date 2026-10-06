@@ -27,3 +27,25 @@ jobs:
           test -s tmp/savetube.mp4
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/savetube.mp4 | grep -qx video
           ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/savetube.mp4 | grep -qx audio
+
+
+  savetube-real-video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Download representative Kirinuki source
+        run: |
+          mkdir -p tmp
+          node scripts/probe-savetube.mjs xI1VPSTuDdo tmp/savetube-real.mp4 720
+      - name: Verify representative media
+        run: |
+          test -s tmp/savetube-real.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/savetube-real.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/savetube-real.mp4 | grep -qx audio
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 tmp/savetube-real.mp4
