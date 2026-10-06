@@ -34,6 +34,9 @@ with sync_playwright() as p:
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
         ),
+        # YouTube embeds reject direct top-level navigation with Error 153 when
+        # no HTTP Referer/client identity is present.
+        extra_http_headers={"Referer": "https://example.com/"},
     )
     page = context.new_page()
 
@@ -52,7 +55,7 @@ with sync_playwright() as p:
     page.goto(embed, wait_until="domcontentloaded", timeout=60000)
 
     try:
-        page.wait_for_selector("video", timeout=30000)
+        page.wait_for_selector("video", state="attached", timeout=30000)
         status = page.evaluate("""() => {
           const v = document.querySelector('video');
           v.muted = false;
