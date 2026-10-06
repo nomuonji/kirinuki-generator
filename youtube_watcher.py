@@ -429,14 +429,30 @@ def build_ranked_candidates(
     processed_ids: set[str],
     config: OperationsConfig,
     max_source_age_days: float | None = None,
+    diagnostics: dict | None = None,
 ) -> list[dict]:
     now = datetime.now(timezone.utc)
     candidates: list[dict] = []
     source_age_limit = max_source_age_days or config.max_source_age_days
+    diag = diagnostics if diagnostics is not None else {}
+    diag.clear()
+    diag.update({
+        "fetched": len(videos),
+        "missingId": 0,
+        "tooShort": 0,
+        "liveOrUpcoming": 0,
+        "invalidPublishedAt": 0,
+        "tooYoung": 0,
+        "tooOld": 0,
+        "eligibleBaseline": 0,
+        "alreadyProcessed": 0,
+        "unprocessedRanked": 0,
+    })
 
     for video in videos:
         video_id = video.get("id")
         if not video_id:
+            diag["missingId"] += 1
             continue
 
         snippet = video.get("snippet") or {}
@@ -445,21 +461,27 @@ def build_ranked_candidates(
             (video.get("contentDetails") or {}).get("duration", "")
         ).total_seconds()
         if duration_seconds < MIN_VIDEO_DURATION_SECONDS:
+            diag["tooShort"] += 1
             continue
 
         if snippet.get("liveBroadcastContent") in {"live", "upcoming"}:
+            diag["liveOrUpcoming"] += 1
             continue
 
         published_at = snippet.get("publishedAt")
         published = parse_timestamp(published_at)
         if published is None:
+            diag["invalidPublishedAt"] += 1
             continue
         age = now - published
         if age.total_seconds() < config.min_source_age_minutes * 60:
+            diag["tooYoung"] += 1
             continue
         if age > timedelta(days=source_age_limit):
+            diag["tooOld"] += 1
             continue
 
+        diag["eligibleBaseline"] += 1
         candidates.append(
             {
                 "video": video,
@@ -476,7 +498,12 @@ def build_ranked_candidates(
     # Rank against the whole recent eligible channel baseline first. If we ranked only
     # unprocessed videos, a single weak leftover would automatically look average/good.
     ranked = rank_source_candidates(candidates, now=now)
-    return [item for item in ranked if item["videoId"] not in processed_ids]
+    diag["alreadyProcessed"] = sum(
+        1 for item in ranked if item["videoId"] in processed_ids
+    )
+    result = [item for item in ranked if item["videoId"] not in processed_ids]
+    diag["unprocessedRanked"] = len(result)
+    return result
 
 
 def selection_metadata(candidate: dict, uploaded_clips: int | None = None) -> dict:
@@ -636,7 +663,13 @@ def main():
         stock_entries,
         posts_per_day=config.posts_per_day,
     )
-    ranked_candidates = build_ranked_candidates(videos, processed_ids, config)
+    source_diagnostics: dict = {}
+    ranked_candidates = build_ranked_candidates(
+        videos,
+        processed_ids,
+        config,
+        diagnostics=source_diagnostics,
+    )
     source_window = f"{config.max_source_age_days:g}d"
 
     if (
@@ -660,6 +693,7 @@ def main():
             processed_ids,
             config,
             max_source_age_days=config.fallback_max_source_age_days,
+            diagnostics=source_diagnostics,
         )
         source_window = (
             f"{config.fallback_max_source_age_days:g}d/"
@@ -669,6 +703,7 @@ def main():
     plan = make_plan(stock_entries, ranked_candidates, config)
     plan["stockSource"] = stock_source
     plan["sourceWindow"] = source_window
+    plan["sourceDiagnostics"] = source_diagnostics
     write_plan(plan, args.plan_output or None)
 
     if args.plan_only:
