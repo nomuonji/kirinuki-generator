@@ -1,0 +1,96 @@
+name: One-shot Primary Stock Reset and Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/primary-reset-once.yml'
+
+concurrency:
+  group: kirinuki-primary
+  cancel-in-progress: false
+
+env:
+  YOUTUBE_CHANNEL_ID: "UCzXVsEc1h2Elljge0fnQYRg"
+  CLIP_POSTS_PER_DAY: '2'
+  CLIP_STOCK_TARGET_DAYS: '7'
+  CLIP_STOCK_REORDER_DAYS: '3'
+  MAX_VIDEOS_PER_RUN: '2'
+  CLIPS_PER_SOURCE_CAP: '6'
+  MAX_SEARCH_VIDEOS: '30'
+  SAVETUBE_QUALITY: '720'
+  PYTHONUNBUFFERED: '1'
+  PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
+  REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
+
+jobs:
+  reset-and-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/remotion/package-lock.json
+
+      - name: Install system and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Reset primary clip stock
+        env:
+          GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+          GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+        run: python scripts/clear_clip_stock.py
+
+      - name: Verify post-reset production plan
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+          GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+        run: python youtube_watcher.py --plan-only --plan-output plan-after-reset.json
+
+      - name: Prepare Remotion
+        run: |
+          mkdir -p ~/.cache/puppeteer ~/.cache/remotion ~/.remotion
+          cd apps/remotion
+          npm ci
+          npx remotion browser ensure --log=warn || npx remotion browser ensure
+
+      - name: Create optional yt-dlp cookie file
+        env:
+          YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
+        run: |
+          printf '%s' "$YT_COOKIES_TXT" > cookies.txt
+          [ -s cookies.txt ] || rm -f cookies.txt
+
+      - name: Run primary replenishment
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+        run: python youtube_watcher.py
+
+      - name: Report resulting stock
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+          GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+        run: python youtube_watcher.py --plan-only --plan-output plan-after-run.json
