@@ -24,12 +24,17 @@ function decrypt(payload) {
 }
 
 async function jsonFetch(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, {
+    ...options,
+    signal: options.signal || AbortSignal.timeout(90000),
+  });
   const text = await response.text();
   console.log('request=', url, 'status=', response.status);
   if (!response.ok) throw new Error(`${url} -> ${response.status}: ${text.slice(0, 400)}`);
   return JSON.parse(text);
 }
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function resolveCdn() {
   const endpoints = [
@@ -51,54 +56,74 @@ async function resolveCdn() {
   throw last || new Error('No SaveTube CDN endpoint succeeded');
 }
 
-try {
-  const cdn = await resolveCdn();
-  console.log('cdn=', cdn);
+let lastError;
+for (let attempt = 1; attempt <= 4; attempt += 1) {
+  try {
+    console.log(`attempt=${attempt}/4`);
+    const cdn = await resolveCdn();
+    console.log('cdn=', cdn);
 
-  const infoEnvelope = await jsonFetch(`https://${cdn}/v2/info`, {
-    method: 'POST',
-    headers: HEADERS,
-    body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}` }),
-  });
-  if (!infoEnvelope?.data) throw new Error('SaveTube info response had no encrypted data');
-  const info = decrypt(infoEnvelope.data);
-  console.log('title=', info.title || '');
-  console.log('duration=', info.duration || '');
-  console.log('cached=', info.fromCache ?? '');
+    const infoEnvelope = await jsonFetch(`https://${cdn}/v2/info`, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}` }),
+    });
+    if (!infoEnvelope?.data) {
+      console.log('info_keys=', Object.keys(infoEnvelope || {}));
+      console.log('info_response=', JSON.stringify(infoEnvelope).slice(0, 1000));
+      throw new Error('SaveTube info response had no encrypted data');
+    }
+    const info = decrypt(infoEnvelope.data);
+    console.log('title=', info.title || '');
+    console.log('duration=', info.duration || '');
+    console.log('cached=', info.fromCache ?? '');
 
-  const dlEnvelope = await jsonFetch(`https://${cdn}/download`, {
-    method: 'POST',
-    headers: HEADERS,
-    body: JSON.stringify({
-      id: videoId,
-      downloadType: 'video',
-      quality,
-      key: info.key,
-    }),
-  });
-  const downloadUrl = dlEnvelope?.data?.downloadUrl || dlEnvelope?.downloadUrl;
-  if (!downloadUrl) throw new Error('SaveTube download response had no downloadUrl');
-  console.log('download_host=', new URL(downloadUrl).host);
+    const dlEnvelope = await jsonFetch(`https://${cdn}/download`, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({
+        id: videoId,
+        downloadType: 'video',
+        quality,
+        key: info.key,
+      }),
+    });
+    const downloadUrl = dlEnvelope?.data?.downloadUrl || dlEnvelope?.downloadUrl;
+    if (!downloadUrl) {
+      console.log('download_response=', JSON.stringify(dlEnvelope).slice(0, 1000));
+      throw new Error('SaveTube download response had no downloadUrl');
+    }
+    console.log('download_host=', new URL(downloadUrl).host);
 
-  const response = await fetch(downloadUrl, {
-    headers: {
-      'user-agent': HEADERS['user-agent'],
-      referer: 'https://yt.savetube.me/',
-    },
-    redirect: 'follow',
-  });
-  console.log('media_status=', response.status);
-  console.log('media_type=', response.headers.get('content-type') || '');
-  if (!response.ok || !response.body) {
-    throw new Error(`media download failed: ${response.status}`);
+    const response = await fetch(downloadUrl, {
+      headers: {
+        'user-agent': HEADERS['user-agent'],
+        referer: 'https://yt.savetube.me/',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(600000),
+    });
+    console.log('media_status=', response.status);
+    console.log('media_type=', response.headers.get('content-type') || '');
+    if (!response.ok || !response.body) {
+      throw new Error(`media download failed: ${response.status}`);
+    }
+
+    fs.mkdirSync('tmp', { recursive: true });
+    await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(output));
+    const size = fs.statSync(output).size;
+    console.log('downloaded_bytes=', size);
+    if (size <= 0) throw new Error('SaveTube wrote an empty file');
+    process.exit(0);
+  } catch (error) {
+    lastError = error;
+    console.error(`attempt ${attempt} failed:`, error?.stack || error);
+    try {
+      if (fs.existsSync(output)) fs.unlinkSync(output);
+    } catch {}
+    if (attempt < 4) await sleep(2000 * attempt);
   }
-
-  fs.mkdirSync('tmp', { recursive: true });
-  await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(output));
-  const size = fs.statSync(output).size;
-  console.log('downloaded_bytes=', size);
-  if (size <= 0) throw new Error('SaveTube wrote an empty file');
-} catch (error) {
-  console.error(error?.stack || error);
-  process.exit(1);
 }
+
+console.error('All SaveTube attempts failed:', lastError?.stack || lastError);
+process.exit(1);
