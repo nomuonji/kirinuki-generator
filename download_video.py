@@ -34,6 +34,10 @@ class GeoRestrictedError(RuntimeError):
     """The source video is blocked in the runner's country/IP region."""
 
 
+class AuthenticationRequiredError(RuntimeError):
+    """YouTube rejected this runner/IP until an authenticated session is supplied."""
+
+
 # Cookies that actually authenticate a YouTube session. A cookie file without any
 # of these is useless for bypassing bot detection.
 _AUTH_COOKIE_NAMES = {
@@ -218,14 +222,31 @@ def download_with_ytdlp(video_id, output_path):
         ("default", "youtube:player-client=default;formats=missing_pot"),
     ]
 
+    auth_required_seen = False
     for profile, extractor_args in client_profiles:
         for auth_label, cookies in auth_attempts:
             print(f"\n--- yt-dlp attempt: {profile} / {auth_label} ---")
             cmd = _build_ytdlp_command(
                 ytdlp_cmd, youtube_url, output_path, cookies, extractor_args
             )
-            if _run_ytdlp(cmd, output_path):
-                return True
+            try:
+                if _run_ytdlp(cmd, output_path):
+                    return True
+            except AuthenticationRequiredError:
+                auth_required_seen = True
+                continue
+
+    if auth_required_seen:
+        if cookies_path:
+            raise AuthenticationRequiredError(
+                "YouTube rejected the GitHub runner even with the configured cookies. "
+                "The cookie session is likely rotated/invalid, or the runner IP is blocked."
+            )
+        raise AuthenticationRequiredError(
+            "YouTube requires authentication for this runner/IP. "
+            "Configure a fresh Netscape-format YT_COOKIES_TXT secret or run from a "
+            "non-datacenter/self-hosted runner."
+        )
 
     return False
 
@@ -277,12 +298,19 @@ def _run_ytdlp(cmd, output_path):
         print("Download started...")
         flag = {"timed_out": False}
         geo_restricted = False
+        auth_required = False
         _watchdog(process, YTDLP_TIMEOUT_SECONDS, flag)
         for line in iter(process.stdout.readline, ""):
             # Filter out download progress lines (they start with [download])
             stripped = line.strip()
-            if "not made this video available in your country" in stripped.lower():
+            lowered = stripped.lower()
+            if "not made this video available in your country" in lowered:
                 geo_restricted = True
+            if (
+                "sign in to confirm you" in lowered
+                and "not a bot" in lowered
+            ) or "provided youtube account cookies are no longer valid" in lowered:
+                auth_required = True
             if stripped.startswith("[download]"):
                 continue
             print(line, end="")
@@ -295,6 +323,13 @@ def _run_ytdlp(cmd, output_path):
                 os.remove(output_path)
             raise GeoRestrictedError(
                 "YouTube reports that this video is unavailable from the runner's country/IP region."
+            )
+
+        if auth_required:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            raise AuthenticationRequiredError(
+                "YouTube requested a valid authenticated session for this runner/IP."
             )
 
         if flag["timed_out"]:
@@ -327,6 +362,8 @@ def _run_ytdlp(cmd, output_path):
         print(f"\nyt-dlp completed but output file not found at {output_path}", file=sys.stderr)
         return False
 
+    except (GeoRestrictedError, AuthenticationRequiredError):
+        raise
     except FileNotFoundError:
         print("yt-dlp not found. Install with: pip install -U yt-dlp", file=sys.stderr)
         return False
@@ -688,6 +725,9 @@ def main():
     except GeoRestrictedError as exc:
         print(f"Geo restriction: {exc}", file=sys.stderr)
         sys.exit(3)
+    except AuthenticationRequiredError as exc:
+        print(f"YouTube authentication required: {exc}", file=sys.stderr)
+        sys.exit(4)
     
     # 2. Fallback to RapidAPI
     print("\n!!! yt-dlp method failed. Switching to RapidAPI fallback !!!\n")
