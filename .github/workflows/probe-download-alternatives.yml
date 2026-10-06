@@ -1,0 +1,28 @@
+name: Probe GitHub-hosted YouTube alternatives
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/probe-youtubejs.mjs'
+      - '.github/workflows/probe-download-alternatives.yml'
+  workflow_dispatch:
+
+jobs:
+  youtubejs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install probe dependencies
+        run: npm install --no-save youtubei.js@18.1.0
+      - name: Download with YouTube.js
+        run: |
+          mkdir -p tmp
+          node scripts/probe-youtubejs.mjs jNQXAC9IVRw tmp/youtubejs.mp4
+      - name: Verify output
+        run: |
+          test -s tmp/youtubejs.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/youtubejs.mp4 | grep -qx video
