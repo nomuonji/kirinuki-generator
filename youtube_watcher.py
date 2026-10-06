@@ -16,6 +16,7 @@ from googleapiclient.errors import HttpError
 from packages.operations import (
     OperationsConfig,
     clips_needed_for_source,
+    estimate_drive_clip_stock,
     estimate_effective_stock,
     parse_timestamp,
     rank_source_candidates,
@@ -25,6 +26,7 @@ from packages.shared.gdrive import (
     download_file_bytes,
     find_file,
     get_drive_service,
+    list_clip_files,
     upload_json_data,
 )
 
@@ -523,14 +525,10 @@ def selection_metadata(candidate: dict, uploaded_clips: int | None = None) -> di
 
 
 def make_plan(
-    processed_entries: list[dict],
+    effective_stock: float,
     ranked_candidates: list[dict],
     config: OperationsConfig,
 ) -> dict:
-    effective_stock = estimate_effective_stock(
-        processed_entries,
-        posts_per_day=config.posts_per_day,
-    )
     target = config.target_stock_clips
     reorder = config.reorder_stock_clips
     deficit = max(0, math.ceil(target - effective_stock))
@@ -646,16 +644,19 @@ def main():
 
     drive_service = get_drive_service()
     processed_entries, processed_file_id = load_processed_videos(drive_service, folder_id)
-    stock_entries, processed_file_id, stock_source = prepare_stock_entries(
-        processed_entries,
-        drive_service,
-        folder_id,
-        config,
-        persist_bootstrap=not args.plan_only,
-        processed_file_id=processed_file_id,
+
+    # The Drive folder is the physical posting stock. This includes clips created by
+    # scheduled and manual runs alike; processed_videos.json remains the source ledger.
+    clip_files = list_clip_files(drive_service, folder_id)
+    preliminary_stock = estimate_drive_clip_stock(
+        clip_files,
+        posts_per_day=config.posts_per_day,
     )
-    if not args.plan_only:
-        processed_entries = stock_entries
+    stock_source = "drive_mp4s"
+    print(
+        f"Drive stock: {len(clip_files)} clip file(s), "
+        f"{preliminary_stock:.1f} effective after expected posting consumption."
+    )
 
     processed_ids = {
         entry.get("videoId")
@@ -669,10 +670,6 @@ def main():
         sys.exit(1)
 
     videos = fetch_recent_videos(youtube_api_key, playlist_id, config.max_search_videos)
-    preliminary_stock = estimate_effective_stock(
-        stock_entries,
-        posts_per_day=config.posts_per_day,
-    )
     source_diagnostics: dict = {}
     ranked_candidates = build_ranked_candidates(
         videos,
@@ -710,7 +707,7 @@ def main():
             f"{config.fallback_max_search_videos}-upload-fallback"
         )
 
-    plan = make_plan(stock_entries, ranked_candidates, config)
+    plan = make_plan(preliminary_stock, ranked_candidates, config)
     plan["stockSource"] = stock_source
     plan["sourceWindow"] = source_window
     plan["sourceDiagnostics"] = source_diagnostics
@@ -735,8 +732,8 @@ def main():
             print(f"Reached MAX_VIDEOS_PER_RUN={config.max_videos_per_run}.")
             break
 
-        effective_stock = estimate_effective_stock(
-            processed_entries,
+        effective_stock = estimate_drive_clip_stock(
+            list_clip_files(drive_service, folder_id),
             posts_per_day=config.posts_per_day,
         )
         if effective_stock >= config.target_stock_clips:
@@ -888,8 +885,8 @@ def main():
         if refreshed_file_id:
             delete_file(drive_service, refreshed_file_id)
 
-        updated_stock = estimate_effective_stock(
-            processed_entries,
+        updated_stock = estimate_drive_clip_stock(
+            list_clip_files(drive_service, folder_id),
             posts_per_day=config.posts_per_day,
         )
         print(
@@ -897,8 +894,8 @@ def main():
             f"{config.target_stock_clips} clips."
         )
 
-    final_stock = estimate_effective_stock(
-        processed_entries,
+    final_stock = estimate_drive_clip_stock(
+        list_clip_files(drive_service, folder_id),
         posts_per_day=config.posts_per_day,
     )
     print(f"Final effective posting stock: {final_stock:.1f} clips.")
