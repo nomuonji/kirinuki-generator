@@ -1,0 +1,34 @@
+name: Probe YT-API cgeo download
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/probe-yt-api-cgeo.py'
+      - '.github/workflows/probe-yt-api-cgeo.yml'
+  workflow_dispatch:
+
+jobs:
+  yt-api-cgeo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install requests
+      - name: Download via YT-API with cgeo
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: |
+          mkdir -p tmp
+          python scripts/probe-yt-api-cgeo.py jNQXAC9IVRw tmp/yt-api-cgeo.mp4
+      - name: Verify media
+        run: |
+          test -s tmp/yt-api-cgeo.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/yt-api-cgeo.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/yt-api-cgeo.mp4 | grep -qx audio
