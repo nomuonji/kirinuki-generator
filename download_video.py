@@ -27,8 +27,8 @@ FORMAT_SORT = "res:1080,fps:30,codec:h264,ext:mp4"
 
 # Hard ceiling for a single yt-dlp invocation. Without this the process can hang until
 # the GitHub Actions 6-hour job limit kills the whole run.
-YTDLP_TIMEOUT_SECONDS = int(os.environ.get("YTDLP_TIMEOUT_SECONDS", "2700"))
-SAVETUBE_TIMEOUT_SECONDS = int(os.environ.get("SAVETUBE_TIMEOUT_SECONDS", "900"))
+YTDLP_TIMEOUT_SECONDS = int(os.environ.get("YTDLP_TIMEOUT_SECONDS", "120"))
+SAVETUBE_TIMEOUT_SECONDS = int(os.environ.get("SAVETUBE_TIMEOUT_SECONDS", "480"))
 
 
 class GeoRestrictedError(RuntimeError):
