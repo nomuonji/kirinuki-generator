@@ -205,28 +205,39 @@ def download_with_ytdlp(video_id, output_path):
     # inspection of the jar cannot tell a rotated cookie from a live one. So only reach for
     # cookies once the anonymous attempt has failed, i.e. when the video plausibly needs auth.
     cookies_path = usable_cookie_file(os.path.abspath("cookies.txt"))
-    attempts = [("anonymous", None)]
+    auth_attempts = [("anonymous", None)]
     if cookies_path:
-        attempts.append(("with cookies", cookies_path))
+        auth_attempts.append(("with cookies", cookies_path))
 
-    for label, cookies in attempts:
-        print(f"\n--- yt-dlp attempt: {label} ---")
-        cmd = _build_ytdlp_command(ytdlp_cmd, youtube_url, output_path, cookies)
-        if _run_ytdlp(cmd, output_path):
-            return True
+    # Datacenter IPs are frequently challenged before mweb can request a PO Token.
+    # First try clients that do not require a token, then the current recommended
+    # mweb + PO-token path, then yt-dlp's evolving default client set.
+    client_profiles = [
+        ("embedded", "youtube:player-client=web_embedded,android_vr;formats=missing_pot"),
+        ("po-token", "youtube:player-client=mweb,web_safari,tv;formats=missing_pot"),
+        ("default", "youtube:player-client=default;formats=missing_pot"),
+    ]
+
+    for profile, extractor_args in client_profiles:
+        for auth_label, cookies in auth_attempts:
+            print(f"\n--- yt-dlp attempt: {profile} / {auth_label} ---")
+            cmd = _build_ytdlp_command(
+                ytdlp_cmd, youtube_url, output_path, cookies, extractor_args
+            )
+            if _run_ytdlp(cmd, output_path):
+                return True
 
     return False
 
 
-def _build_ytdlp_command(ytdlp_cmd, youtube_url, output_path, cookies_path):
+def _build_ytdlp_command(
+    ytdlp_cmd, youtube_url, output_path, cookies_path, extractor_args
+):
     cmd = ytdlp_cmd + [
         "--js-runtimes", "deno",  # Use Deno for JS challenge solving
         "--remote-components", "ejs:npm",  # Download required NPM packages for JS challenge
-        # Current yt-dlp guidance recommends the mweb client with a PO Token Provider.
-        # The bgutil provider plugin is installed in CI and its HTTP provider listens on
-        # 127.0.0.1:4416. tv/web_safari remain fallbacks for extractor-side regressions.
         "--extractor-args",
-        "youtube:player-client=mweb,tv,web_safari;formats=missing_pot",
+        extractor_args,
         # Multi-tier so that a client with a thinned-out format list still yields something
         # rather than failing with "Requested format is not available".
         "-f", FORMAT_SELECTOR,
@@ -239,6 +250,8 @@ def _build_ytdlp_command(ytdlp_cmd, youtube_url, output_path, cookies_path):
         "--no-playlist",
         "-o", output_path,
     ]
+    if os.environ.get("YTDLP_VERBOSE") == "1":
+        cmd.append("--verbose")
     if cookies_path:
         cmd += ["--cookies", cookies_path]
     cmd.append(youtube_url)
