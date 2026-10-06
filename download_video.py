@@ -28,6 +28,7 @@ FORMAT_SORT = "res:1080,fps:30,codec:h264,ext:mp4"
 # Hard ceiling for a single yt-dlp invocation. Without this the process can hang until
 # the GitHub Actions 6-hour job limit kills the whole run.
 YTDLP_TIMEOUT_SECONDS = int(os.environ.get("YTDLP_TIMEOUT_SECONDS", "2700"))
+SAVETUBE_TIMEOUT_SECONDS = int(os.environ.get("SAVETUBE_TIMEOUT_SECONDS", "900"))
 
 
 class GeoRestrictedError(RuntimeError):
@@ -67,6 +68,87 @@ def has_video_stream(path):
         print(f"Warning: could not verify video stream ({exc}).", file=sys.stderr)
         return True
     return "video" in result.stdout
+
+
+def has_audio_stream(path):
+    """True if the file contains at least one audio track."""
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "a:0",
+             "-show_entries", "stream=codec_type", "-of", "csv=p=0", path],
+            capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=60,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        print(f"Warning: could not verify audio stream ({exc}).", file=sys.stderr)
+        return True
+    return "audio" in result.stdout
+
+
+def download_with_savetube(video_id, output_path):
+    """
+    Primary GitHub-hosted download path.
+
+    SaveTube resolves and proxies the media through its own CDN, so the final media
+    request does not depend on a googlevideo URL signed for a different IP. This avoids
+    the datacenter-IP LOGIN_REQUIRED/403 failure observed with direct YouTube clients.
+    """
+    output_path = os.path.abspath(output_path)
+    script_path = os.path.abspath(os.path.join("scripts", "savetube_download.mjs"))
+    node_path = shutil.which("node")
+    quality = os.environ.get("SAVETUBE_QUALITY", "720")
+
+    if not node_path:
+        print("SaveTube primary skipped: Node.js is not available.", file=sys.stderr)
+        return False
+    if not os.path.exists(script_path):
+        print(f"SaveTube primary skipped: helper not found at {script_path}", file=sys.stderr)
+        return False
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    if os.path.exists(output_path):
+        os.remove(output_path)
+
+    cmd = [node_path, script_path, video_id, output_path, quality]
+    print(f"--- Attempting SaveTube CDN download for {video_id} at {quality}p ---")
+    print(f"Executing: {' '.join(cmd)}")
+
+    try:
+        result = subprocess.run(cmd, timeout=SAVETUBE_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        print(
+            f"SaveTube download exceeded {SAVETUBE_TIMEOUT_SECONDS}s; falling back.",
+            file=sys.stderr,
+        )
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        return False
+    except OSError as exc:
+        print(f"SaveTube helper failed to start: {exc}", file=sys.stderr)
+        return False
+
+    if result.returncode != 0:
+        print(f"SaveTube helper exited with code {result.returncode}.", file=sys.stderr)
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        return False
+
+    if not os.path.exists(output_path) or os.path.getsize(output_path) <= 0:
+        print("SaveTube returned success but no non-empty output file.", file=sys.stderr)
+        return False
+    if not has_video_stream(output_path):
+        print("SaveTube output has no video stream.", file=sys.stderr)
+        os.remove(output_path)
+        return False
+    if not has_audio_stream(output_path):
+        print("SaveTube output has no audio stream.", file=sys.stderr)
+        os.remove(output_path)
+        return False
+
+    print(
+        f"SaveTube download verified: {output_path} "
+        f"({os.path.getsize(output_path)} bytes, video+audio)"
+    )
+    return True
 
 
 def _terminate(process):
@@ -707,17 +789,25 @@ def download_youtube_video_from_api(video_id, output_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Download YouTube video via yt-dlp with fallbacks.")
+    parser = argparse.ArgumentParser(
+        description="Download YouTube video via SaveTube CDN with yt-dlp fallbacks."
+    )
     parser.add_argument("video_id", help="The YouTube Video ID")
     parser.add_argument("--output", required=True, help="Output path for the video file")
     args = parser.parse_args()
 
     load_dotenv()
 
-    # 1. Try current yt-dlp + JS challenge solver + PO Token Provider.
-    # A geo block is different from an extractor failure: RapidAPI/Playwright from the
-    # same GitHub-hosted runner cannot change the runner's country, so fail fast instead
-    # of burning tens of minutes on fallbacks that cannot solve it.
+    # 1. SaveTube is the primary GitHub-hosted path. Its CDN serves the actual media
+    # bytes, avoiding the IP-bound googlevideo URLs that return 403 from Actions runners.
+    if download_with_savetube(args.video_id, args.output):
+        print("Download completed using SaveTube CDN.")
+        sys.exit(0)
+
+    # 2. Fall back to current yt-dlp + JS challenge solver + PO Token Provider.
+    # If YouTube itself classifies the hosted runner as auth/geo blocked, the old
+    # direct-link/browser fallbacks cannot fix that condition, so report it explicitly.
+    print("\n!!! SaveTube failed. Switching to yt-dlp fallback !!!\n")
     try:
         if download_with_ytdlp(args.video_id, args.output):
             print("Download completed using yt-dlp.")
@@ -729,13 +819,13 @@ def main():
         print(f"YouTube authentication required: {exc}", file=sys.stderr)
         sys.exit(4)
     
-    # 2. Fallback to RapidAPI
+    # 3. Legacy RapidAPI fallback
     print("\n!!! yt-dlp method failed. Switching to RapidAPI fallback !!!\n")
     if download_youtube_video_from_api(args.video_id, args.output):
         print("Download completed using RapidAPI.")
         sys.exit(0)
     
-    # 3. Fallback to Playwright
+    # 4. Legacy Playwright fallback
     print("\n!!! RapidAPI method failed. Switching to Playwright fallback !!!\n")
     if download_with_playwright(args.video_id, args.output):
         print("Download completed using Playwright fallback.")

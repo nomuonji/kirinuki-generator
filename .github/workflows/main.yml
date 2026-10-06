@@ -12,6 +12,7 @@ jobs:
     env:
       PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
+      SAVETUBE_QUALITY: '720'
       # Without this Python block-buffers stdout into the Actions log pipe, so a run that
       # is killed mid-flight reports nothing about where it got stuck.
       PYTHONUNBUFFERED: '1'
@@ -27,9 +28,9 @@ jobs:
         python-version: '3.11' # Or the version you use
 
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: '18' # Or the version required by Remotion
+        node-version: '22' # Or the version required by Remotion
         cache: 'npm'
         cache-dependency-path: apps/remotion/package-lock.json
 
