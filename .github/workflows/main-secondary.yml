@@ -11,9 +11,6 @@ on:
         description: 'Google Drive Folder ID'
         required: true
         default: '1jMRNXRibmoOShZi1EJMcUySNoXwe1LNX'
-  schedule:
-    # Staggered an hour after the primary channel so two 2h+ pipelines never overlap.
-    - cron: '7 6 * * *' # Runs every day at 06:07 UTC
 
 jobs:
   build-and-upload:
@@ -77,9 +74,25 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         # YouTube breaks older yt-dlp releases regularly; a pinned floor is not enough.
-        python -m pip install --upgrade yt-dlp
+        python -m pip install --upgrade yt-dlp bgutil-ytdlp-pot-provider
         python -m yt_dlp --version
         playwright install chromium --with-deps
+
+    - name: Start YouTube PO Token provider
+      run: |
+        docker run -d --rm --name bgutil-provider --init \
+          -p 127.0.0.1:4416:4416 \
+          brainicism/bgutil-ytdlp-pot-provider:2.0.1-deno
+        for attempt in $(seq 1 30); do
+          if curl -fsS http://127.0.0.1:4416/ping >/dev/null; then
+            echo "PO Token provider is ready."
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "PO Token provider failed to become ready." >&2
+        docker logs bgutil-provider || true
+        exit 1
 
     - name: Install Node.js dependencies for Remotion
       run: npm install
