@@ -1,0 +1,45 @@
+name: SaveTube Primary Download Smoke Test
+
+on:
+  pull_request:
+    paths:
+      - 'download_video.py'
+      - 'scripts/savetube_download.mjs'
+      - '.github/workflows/savetube-download-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  savetube-primary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SAVETUBE_QUALITY: '720'
+      SAVETUBE_TIMEOUT_SECONDS: '420'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install smoke dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install requests python-dotenv
+
+      - name: Download through production downloader
+        run: |
+          mkdir -p tmp
+          python download_video.py jNQXAC9IVRw --output tmp/savetube-primary.mp4
+
+      - name: Verify playable audio and video
+        run: |
+          test -s tmp/savetube-primary.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/savetube-primary.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/savetube-primary.mp4 | grep -qx audio
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 tmp/savetube-primary.mp4
