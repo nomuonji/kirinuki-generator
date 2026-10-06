@@ -330,6 +330,7 @@ def build_ranked_candidates(
         "invalidPublishedAt": 0,
         "tooYoung": 0,
         "tooOld": 0,
+        "regionBlocked": 0,
         "eligibleBaseline": 0,
         "alreadyProcessed": 0,
         "unprocessedRanked": 0,
@@ -368,6 +369,20 @@ def build_ranked_candidates(
             continue
         if age > timedelta(days=source_age_limit):
             diag["tooOld"] += 1
+            continue
+
+        region_restriction = (video.get("contentDetails") or {}).get("regionRestriction") or {}
+        allowed = {
+            str(country).upper()
+            for country in (region_restriction.get("allowed") or [])
+        }
+        blocked = {
+            str(country).upper()
+            for country in (region_restriction.get("blocked") or [])
+        }
+        fetch_country = config.source_fetch_country
+        if (allowed and fetch_country not in allowed) or fetch_country in blocked:
+            diag["regionBlocked"] += 1
             continue
 
         diag["eligibleBaseline"] += 1
