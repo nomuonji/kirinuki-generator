@@ -431,17 +431,22 @@ def build_ranked_candidates(
     processed_ids: set[str],
     config: OperationsConfig,
     max_source_age_days: float | None = None,
+    max_source_duration_minutes: float | None = None,
     diagnostics: dict | None = None,
 ) -> list[dict]:
     now = datetime.now(timezone.utc)
     candidates: list[dict] = []
     source_age_limit = max_source_age_days or config.max_source_age_days
+    source_duration_limit = (
+        max_source_duration_minutes or config.max_source_duration_minutes
+    ) * 60.0
     diag = diagnostics if diagnostics is not None else {}
     diag.clear()
     diag.update({
         "fetched": len(videos),
         "missingId": 0,
         "tooShort": 0,
+        "tooLong": 0,
         "liveOrUpcoming": 0,
         "invalidPublishedAt": 0,
         "tooYoung": 0,
@@ -464,6 +469,9 @@ def build_ranked_candidates(
         ).total_seconds()
         if duration_seconds < MIN_VIDEO_DURATION_SECONDS:
             diag["tooShort"] += 1
+            continue
+        if duration_seconds > source_duration_limit:
+            diag["tooLong"] += 1
             continue
 
         if snippet.get("liveBroadcastContent") in {"live", "upcoming"}:
@@ -700,10 +708,12 @@ def main():
             processed_ids,
             config,
             max_source_age_days=config.fallback_max_source_age_days,
+            max_source_duration_minutes=config.fallback_max_source_duration_minutes,
             diagnostics=source_diagnostics,
         )
         source_window = (
             f"{config.fallback_max_source_age_days:g}d/"
+            f"{config.fallback_max_source_duration_minutes:g}m/"
             f"{config.fallback_max_search_videos}-upload-fallback"
         )
 
