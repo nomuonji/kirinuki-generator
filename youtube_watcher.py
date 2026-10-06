@@ -533,7 +533,10 @@ def main():
             )
             break
 
-        if candidate["selectionScore"] < config.min_selection_score and effective_stock > 0:
+        if (
+            candidate["selectionScore"] < config.min_selection_score
+            and effective_stock >= config.reorder_stock_clips
+        ):
             print(
                 f"Skipping low-score source {candidate['videoId']} "
                 f"({candidate['selectionScore']:.3f})."
