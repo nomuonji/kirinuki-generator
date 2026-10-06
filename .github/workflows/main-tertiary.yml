@@ -1,8 +1,6 @@
 name: Tertiary Kirinuki Generator
 
 on:
-  schedule:
-    - cron: '37 0,6,12,18 * * *'
   workflow_dispatch:
     inputs:
       youtube_channel_id:
