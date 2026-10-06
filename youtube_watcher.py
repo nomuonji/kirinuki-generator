@@ -646,15 +646,25 @@ def main():
     ):
         print(
             "No preferred-window source while stock is critical; "
-            f"expanding source age to {config.fallback_max_source_age_days:g} days."
+            f"expanding to {config.fallback_max_source_age_days:g} days and "
+            f"up to {config.fallback_max_search_videos} uploads."
         )
+        if config.fallback_max_search_videos > len(videos):
+            videos = fetch_recent_videos(
+                youtube_api_key,
+                playlist_id,
+                config.fallback_max_search_videos,
+            )
         ranked_candidates = build_ranked_candidates(
             videos,
             processed_ids,
             config,
             max_source_age_days=config.fallback_max_source_age_days,
         )
-        source_window = f"{config.fallback_max_source_age_days:g}d-fallback"
+        source_window = (
+            f"{config.fallback_max_source_age_days:g}d/"
+            f"{config.fallback_max_search_videos}-upload-fallback"
+        )
 
     plan = make_plan(stock_entries, ranked_candidates, config)
     plan["stockSource"] = stock_source
