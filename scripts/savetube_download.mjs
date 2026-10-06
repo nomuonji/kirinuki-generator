@@ -133,10 +133,19 @@ for (let attempt = 1; attempt <= 4; attempt += 1) {
     process.exit(0);
   } catch (error) {
     lastError = error;
-    console.error(`SaveTube attempt ${attempt}/4 failed:`, error?.message || error);
+    const message = String(error?.message || error);
+    console.error(`SaveTube attempt ${attempt}/4 failed:`, message);
     try {
       if (fs.existsSync(output)) fs.unlinkSync(output);
     } catch {}
+
+    // This is a source-level result, not a transient CDN-node failure. Retrying other
+    // SaveTube nodes and then yt-dlp only burns runner time for the same unavailable ID.
+    if (/video unavailable|private video|members[- ]only/i.test(message)) {
+      console.error('source_unavailable=', message);
+      process.exit(10);
+    }
+
     if (attempt < 4) await sleep(1500 * attempt);
   }
 }
