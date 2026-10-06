@@ -1,0 +1,68 @@
+name: Authenticated YouTube Download Probe
+
+on:
+  push:
+    branches:
+      - fix/youtube-download-2026-10
+  workflow_dispatch:
+
+jobs:
+  authenticated-download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install -U --pre "yt-dlp[default]" bgutil-ytdlp-pot-provider python-dotenv requests
+
+      - name: Load YouTube cookies
+        env:
+          YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
+        run: |
+          printf '%s' "$YT_COOKIES_TXT" > cookies.txt
+          if [ ! -s cookies.txt ]; then
+            echo "YT_COOKIES_TXT is not configured." >&2
+            exit 2
+          fi
+
+      - name: Start PO Token provider
+        run: |
+          docker run -d --rm --name bgutil-provider --init \
+            -p 127.0.0.1:4416:4416 \
+            brainicism/bgutil-ytdlp-pot-provider:2.0.1-deno
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4416/ping >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs bgutil-provider || true
+          exit 1
+
+      - name: Download with repository cookie secret
+        env:
+          YTDLP_VERBOSE: '1'
+        run: |
+          mkdir -p tmp
+          python download_video.py jNQXAC9IVRw --output tmp/auth-smoke.mp4
+
+      - name: Verify media
+        run: |
+          test -s tmp/auth-smoke.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/auth-smoke.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/auth-smoke.mp4 | grep -qx audio
