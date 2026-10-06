@@ -1,0 +1,49 @@
+name: Probe YouTube by GitHub runner OS
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/probe-youtubejs.mjs'
+      - '.github/workflows/probe-runner-os.yml'
+  workflow_dispatch:
+
+jobs:
+  youtubejs-macos:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install YouTube.js
+        run: npm install --no-save youtubei.js@18.1.0
+      - name: Download on macOS runner
+        run: |
+          mkdir -p tmp
+          node scripts/probe-youtubejs.mjs jNQXAC9IVRw tmp/youtubejs-macos.mp4
+      - name: Verify
+        run: |
+          test -s tmp/youtubejs-macos.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/youtubejs-macos.mp4 | grep -qx video
+
+  youtubejs-windows:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install YouTube.js
+        run: npm install --no-save youtubei.js@18.1.0
+      - name: Download on Windows runner
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path tmp | Out-Null
+          node scripts/probe-youtubejs.mjs jNQXAC9IVRw tmp/youtubejs-windows.mp4
+      - name: Verify
+        shell: pwsh
+        run: |
+          if (-not (Test-Path tmp/youtubejs-windows.mp4)) { exit 1 }
+          if ((Get-Item tmp/youtubejs-windows.mp4).Length -le 0) { exit 1 }
