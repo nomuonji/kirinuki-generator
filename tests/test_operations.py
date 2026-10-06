@@ -103,6 +103,7 @@ class OperationsTests(unittest.TestCase):
         self.assertEqual(config.target_stock_clips, 14)
         self.assertEqual(config.reorder_stock_clips, 6)
         self.assertEqual(config.clips_per_source_cap, 6)
+        self.assertEqual(config.max_candidate_attempts_per_run, 6)
 
 
 if __name__ == "__main__":
