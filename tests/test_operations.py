@@ -4,6 +4,7 @@ import unittest
 from packages.operations import (
     OperationsConfig,
     clips_needed_for_source,
+    estimate_drive_clip_stock,
     estimate_effective_stock,
     rank_source_candidates,
 )
@@ -45,6 +46,28 @@ class OperationsTests(unittest.TestCase):
             places=4,
         )
 
+    def test_drive_files_are_the_physical_stock_source(self):
+        now = datetime(2026, 10, 7, tzinfo=timezone.utc)
+        files = [
+            {
+                "name": "source_clip_001.mp4",
+                "createdTime": (now - timedelta(days=1)).isoformat(),
+            },
+            {
+                "name": "source_clip_002.mp4",
+                "createdTime": (now - timedelta(hours=12)).isoformat(),
+            },
+            {
+                "name": "source_clip_003.json",
+                "createdTime": (now - timedelta(hours=1)).isoformat(),
+            },
+        ]
+        self.assertAlmostEqual(
+            estimate_drive_clip_stock(files, posts_per_day=2, now=now),
+            1.0,
+            places=4,
+        )
+
     def test_velocity_can_beat_pure_recency(self):
         now = datetime(2026, 10, 7, tzinfo=timezone.utc)
         ranked = rank_source_candidates(
@@ -79,6 +102,7 @@ class OperationsTests(unittest.TestCase):
         config = OperationsConfig()
         self.assertEqual(config.target_stock_clips, 14)
         self.assertEqual(config.reorder_stock_clips, 6)
+        self.assertEqual(config.clips_per_source_cap, 6)
 
 
 if __name__ == "__main__":
