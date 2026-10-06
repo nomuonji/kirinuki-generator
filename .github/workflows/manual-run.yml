@@ -70,7 +70,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         # YouTube breaks older yt-dlp releases regularly; a pinned floor is not enough.
-        python -m pip install --upgrade yt-dlp bgutil-ytdlp-pot-provider
+        python -m pip install -U --pre "yt-dlp[default]" bgutil-ytdlp-pot-provider
         python -m yt_dlp --version
         playwright install chromium --with-deps
 
