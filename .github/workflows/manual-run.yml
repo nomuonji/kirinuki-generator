@@ -7,9 +7,17 @@ on:
         description: 'YouTube Video ID to process'
         required: true
       gdrive_folder_id:
-        description: 'Google Drive Folder ID for upload (blank = the GDRIVE_PARENT_FOLDER_ID secret)'
+        description: 'Google Drive Folder ID for upload (blank = GDRIVE_PARENT_FOLDER_ID secret)'
         required: false
         default: ''
+      max_clips:
+        description: 'Maximum clips to generate from this source'
+        required: false
+        default: '8'
+
+concurrency:
+  group: kirinuki-manual-${{ github.event.inputs.video_id }}
+  cancel-in-progress: false
 
 jobs:
   manual-build-and-upload:
@@ -19,108 +27,57 @@ jobs:
       PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
       SAVETUBE_QUALITY: '720'
-      # Without this Python block-buffers stdout into the Actions log pipe, so a run that
-      # is killed mid-flight reports nothing about where it got stuck.
       PYTHONUNBUFFERED: '1'
+      KIRINUKI_TARGET_CLIPS: ${{ github.event.inputs.max_clips || '8' }}
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-        cache: 'npm'
-        cache-dependency-path: apps/remotion/package-lock.json
-
-    # download_video.py passes --js-runtimes deno to solve YouTube's JS challenge; without
-    # a JS runtime the format list comes back thinned out.
-    - name: Set up Deno
-      uses: denoland/setup-deno@v2
-      with:
-        deno-version: v2.x
-
-    - name: Prepare browser cache directories
-      run: |
-        mkdir -p ~/.cache/puppeteer
-        mkdir -p ~/.cache/remotion
-        mkdir -p ~/.remotion
-      shell: bash
-
-    - name: Cache Remotion browser artifacts
-      uses: actions/cache@v3
-      id: remotion-browser-cache
-      with:
-        path: |
-          ~/.cache/puppeteer
-          ~/.cache/remotion
-          ~/.remotion
-        key: ${{ runner.os }}-remotion-browser-${{ hashFiles('apps/remotion/package-lock.json') }}
-
-    - name: Install ffmpeg
-      run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        # YouTube breaks older yt-dlp releases regularly; a pinned floor is not enough.
-        python -m pip install -U --pre "yt-dlp[default]" bgutil-ytdlp-pot-provider
-        python -m yt_dlp --version
-        playwright install chromium --with-deps
-
-    - name: Start YouTube PO Token provider
-      run: |
-        docker run -d --rm --name bgutil-provider --init \
-          -p 127.0.0.1:4416:4416 \
-          brainicism/bgutil-ytdlp-pot-provider:2.0.1-deno
-        for attempt in $(seq 1 30); do
-          if curl -fsS http://127.0.0.1:4416/ping >/dev/null; then
-            echo "PO Token provider is ready."
-            exit 0
-          fi
-          sleep 1
-        done
-        echo "PO Token provider failed to become ready." >&2
-        docker logs bgutil-provider || true
-        exit 1
-
-    - name: Install Node.js dependencies for Remotion
-      run: npm install
-      working-directory: ./apps/remotion
-
-    - name: Ensure Remotion browser is available
-      run: npx remotion browser ensure --log=warn || npx remotion browser ensure
-      working-directory: ./apps/remotion
-
-    - name: Create cookie file from secret
-      env:
-        YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
-      # `echo` writes a 1-byte newline when the secret is unset, and download_video.py used
-      # to hand any existing file to yt-dlp. An empty or rotated cookie jar makes YouTube
-      # reject requests that succeed anonymously, so only keep a non-empty file.
-      run: |
-        printf '%s' "$YT_COOKIES_TXT" > cookies.txt
-        [ -s cookies.txt ] || rm -f cookies.txt
-
-    # Calls run_all.py directly. The old manual_process.py wrapper imported functions that
-    # no longer exist in youtube_watcher.py (rename_and_upload_files, get_gdrive_credentials)
-    # and so failed at import; run_all.py already uploads each clip to Drive itself.
-    - name: Run Pipeline
-      env:
-        VIDEO_ID: ${{ github.event.inputs.video_id }}
-        # Falling back to the secret means re-running a video from the primary channel does
-        # not require pasting that folder ID around.
-        GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id || secrets.GDRIVE_PARENT_FOLDER_ID }}
-        YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-        GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
-        GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-        RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      run: python run_all.py "$VIDEO_ID" --subs --reaction
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/remotion/package-lock.json
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Prepare browser cache directories
+        run: mkdir -p ~/.cache/puppeteer ~/.cache/remotion ~/.remotion
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/puppeteer
+            ~/.cache/remotion
+            ~/.remotion
+          key: ${{ runner.os }}-remotion-browser-${{ hashFiles('apps/remotion/package-lock.json') }}
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m pip install -U --pre "yt-dlp[default]" bgutil-ytdlp-pot-provider
+      - name: Install Remotion dependencies
+        working-directory: ./apps/remotion
+        run: npm ci
+      - name: Ensure Remotion browser is available
+        working-directory: ./apps/remotion
+        run: npx remotion browser ensure --log=warn || npx remotion browser ensure
+      - name: Create cookie file for yt-dlp fallback
+        env:
+          YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
+        run: |
+          printf '%s' "$YT_COOKIES_TXT" > cookies.txt
+          [ -s cookies.txt ] || rm -f cookies.txt
+      - name: Run pipeline
+        env:
+          VIDEO_ID: ${{ github.event.inputs.video_id }}
+          GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id || secrets.GDRIVE_PARENT_FOLDER_ID }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python run_all.py "$VIDEO_ID" --subs --reaction
