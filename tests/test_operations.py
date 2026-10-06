@@ -51,7 +51,7 @@ class OperationsTests(unittest.TestCase):
         files = [
             {
                 "name": "source_clip_001.mp4",
-                "createdTime": (now - timedelta(days=1)).isoformat(),
+                "createdTime": (now - timedelta(hours=6)).isoformat(),
             },
             {
                 "name": "source_clip_002.mp4",
