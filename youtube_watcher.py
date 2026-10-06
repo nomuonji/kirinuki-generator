@@ -314,7 +314,7 @@ def build_ranked_candidates(
 
     for video in videos:
         video_id = video.get("id")
-        if not video_id or video_id in processed_ids:
+        if not video_id:
             continue
 
         snippet = video.get("snippet") or {}
@@ -351,7 +351,10 @@ def build_ranked_candidates(
             }
         )
 
-    return rank_source_candidates(candidates, now=now)
+    # Rank against the whole recent eligible channel baseline first. If we ranked only
+    # unprocessed videos, a single weak leftover would automatically look average/good.
+    ranked = rank_source_candidates(candidates, now=now)
+    return [item for item in ranked if item["videoId"] not in processed_ids]
 
 
 def selection_metadata(candidate: dict, uploaded_clips: int | None = None) -> dict:
