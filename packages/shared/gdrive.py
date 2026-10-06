@@ -182,6 +182,34 @@ def find_file(service, parent_id: str, name: str) -> Optional[dict]:
     return files[0] if files else None
 
 
+def list_clip_files(service, parent_id: str) -> list[dict]:
+    """List rendered clip MP4s in a stock folder, including upload timestamps."""
+    query = (
+        f"'{parent_id}' in parents and name contains '_clip_' "
+        "and trashed = false"
+    )
+    files: list[dict] = []
+    page_token = None
+    while True:
+        response = _retryable_call(
+            lambda: service.files().list(
+                q=query,
+                spaces="drive",
+                fields="nextPageToken, files(id, name, createdTime, modifiedTime, mimeType, size)",
+                pageSize=1000,
+                pageToken=page_token,
+                orderBy="createdTime asc",
+            ).execute()
+        )
+        for item in response.get("files", []):
+            if str(item.get("name", "")).lower().endswith(".mp4"):
+                files.append(item)
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
+    return files
+
+
 def list_state_files(service, parent_id: str, prefix: str = "state_") -> list[dict]:
     """Lists all state files in the specified parent folder."""
     query = (
