@@ -1,0 +1,42 @@
+name: Probe SaveTube long-form production download
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/probe-savetube-longform.yml'
+  workflow_dispatch:
+
+jobs:
+  longform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SAVETUBE_QUALITY: '720'
+      SAVETUBE_TIMEOUT_SECONDS: '720'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install requests python-dotenv
+      - name: Download long-form public video through production path
+        run: |
+          mkdir -p tmp
+          python download_video.py aqz-KE-bpKQ --output tmp/longform.mp4
+      - name: Verify long-form media
+        run: |
+          test -s tmp/longform.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/longform.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/longform.mp4 | grep -qx audio
+          duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 tmp/longform.mp4)
+          size=$(stat -c %s tmp/longform.mp4)
+          echo "duration=$duration"
+          echo "size=$size"
+          python -c "import sys; assert float(sys.argv[1]) > 500, sys.argv[1]" "$duration"
