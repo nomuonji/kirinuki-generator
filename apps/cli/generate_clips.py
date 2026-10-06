@@ -126,8 +126,22 @@ def main():
     props = propose_clips_from_transcript(items, preset=args.platform,
                                           min_gap=args.min_gap, min_sec=args.min_sec, max_sec=args.max_sec, concept=concept)
     if args.max_clips > 0 and len(props) > args.max_clips:
-        print(f"\nLimiting clip proposals from {len(props)} to top {args.max_clips} entries.")
-        props = props[: args.max_clips]
+        print(
+            f"\nLimiting clip proposals from {len(props)} to the "
+            f"{args.max_clips} highest-confidence entries."
+        )
+        # Gemini returns proposals in transcript order. Truncating that list used to keep
+        # the earliest moments rather than the strongest moments. Select by confidence
+        # first, then restore chronological order for deterministic clip numbering.
+        props = sorted(
+            props,
+            key=lambda candidate: (
+                float(getattr(candidate, "confidence", 0.0) or 0.0),
+                float(candidate.end - candidate.start),
+            ),
+            reverse=True,
+        )[: args.max_clips]
+        props.sort(key=lambda candidate: candidate.start)
 
     print("\n--- Verifying Gemini's Raw Proposals and Refining End Times ---")
     for i, p in enumerate(props, start=1):
