@@ -39,6 +39,10 @@ class AuthenticationRequiredError(RuntimeError):
     """YouTube rejected this runner/IP until an authenticated session is supplied."""
 
 
+class VideoUnavailableError(RuntimeError):
+    """The source video is not obtainable and should not be retried automatically."""
+
+
 # Cookies that actually authenticate a YouTube session. A cookie file without any
 # of these is useless for bypassing bot detection.
 _AUTH_COOKIE_NAMES = {
@@ -130,6 +134,10 @@ def download_with_savetube(video_id, output_path):
         print(f"SaveTube helper exited with code {result.returncode}.", file=sys.stderr)
         if os.path.exists(output_path):
             os.remove(output_path)
+        if result.returncode == 10:
+            raise VideoUnavailableError(
+                f"YouTube source {video_id} is unavailable to the download backend."
+            )
         return False
 
     if not os.path.exists(output_path) or os.path.getsize(output_path) <= 0:
@@ -895,9 +903,13 @@ def main():
 
     # 1. SaveTube is the primary GitHub-hosted path. Its CDN serves the actual media
     # bytes, avoiding the IP-bound googlevideo URLs that return 403 from Actions runners.
-    if download_with_savetube(args.video_id, args.output):
-        print("Download completed using SaveTube CDN.")
-        sys.exit(0)
+    try:
+        if download_with_savetube(args.video_id, args.output):
+            print("Download completed using SaveTube CDN.")
+            sys.exit(0)
+    except VideoUnavailableError as exc:
+        print(f"Video unavailable: {exc}", file=sys.stderr)
+        sys.exit(5)
 
     # 2. Fall back to current yt-dlp + JS challenge solver + PO Token Provider.
     # If YouTube itself classifies the hosted runner as auth/geo blocked, the old

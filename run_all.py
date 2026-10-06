@@ -814,6 +814,8 @@ def main():
                     state["failureReason"] = "geo_restricted"
                 elif exc.returncode == 4:
                     state["failureReason"] = "youtube_auth"
+                elif exc.returncode == 5:
+                    state["failureReason"] = "video_unavailable"
                 else:
                     state["failureReason"] = "download"
                 persist_state()
