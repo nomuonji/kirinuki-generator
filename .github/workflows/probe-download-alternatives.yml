@@ -7,6 +7,7 @@ on:
       - 'scripts/probe-rapidapi-yt-api.py'
       - 'scripts/probe-rapidapi-youtube-cdn.py'
       - 'scripts/probe-cobalt.py'
+      - 'scripts/probe-playwright-browser.py'
       - '.github/workflows/probe-download-alternatives.yml'
   workflow_dispatch:
 
@@ -142,3 +143,26 @@ jobs:
           test -s tmp/cobalt.mp4
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/cobalt.mp4 | grep -qx video
           ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/cobalt.mp4 | grep -qx audio
+
+
+  playwright-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Chromium and dependencies
+        run: |
+          python -m pip install playwright
+          python -m playwright install chromium --with-deps
+      - name: Download through real browser playback
+        run: |
+          mkdir -p tmp
+          python scripts/probe-playwright-browser.py jNQXAC9IVRw tmp/playwright.mp4
+      - name: Verify output
+        run: |
+          test -s tmp/playwright.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/playwright.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/playwright.mp4 | grep -qx audio
