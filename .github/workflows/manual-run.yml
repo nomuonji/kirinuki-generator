@@ -29,6 +29,7 @@ jobs:
       PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
       SAVETUBE_QUALITY: '720'
+  SOURCE_FETCH_COUNTRY: 'US'
       PYTHONUNBUFFERED: '1'
       KIRINUKI_TARGET_CLIPS: ${{ github.event.inputs.max_clips || '6' }}
 
