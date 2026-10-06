@@ -120,9 +120,9 @@ def cleanup_old_state_files(
             state_data = json.loads(payload.decode("utf-8"))
             status = state_data.get("status", "")
             
-            # Delete only if status is 'failed' or 'completed' (completed should already be gone, but just in case)
-            if status not in ("failed", "completed"):
-                # Still in-progress, might be from a concurrent run, skip
+            # With workflow concurrency locks in place, an in-progress state older
+            # than max_age_days cannot represent a live run. Treat it as abandoned.
+            if status not in ("failed", "completed", "in-progress"):
                 continue
         except Exception:
             # If we can't read the file, it might be corrupted - safe to delete
@@ -133,6 +133,14 @@ def cleanup_old_state_files(
             delete_file(service, file_id)
             print(f"  -> Cleaned up old state file: {file_name}")
             deleted_count += 1
+
+            if file_name.startswith("state_") and file_name.endswith(".json"):
+                video_id = file_name[len("state_"):-len(".json")]
+                manifest_name = f"clips_manifest_{video_id}.json"
+                manifest = find_file(service, parent_folder_id, manifest_name)
+                if manifest:
+                    delete_file(service, manifest["id"])
+                    print(f"  -> Cleaned up stale clip manifest: {manifest_name}")
         except Exception as exc:
             print(f"Warning: Failed to delete old state file {file_name}: {exc}", file=sys.stderr)
     
