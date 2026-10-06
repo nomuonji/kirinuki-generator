@@ -71,9 +71,9 @@ class OperationsTests(unittest.TestCase):
         self.assertEqual(ranked[0]["videoId"], "hot")
 
     def test_clip_request_is_capped_by_source(self):
-        self.assertEqual(clips_needed_for_source(2, 14, 8), 8)
-        self.assertEqual(clips_needed_for_source(10, 14, 8), 4)
-        self.assertEqual(clips_needed_for_source(14, 14, 8), 0)
+        self.assertEqual(clips_needed_for_source(2, 14, 6), 6)
+        self.assertEqual(clips_needed_for_source(10, 14, 6), 4)
+        self.assertEqual(clips_needed_for_source(14, 14, 6), 0)
 
     def test_default_stock_targets(self):
         config = OperationsConfig()
