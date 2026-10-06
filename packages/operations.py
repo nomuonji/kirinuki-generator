@@ -127,6 +127,48 @@ def estimate_effective_stock(
     return stock
 
 
+def estimate_drive_clip_stock(
+    clip_files: Iterable[dict],
+    posts_per_day: float,
+    now: datetime | None = None,
+    max_history_days: float = 90.0,
+) -> float:
+    """Estimate ready inventory from the actual MP4 files present in the Drive stock folder."""
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    now = now.astimezone(timezone.utc)
+
+    events: list[tuple[datetime, int]] = []
+    for item in clip_files:
+        name = str(item.get("name") or "")
+        if not name.lower().endswith(".mp4") or "_clip_" not in name:
+            continue
+        created = parse_timestamp(item.get("createdTime") or item.get("modifiedTime"))
+        if created is None or created > now:
+            continue
+        if (now - created).total_seconds() > max_history_days * 86400:
+            continue
+        events.append((created, 1))
+
+    if not events:
+        return 0.0
+
+    events.sort(key=lambda pair: pair[0])
+    rate_per_second = max(0.0, posts_per_day) / 86400.0
+    stock = 0.0
+    cursor = events[0][0]
+    for when, count in events:
+        if when > cursor:
+            stock = max(0.0, stock - (when - cursor).total_seconds() * rate_per_second)
+        stock += count
+        cursor = when
+
+    if now > cursor:
+        stock = max(0.0, stock - (now - cursor).total_seconds() * rate_per_second)
+    return stock
+
+
 def _percentile_ranks(values: list[float]) -> list[float]:
     if not values:
         return []
