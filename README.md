@@ -82,12 +82,11 @@ python run_all.py <YouTubeのビデオID> --reaction
 -   **ローカルの動画ファイルを使う場合:**
 
     1.  **ファイルの配置:**
-        -   お手持ちの動画ファイル (例: `my_video.mp4`) を `tmp` フォルダにコピーします。
+        -   お手持ちの動画ファイル (例: `my_video.mp4`) を `tmp` フォルダに `video.mp4` としてコピーします。
     2.  **文字起こし:**
-        -   `transcribe.py` を実行して文字起こしを行います。
-        ```bash
-        python transcribe.py
-        ```
+        -   ローカル文字起こし用の `transcribe.py` は削除されました（依存関係が未インストールで動作しませんでした）。
+            `tmp/transcript.json` を手動で用意するか、元動画の YouTube ID がわかる場合は
+            上記の `transcribe_rapidapi.py` を使ってください。
 
 完了後、`tmp`フォルダに`video.mp4`（動画ファイル）と`transcript.json`（文字起こしデータ）が準備できている状態になります。
 
@@ -237,3 +236,34 @@ python -m apps.cli.generate_clips `
         -   `gdrive_token.json` ファイルを開き、`refresh_token` の値（例: `"1//..."`）のみをコピーして、このシークレットの値として貼り付けます。
 
 これで、GitHub Actionsが実行されるたびに、設定した認証情報を使ってGoogle Driveへのアップロードが自動で行われるようになります。
+
+
+---
+
+## YouTube ダウンロードの現在の構成
+
+GitHub Actions では、YouTube 側の bot 判定と JavaScript / PO Token 要件に対応するため、次の構成を使用します。
+
+- 実行時に yt-dlp nightly をインストール
+- Deno + EJS で YouTube の JavaScript challenge を処理
+- `bgutil-ytdlp-pot-provider` をローカル HTTP provider として起動
+- 匿名アクセスを先に試し、必要な場合だけ `YT_COOKIES_TXT` を使用
+- ダウンロード後に `ffprobe` で実際に video stream が含まれることを確認
+- GitHub-hosted runner の国/IPで地域制限された動画は即時終了
+- bot challenge / 無効な cookies は認証エラーとして即時終了し、無意味な長時間 fallback を行わない
+
+### GitHub-hosted runner で `Sign in to confirm you're not a bot` が出る場合
+
+GitHub-hosted runner のデータセンター IP は YouTube から認証を要求されることがあります。この場合、Repository Settings → Secrets and variables → Actions の `YT_COOKIES_TXT` を、新しく export した Netscape 形式の YouTube cookies で更新してください。
+
+静的に有効期限が残っていても、YouTube がブラウザ側で cookie を rotate すると利用できません。更新後は Actions の **Authenticated YouTube Download Probe** を手動実行すると、フルパイプラインを回さずダウンロードだけを確認できます。
+
+yt-dlp の cookie export 手順:
+https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies
+
+### 終了コード
+
+- `0`: ダウンロード成功
+- `3`: runner の国/IPによる地域制限
+- `4`: YouTube が有効な認証を要求している（cookie失効、bot判定など）
+- その他: extractor / network / fallback の通常エラー
