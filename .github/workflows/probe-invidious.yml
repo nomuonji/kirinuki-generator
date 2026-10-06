@@ -1,0 +1,29 @@
+name: Probe Invidious YouTube proxy
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/probe-invidious.py'
+      - '.github/workflows/probe-invidious.yml'
+  workflow_dispatch:
+
+jobs:
+  invidious-proxy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install requests
+      - name: Download through official public Invidious instances
+        run: |
+          mkdir -p tmp
+          python scripts/probe-invidious.py jNQXAC9IVRw tmp/invidious.mp4
+      - name: Verify media
+        run: |
+          test -s tmp/invidious.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/invidious.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/invidious.mp4 | grep -qx audio
