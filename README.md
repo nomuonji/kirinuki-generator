@@ -269,15 +269,7 @@ RapidAPI の direct GoogleVideo URL と Playwright は GitHub-hosted runner で�
 
 
 
-GitHub Actions では、YouTube 側の bot 判定と JavaScript / PO Token 要件に対応するため、次の構成を使用します。
-
-- 実行時に yt-dlp nightly をインストール
-- Deno + EJS で YouTube の JavaScript challenge を処理
-- `bgutil-ytdlp-pot-provider` をローカル HTTP provider として起動
-- 匿名アクセスを先に試し、必要な場合だけ `YT_COOKIES_TXT` を使用
-- ダウンロード後に `ffprobe` で実際に video stream が含まれることを確認
-- GitHub-hosted runner の国/IPで地域制限された動画は即時終了
-- bot challenge / 無効な cookies は認証エラーとして即時終了し、無意味な長時間 fallback を行わない
+yt-dlp fallback では Deno/EJS と bgutil PO Token Provider を使用し、必要な場合だけ `YT_COOKIES_TXT` を試します。GitHub-hosted runner の実IPに対する geo block / bot challenge は別エラーとして分類し、無意味な長時間retryを避けます。
 
 ### GitHub-hosted runner で `Sign in to confirm you're not a bot` が出る場合
 
