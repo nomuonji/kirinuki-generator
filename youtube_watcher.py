@@ -428,9 +428,11 @@ def build_ranked_candidates(
     videos: list[dict],
     processed_ids: set[str],
     config: OperationsConfig,
+    max_source_age_days: float | None = None,
 ) -> list[dict]:
     now = datetime.now(timezone.utc)
     candidates: list[dict] = []
+    source_age_limit = max_source_age_days or config.max_source_age_days
 
     for video in videos:
         video_id = video.get("id")
@@ -455,7 +457,7 @@ def build_ranked_candidates(
         age = now - published
         if age.total_seconds() < config.min_source_age_minutes * 60:
             continue
-        if age > timedelta(days=config.max_source_age_days):
+        if age > timedelta(days=source_age_limit):
             continue
 
         candidates.append(
@@ -630,9 +632,33 @@ def main():
         sys.exit(1)
 
     videos = fetch_recent_videos(youtube_api_key, playlist_id, config.max_search_videos)
+    preliminary_stock = estimate_effective_stock(
+        stock_entries,
+        posts_per_day=config.posts_per_day,
+    )
     ranked_candidates = build_ranked_candidates(videos, processed_ids, config)
+    source_window = f"{config.max_source_age_days:g}d"
+
+    if (
+        not ranked_candidates
+        and preliminary_stock < config.reorder_stock_clips
+        and config.fallback_max_source_age_days > config.max_source_age_days
+    ):
+        print(
+            "No preferred-window source while stock is critical; "
+            f"expanding source age to {config.fallback_max_source_age_days:g} days."
+        )
+        ranked_candidates = build_ranked_candidates(
+            videos,
+            processed_ids,
+            config,
+            max_source_age_days=config.fallback_max_source_age_days,
+        )
+        source_window = f"{config.fallback_max_source_age_days:g}d-fallback"
+
     plan = make_plan(stock_entries, ranked_candidates, config)
     plan["stockSource"] = stock_source
+    plan["sourceWindow"] = source_window
     write_plan(plan, args.plan_output or None)
 
     if args.plan_only:
