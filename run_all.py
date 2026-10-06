@@ -746,6 +746,13 @@ def main():
     state["status"] = "in-progress"
     if os.environ.get("SOURCE_VIDEO_TITLE"):
         state["sourceTitle"] = os.environ["SOURCE_VIDEO_TITLE"]
+    if os.environ.get("SOURCE_VIDEO_PUBLISHED_AT"):
+        state["sourcePublishedAt"] = os.environ["SOURCE_VIDEO_PUBLISHED_AT"]
+    if os.environ.get("SOURCE_SELECTION_SCORE"):
+        try:
+            state["sourceSelectionScore"] = float(os.environ["SOURCE_SELECTION_SCORE"])
+        except ValueError:
+            pass
     persist_state()
 
     duration_seconds: float = float(state.get("durationSeconds", 0.0) or 0.0)
@@ -791,7 +798,18 @@ def main():
         if need_download:
             # --- 3. Download Video ---
             cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
-            run_command(cmd_download, "Downloading YouTube Video", timeout=STAGE_TIMEOUTS["download"])
+            try:
+                run_command(cmd_download, "Downloading YouTube Video", timeout=STAGE_TIMEOUTS["download"])
+            except subprocess.CalledProcessError as exc:
+                state["status"] = "failed"
+                if exc.returncode == 3:
+                    state["failureReason"] = "geo_restricted"
+                elif exc.returncode == 4:
+                    state["failureReason"] = "youtube_auth"
+                else:
+                    state["failureReason"] = "download"
+                persist_state()
+                raise
             if not video_path.exists() or video_path.stat().st_size == 0:
                 raise RuntimeError(f"Video download failed; file not found or empty at {video_path}")
             download_stage["done"] = True
@@ -805,7 +823,18 @@ def main():
             if not video_path.exists():
                 print("Local video missing; re-downloading to ensure availability.")
                 cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
-                run_command(cmd_download, "Re-downloading YouTube Video", timeout=STAGE_TIMEOUTS["download"])
+                try:
+                    run_command(cmd_download, "Re-downloading YouTube Video", timeout=STAGE_TIMEOUTS["download"])
+                except subprocess.CalledProcessError as exc:
+                    state["status"] = "failed"
+                    if exc.returncode == 3:
+                        state["failureReason"] = "geo_restricted"
+                    elif exc.returncode == 4:
+                        state["failureReason"] = "youtube_auth"
+                    else:
+                        state["failureReason"] = "download"
+                    persist_state()
+                    raise
                 if not video_path.exists() or video_path.stat().st_size == 0:
                     raise RuntimeError(f"Video download failed; file not found or empty at {video_path}")
             duration_seconds = float(state.get("durationSeconds", 0.0) or 0.0)
@@ -852,7 +881,7 @@ def main():
                 state["status"] = "failed"
                 state["failureReason"] = "transcript"
                 persist_state()
-                return
+                raise RuntimeError("Transcript generation failed")
             transcribe_stage["done"] = True
             persist_state()
         else:
@@ -899,7 +928,15 @@ def main():
             if args.subs: cmd_generate.append("--subs")
             if args.soft_subs: cmd_generate.append("--soft-subs")
             if args.subs or args.soft_subs: cmd_generate.extend(["--subs-format", args.subs_format])
-            if requested_batches > 1:
+            target_clips_env = os.environ.get("KIRINUKI_TARGET_CLIPS", "").strip()
+            if target_clips_env:
+                try:
+                    max_clips_total = max(1, min(MAX_CLIPS_PER_BATCH, int(target_clips_env)))
+                except ValueError:
+                    max_clips_total = requested_batches * MAX_CLIPS_PER_BATCH if requested_batches > 1 else MAX_CLIPS_PER_BATCH
+                cmd_generate.extend(["--max-clips", str(max_clips_total)])
+                print(f"Stock-aware clip cap: {max_clips_total}")
+            elif requested_batches > 1:
                 max_clips_total = requested_batches * MAX_CLIPS_PER_BATCH
                 cmd_generate.extend(["--max-clips", str(max_clips_total)])
             run_command(cmd_generate, "Generating Clips with AI", timeout=STAGE_TIMEOUTS["clips"])
@@ -1101,14 +1138,15 @@ def main():
 
         if len(completed_batches) == len(clip_batches):
             state["status"] = "completed"
+            state["completedAt"] = _utc_now_iso()
             manifest_info = artifacts.pop("clipsManifest", None)
             manifest_file_id = manifest_info.get("fileId") if manifest_info else None
             if manifest_file_id:
                 delete_file(drive_service, manifest_file_id)
-            state_file_id_to_delete = state_file_id
-            state_file_id = None
-            if state_file_id_to_delete:
-                delete_file(drive_service, state_file_id_to_delete)
+            # Keep the completed state as a short-lived receipt. youtube_watcher.py reads
+            # uploadedClips/source metadata into processed_videos.json and then deletes it.
+            # Manual runs can leave it behind; cleanup_old_state_files removes old receipts.
+            persist_state()
 
         print("\n[OK] All steps completed successfully!")
         print(f"Uploaded clips to Google Drive folder: {drive_parent_id}\n")
