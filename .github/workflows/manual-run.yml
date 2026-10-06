@@ -30,7 +30,7 @@ jobs:
       REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
       SAVETUBE_QUALITY: '720'
       PYTHONUNBUFFERED: '1'
-      KIRINUKI_TARGET_CLIPS: ${{ github.event.inputs.max_clips || '8' }}
+      KIRINUKI_TARGET_CLIPS: ${{ github.event.inputs.max_clips || '6' }}
 
     steps:
       - uses: actions/checkout@v4
