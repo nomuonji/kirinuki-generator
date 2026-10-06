@@ -15,7 +15,7 @@ on:
         default: '12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4'
 
 concurrency:
-  group: kirinuki-tertiary
+  group: kirinuki-folder-12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4
   cancel-in-progress: false
 
 env:
