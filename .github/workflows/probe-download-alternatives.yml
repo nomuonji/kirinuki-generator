@@ -87,30 +87,69 @@ jobs:
           python-version: '3.11'
       - name: Install probe dependencies
         run: python -m pip install requests
-      - name: Start Cobalt and YouTube session generator
+      - name: Build patched official YouTube session generator
+        run: |
+          git clone --depth 1 https://github.com/imputnet/yt-session-generator.git /tmp/yt-session-generator
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path("/tmp/yt-session-generator")
+
+          extractor = root / "potoken_generator" / "extractor.py"
+          text = extractor.read_text()
+          needle = "nodriver.start(headless=False,"
+          if needle not in text:
+              raise SystemExit("upstream extractor layout changed")
+          text = text.replace(
+              needle,
+              "nodriver.start(headless=False, no_sandbox=True,",
+              1,
+          )
+          extractor.write_text(text)
+
+          server = root / "potoken_generator" / "server.py"
+          text = server.read_text()
+          needle = "'/token': self.get_potoken,"
+          if needle not in text:
+              raise SystemExit("upstream server layout changed")
+          text = text.replace(
+              needle,
+              "'/token': self.get_potoken,\n            '/get_pot': self.get_potoken,",
+              1,
+          )
+          server.write_text(text)
+          PY
+          docker build -t yt-session-generator-patched /tmp/yt-session-generator
+
+      - name: Start Cobalt and patched session generator
         run: |
           docker network create cobalt-probe
           docker run -d --rm --name yt-session-generator \
             --network cobalt-probe \
             -p 127.0.0.1:8080:8080 \
             --init \
-            ghcr.io/imputnet/yt-session-generator:webserver
+            yt-session-generator-patched \
+            sh -c 'Xvfb :99 -ac -screen 0 1280x720x16 -nolisten tcp >/dev/null 2>&1 & sleep 2; DISPLAY=:99 python potoken-generator.py --bind 0.0.0.0'
 
-          echo "Waiting for yt-session-generator..."
+          echo "Waiting for a generated PO token..."
           ready=0
-          for attempt in $(seq 1 45); do
-            if curl -fsS http://127.0.0.1:8080/token >/dev/null 2>&1; then
+          for attempt in $(seq 1 60); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/token || true)
+            if [ "$code" = "200" ]; then
               ready=1
               break
             fi
             sleep 2
           done
           if [ "$ready" -ne 1 ]; then
-            echo "yt-session-generator did not become ready." >&2
+            echo "yt-session-generator started but never produced a token." >&2
             docker ps -a --filter name=yt-session-generator
             exit 1
           fi
+          echo "Session generator produced a token."
 
+          # Cobalt currently rewrites YOUTUBE_SESSION_SERVER to /get_pot and POSTs to it.
+          # The compatibility alias above keeps the official generator response shape intact.
           docker run -d --rm --name cobalt-probe \
             --network cobalt-probe \
             -p 127.0.0.1:9000:9000 \
