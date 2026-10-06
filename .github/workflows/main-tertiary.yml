@@ -12,7 +12,7 @@ on:
       gdrive_folder_id:
         description: 'Google Drive Folder ID'
         required: true
-        default: '1hnjNbsTqxwhgT98MZrzRvm4rgVNWtxuY'
+        default: '12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4'
 
 concurrency:
   group: kirinuki-tertiary
@@ -20,7 +20,7 @@ concurrency:
 
 env:
   YOUTUBE_CHANNEL_ID_SCHEDULED: "UC0yQ2h4gQXmVUFWZSqlMVOA"
-  # Preserve the historical scheduled destination. Manual dispatch keeps its own default.
+  # One canonical stock folder for scheduled and manual runs.
   GDRIVE_FOLDER_ID_SCHEDULED: "12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4"
   CLIP_POSTS_PER_DAY: '2'
   CLIP_STOCK_TARGET_DAYS: '7'
