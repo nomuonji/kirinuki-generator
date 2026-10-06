@@ -304,6 +304,126 @@ def record_processed_entry(
     return entries, file_id
 
 
+def has_stock_ledger(entries: list[dict]) -> bool:
+    for entry in entries:
+        if entry.get("status") != "completed":
+            continue
+        try:
+            if int(entry.get("uploadedClips") or 0) > 0:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+def estimate_legacy_drive_stock(service, folder_id: str, posts_per_day: float) -> float:
+    """
+    Bootstrap pre-ledger inventory from MP4 creation times.
+
+    Older Kirinuki runs uploaded clips to Drive but did not record uploadedClips in
+    processed_videos.json. Count those files only until the new ledger has at least one
+    stock-aware completion entry. Expected posting consumption is applied to their
+    creation timestamps, so ancient archive files do not become fake current stock.
+    """
+    query = (
+        f"'{folder_id}' in parents and mimeType = 'video/mp4' "
+        "and trashed = false"
+    )
+    events: list[dict] = []
+    page_token = None
+    try:
+        while True:
+            response = service.files().list(
+                q=query,
+                spaces="drive",
+                fields="nextPageToken, files(id, name, createdTime)",
+                pageSize=1000,
+                pageToken=page_token,
+            ).execute()
+            for file_info in response.get("files", []):
+                created = file_info.get("createdTime")
+                if created:
+                    events.append(
+                        {
+                            "status": "completed",
+                            "processedAt": created,
+                            "uploadedClips": 1,
+                        }
+                    )
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+    except Exception as exc:
+        print(f"Warning: could not bootstrap Drive stock: {exc}", file=sys.stderr)
+        return 0.0
+
+    stock = estimate_effective_stock(events, posts_per_day=posts_per_day)
+    print(
+        f"Legacy Drive stock bootstrap: {len(events)} MP4 file(s), "
+        f"{stock:.1f} effective clip(s) after expected consumption."
+    )
+    return stock
+
+
+def prepare_stock_entries(
+    processed_entries: list[dict],
+    drive_service,
+    folder_id: str,
+    config: OperationsConfig,
+    persist_bootstrap: bool,
+    processed_file_id: str | None,
+) -> tuple[list[dict], str | None, str]:
+    if has_stock_ledger(processed_entries):
+        return processed_entries, processed_file_id, "processed_ledger"
+
+    bootstrap_stock = estimate_legacy_drive_stock(
+        drive_service,
+        folder_id,
+        posts_per_day=config.posts_per_day,
+    )
+    bootstrap_count = max(0, math.floor(bootstrap_stock))
+    if bootstrap_count <= 0:
+        return processed_entries, processed_file_id, "empty"
+
+    synthetic = {
+        "videoId": "__legacy_stock_bootstrap__",
+        "title": "Legacy Drive stock bootstrap",
+        "processedAt": _now_iso(),
+        "completedAt": _now_iso(),
+        "status": "completed",
+        "uploadedClips": bootstrap_count,
+        "stockBootstrap": True,
+    }
+
+    if persist_bootstrap:
+        existing = next(
+            (
+                entry for entry in processed_entries
+                if entry.get("videoId") == "__legacy_stock_bootstrap__"
+            ),
+            None,
+        )
+        if existing:
+            existing.update(synthetic)
+        else:
+            processed_entries.append(synthetic)
+        processed_entries.sort(
+            key=lambda entry: entry.get("processedAt", ""),
+            reverse=True,
+        )
+        processed_file_id = save_processed_videos(
+            drive_service,
+            folder_id,
+            processed_entries,
+            processed_file_id,
+        )
+        print(f"Migrated {bootstrap_count} effective legacy clip(s) into stock ledger.")
+        return processed_entries, processed_file_id, "drive_bootstrap_persisted"
+
+    planning_entries = list(processed_entries) + [synthetic]
+    return planning_entries, processed_file_id, "drive_bootstrap_preview"
+
+
 def build_ranked_candidates(
     videos: list[dict],
     processed_ids: set[str],
@@ -487,6 +607,17 @@ def main():
 
     drive_service = get_drive_service()
     processed_entries, processed_file_id = load_processed_videos(drive_service, folder_id)
+    stock_entries, processed_file_id, stock_source = prepare_stock_entries(
+        processed_entries,
+        drive_service,
+        folder_id,
+        config,
+        persist_bootstrap=not args.plan_only,
+        processed_file_id=processed_file_id,
+    )
+    if not args.plan_only:
+        processed_entries = stock_entries
+
     processed_ids = {
         entry.get("videoId")
         for entry in processed_entries
@@ -500,7 +631,8 @@ def main():
 
     videos = fetch_recent_videos(youtube_api_key, playlist_id, config.max_search_videos)
     ranked_candidates = build_ranked_candidates(videos, processed_ids, config)
-    plan = make_plan(processed_entries, ranked_candidates, config)
+    plan = make_plan(stock_entries, ranked_candidates, config)
+    plan["stockSource"] = stock_source
     write_plan(plan, args.plan_output or None)
 
     if args.plan_only:
