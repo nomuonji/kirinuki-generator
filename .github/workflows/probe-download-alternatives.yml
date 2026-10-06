@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'scripts/probe-youtubejs.mjs'
+      - 'scripts/probe-rapidapi-yt-api.py'
       - '.github/workflows/probe-download-alternatives.yml'
   workflow_dispatch:
 
@@ -26,3 +27,25 @@ jobs:
         run: |
           test -s tmp/youtubejs.mp4
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/youtubejs.mp4 | grep -qx video
+
+
+  rapidapi-yt-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install probe dependencies
+        run: python -m pip install requests
+      - name: Download through hosted YT-API
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: |
+          mkdir -p tmp
+          python scripts/probe-rapidapi-yt-api.py jNQXAC9IVRw tmp/rapidapi.mp4
+      - name: Verify output
+        run: |
+          test -s tmp/rapidapi.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/rapidapi.mp4 | grep -qx video
