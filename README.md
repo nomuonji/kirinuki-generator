@@ -240,7 +240,34 @@ python -m apps.cli.generate_clips `
 
 ---
 
+## 自動運用の現在の構成
+
+GitHub Actions の自動運用は、単純な「最新動画を毎回処理」ではなく、**投稿用クリップの在庫補充**として動きます。
+
+デフォルトでは 1 チャンネルあたり 2 本/日の投稿を想定し、7 日分（14 本）を目標在庫、3 日分（6 本）を補充ラインにします。Scheduled Actions は 1 日 4 回在庫と候補動画だけを軽量チェックし、在庫が十分なら Remotion / ffmpeg 等の重いセットアップを行わず終了します。
+
+ターゲット動画は直近候補を次の要素で順位付けします。
+
+- 再生速度（views/hour）の直近チャンネル内 percentile: 45%
+- エンゲージメント: 20%
+- 鮮度: 25%
+- 切り抜きに適した動画尺: 10%
+
+在庫不足分だけを生成し、1 ソースあたり最大 8 クリップを基本とします。Gemini がそれ以上提案した場合は、冒頭から順に切るのではなく confidence の高い候補から採用します。
+
+運用パラメータ、retry、在庫モデル、selection score の詳細は [docs/operations.md](docs/operations.md) を参照してください。
+
+---
+
 ## YouTube ダウンロードの現在の構成
+
+GitHub Actions では、まず SaveTube CDN から完成した media bytes を取得します。ダウンロード後は `ffprobe` で video / audio の両 stream を検証します。
+
+SaveTube が失敗した場合だけ、yt-dlp nightly + Deno/EJS + PO Token Provider へフォールバックします。PO Token Provider は通常runでは起動せず、この fallback が必要になった時だけ lazy start します。
+
+RapidAPI の direct GoogleVideo URL と Playwright は GitHub-hosted runner では同じ datacenter-IP 制約を受けることを実測済みのため、通常の Actions では使用しません。必要なローカル環境だけ `ENABLE_LEGACY_DOWNLOAD_FALLBACKS=1` で有効化できます。
+
+
 
 GitHub Actions では、YouTube 側の bot 判定と JavaScript / PO Token 要件に対応するため、次の構成を使用します。
 
