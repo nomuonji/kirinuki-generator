@@ -550,8 +550,16 @@ def make_plan(
         and float(top.get("ageHours") or 999999) <= 24.0
         and float(top.get("selectionScore") or 0.0) >= 0.68
     )
-    needs_replenishment = effective_stock < reorder
-    should_process = bool(strong_candidates and (needs_replenishment or fresh_refill))
+    hot_capture = bool(
+        top
+        and effective_stock <= target + 2
+        and float(top.get("ageHours") or 999999) <= 18.0
+        and float(top.get("selectionScore") or 0.0) >= 0.82
+    )
+    needs_replenishment = effective_stock <= reorder
+    should_process = bool(
+        strong_candidates and (needs_replenishment or fresh_refill or hot_capture)
+    )
 
     selected = strong_candidates[: config.max_videos_per_run] if should_process else []
     return {
@@ -559,10 +567,12 @@ def make_plan(
         "reason": (
             "below_reorder_point"
             if needs_replenishment and selected
+            else "hot_source_capture"
+            if hot_capture and selected
             else "fresh_high_quality_refill"
             if fresh_refill and selected
             else "stock_healthy"
-            if effective_stock >= reorder
+            if effective_stock > reorder
             else "no_eligible_source"
         ),
         "effectiveStockClips": round(effective_stock, 2),
@@ -773,11 +783,21 @@ def main():
                 delete_file(drive_service, cached_file_id)
             continue
 
+        hot_capture = (
+            effective_stock <= config.target_stock_clips + 2
+            and float(candidate.get("ageHours") or 999999) <= 18.0
+            and float(candidate.get("selectionScore") or 0.0) >= 0.82
+        )
         target_clips = clips_needed_for_source(
             effective_stock,
             config.target_stock_clips,
             config.clips_per_source_cap,
         )
+        if target_clips <= 0 and hot_capture:
+            # Preserve a couple of clips from an exceptional fresh source even when the
+            # normal posting buffer is already full. This avoids inventory discipline
+            # accidentally throwing away time-sensitive breakout content.
+            target_clips = min(2, config.clips_per_source_cap)
         if target_clips <= 0:
             break
 
