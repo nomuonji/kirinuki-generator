@@ -23,6 +23,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install validation dependency
+        run: python -m pip install --disable-pip-version-check pyyaml
+      - name: Validate workflow YAML
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          for path in Path(".github/workflows").glob("*.yml"):
+              yaml.safe_load(path.read_text(encoding="utf-8"))
+              print("valid:", path)
+          PY
       - name: Compile changed Python modules
         run: |
           python -m py_compile             packages/operations.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py
