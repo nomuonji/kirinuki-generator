@@ -1,0 +1,59 @@
+name: YouTube Download Smoke Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'download_video.py'
+      - 'requirements.txt'
+      - '.github/workflows/**'
+
+jobs:
+  download-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install ffmpeg and downloader dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade yt-dlp bgutil-ytdlp-pot-provider python-dotenv requests
+
+      - name: Start PO Token provider
+        run: |
+          docker run -d --rm --name bgutil-provider --init \
+            -p 127.0.0.1:4416:4416 \
+            brainicism/bgutil-ytdlp-pot-provider:2.0.1-deno
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4416/ping >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs bgutil-provider || true
+          exit 1
+
+      - name: Download a small public YouTube video
+        run: |
+          mkdir -p tmp
+          python download_video.py jNQXAC9IVRw --output tmp/smoke.mp4
+
+      - name: Verify media streams
+        run: |
+          test -s tmp/smoke.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 tmp/smoke.mp4 | grep -qx video
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 tmp/smoke.mp4 | grep -qx audio
