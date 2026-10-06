@@ -2,7 +2,9 @@ name: Secondary Kirinuki Generator
 
 on:
   schedule:
-    - cron: '27 0,6,12,18 * * *'
+    # This source has no eligible 6+ minute upload in the current 90-day fallback window.
+    # Check daily so a revived channel is still discovered without burning four plan runs/day.
+    - cron: '27 0 * * *'
   workflow_dispatch:
     inputs:
       youtube_channel_id:
