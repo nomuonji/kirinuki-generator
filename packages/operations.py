@@ -17,6 +17,7 @@ class OperationsConfig:
     max_search_videos: int = 30
     min_source_age_minutes: float = 30.0
     max_source_age_days: float = 21.0
+    fallback_max_source_age_days: float = 90.0
     min_selection_score: float = 0.35
 
     @property
@@ -41,6 +42,9 @@ class OperationsConfig:
             ),
             max_source_age_days=max(
                 1.0, float(os.environ.get("MAX_SOURCE_AGE_DAYS", "21"))
+            ),
+            fallback_max_source_age_days=max(
+                1.0, float(os.environ.get("FALLBACK_MAX_SOURCE_AGE_DAYS", "90"))
             ),
             min_selection_score=min(
                 1.0, max(0.0, float(os.environ.get("MIN_SELECTION_SCORE", "0.35")))
