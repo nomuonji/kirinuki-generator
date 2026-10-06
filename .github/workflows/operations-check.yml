@@ -1,0 +1,68 @@
+name: Operations Model Check
+
+on:
+  pull_request:
+    paths:
+      - 'packages/operations.py'
+      - 'youtube_watcher.py'
+      - 'run_all.py'
+      - 'download_video.py'
+      - 'apps/cli/generate_clips.py'
+      - 'requirements.txt'
+      - 'tests/**'
+      - '.github/workflows/main*.yml'
+      - '.github/workflows/operations-check.yml'
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile changed Python modules
+        run: |
+          python -m py_compile             packages/operations.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py
+      - name: Test stock and source-selection model
+        run: python -m unittest tests.test_operations -v
+
+  primary-plan:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      YOUTUBE_CHANNEL_ID: "UCzXVsEc1h2Elljge0fnQYRg"
+      GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+      GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+      CLIP_POSTS_PER_DAY: '2'
+      CLIP_STOCK_TARGET_DAYS: '7'
+      CLIP_STOCK_REORDER_DAYS: '3'
+      MAX_SEARCH_VIDEOS: '30'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install planning dependencies
+        run: |
+          python -m pip install --disable-pip-version-check             python-dotenv google-api-python-client google-auth-httplib2 google-auth-oauthlib
+      - name: Verify live stock plan without mutating state
+        run: python youtube_watcher.py --plan-only --plan-output plan.json
+      - name: Show decision summary
+        run: |
+          python - <<'PY'
+          import json
+          plan = json.load(open("plan.json", encoding="utf-8"))
+          print({
+              "shouldProcess": plan["shouldProcess"],
+              "reason": plan["reason"],
+              "effectiveStockClips": plan["effectiveStockClips"],
+              "targetStockClips": plan["targetStockClips"],
+              "selectedVideoIds": plan["selectedVideoIds"],
+          })
+          PY
