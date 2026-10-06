@@ -35,7 +35,7 @@ The full production job is only started when:
 
 ## Source-video ranking
 
-Videos shorter than six minutes, live/upcoming videos, sources younger than 30 minutes, and sources older than 21 days are excluded by default. If posting stock is below the reorder point and that preferred window contains no eligible source, the search window expands to 90 days rather than leaving the queue empty.
+Videos shorter than six minutes, live/upcoming videos, sources younger than 30 minutes, and sources older than 21 days are excluded by default. If posting stock is below the reorder point and that preferred window contains no eligible source, the search expands to 90 days and up to 100 uploads rather than leaving the queue empty.
 
 Eligible recent videos are ranked against the **whole recent channel baseline**, including already processed videos. The score is:
 
