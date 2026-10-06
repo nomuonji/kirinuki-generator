@@ -30,6 +30,10 @@ FORMAT_SORT = "res:1080,fps:30,codec:h264,ext:mp4"
 YTDLP_TIMEOUT_SECONDS = int(os.environ.get("YTDLP_TIMEOUT_SECONDS", "2700"))
 
 
+class GeoRestrictedError(RuntimeError):
+    """The source video is blocked in the runner's country/IP region."""
+
+
 # Cookies that actually authenticate a YouTube session. A cookie file without any
 # of these is useless for bypassing bot detection.
 _AUTH_COOKIE_NAMES = {
@@ -175,10 +179,10 @@ def parse_netscape_cookies(path):
 
 def download_with_ytdlp(video_id, output_path):
     """
-    Primary method: Uses yt-dlp with JavaScript Challenge Solver (Deno)
-    to bypass YouTube's 403 errors and bot detection.
+    Primary method: Uses current yt-dlp with Deno/EJS challenge solving and,
+    when available, a PO Token Provider plugin.
 
-    This is the most reliable method as of late 2025.
+    This matches yt-dlp's recommended YouTube setup as of 2026.
     """
     # Convert to absolute path to avoid path resolution issues
     output_path = os.path.abspath(output_path)
@@ -218,11 +222,11 @@ def _build_ytdlp_command(ytdlp_cmd, youtube_url, output_path, cookies_path):
     cmd = ytdlp_cmd + [
         "--js-runtimes", "deno",  # Use Deno for JS challenge solving
         "--remote-components", "ejs:npm",  # Download required NPM packages for JS challenge
-        # tv_simply is rarely subject to the SABR-only experiment and needs no PO token, so
-        # try it first; missing_pot keeps PO-token-less formats as candidates instead of
-        # dropping them and leaving nothing for the format selector to match.
+        # Current yt-dlp guidance recommends the mweb client with a PO Token Provider.
+        # The bgutil provider plugin is installed in CI and its HTTP provider listens on
+        # 127.0.0.1:4416. tv/web_safari remain fallbacks for extractor-side regressions.
         "--extractor-args",
-        "youtube:player_client=tv_simply,web_safari,default;formats=missing_pot",
+        "youtube:player-client=mweb,tv,web_safari;formats=missing_pot",
         # Multi-tier so that a client with a thinned-out format list still yields something
         # rather than failing with "Requested format is not available".
         "-f", FORMAT_SELECTOR,
@@ -259,16 +263,26 @@ def _run_ytdlp(cmd, output_path):
         # Stream output in real-time, but suppress [download] progress lines to reduce log spam
         print("Download started...")
         flag = {"timed_out": False}
+        geo_restricted = False
         _watchdog(process, YTDLP_TIMEOUT_SECONDS, flag)
         for line in iter(process.stdout.readline, ""):
             # Filter out download progress lines (they start with [download])
             stripped = line.strip()
+            if "not made this video available in your country" in stripped.lower():
+                geo_restricted = True
             if stripped.startswith("[download]"):
                 continue
             print(line, end="")
         process.stdout.close()
         return_code = process.wait()
         print("Download stream finished.")
+
+        if geo_restricted:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            raise GeoRestrictedError(
+                "YouTube reports that this video is unavailable from the runner's country/IP region."
+            )
 
         if flag["timed_out"]:
             if os.path.exists(output_path):
@@ -650,10 +664,17 @@ def main():
 
     load_dotenv()
 
-    # 1. Try yt-dlp with JS Challenge Solver (most reliable as of late 2025)
-    if download_with_ytdlp(args.video_id, args.output):
-        print("Download completed using yt-dlp with JS Challenge Solver.")
-        sys.exit(0)
+    # 1. Try current yt-dlp + JS challenge solver + PO Token Provider.
+    # A geo block is different from an extractor failure: RapidAPI/Playwright from the
+    # same GitHub-hosted runner cannot change the runner's country, so fail fast instead
+    # of burning tens of minutes on fallbacks that cannot solve it.
+    try:
+        if download_with_ytdlp(args.video_id, args.output):
+            print("Download completed using yt-dlp.")
+            sys.exit(0)
+    except GeoRestrictedError as exc:
+        print(f"Geo restriction: {exc}", file=sys.stderr)
+        sys.exit(3)
     
     # 2. Fallback to RapidAPI
     print("\n!!! yt-dlp method failed. Switching to RapidAPI fallback !!!\n")
