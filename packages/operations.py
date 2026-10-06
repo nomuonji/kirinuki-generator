@@ -23,6 +23,7 @@ class OperationsConfig:
     max_source_duration_minutes: float = 180.0
     fallback_max_source_duration_minutes: float = 360.0
     min_selection_score: float = 0.35
+    source_fetch_country: str = "US"
 
     @property
     def target_stock_clips(self) -> int:
@@ -64,6 +65,9 @@ class OperationsConfig:
             ),
             min_selection_score=min(
                 1.0, max(0.0, float(os.environ.get("MIN_SELECTION_SCORE", "0.35")))
+            ),
+            source_fetch_country=(
+                os.environ.get("SOURCE_FETCH_COUNTRY", "US").strip().upper() or "US"
             ),
         )
 
