@@ -13,7 +13,7 @@ class OperationsConfig:
     target_stock_days: float = 7.0
     reorder_stock_days: float = 3.0
     max_videos_per_run: int = 2
-    clips_per_source_cap: int = 8
+    clips_per_source_cap: int = 6
     max_search_videos: int = 30
     fallback_max_search_videos: int = 100
     min_source_age_minutes: float = 30.0
@@ -36,7 +36,7 @@ class OperationsConfig:
             target_stock_days=float(os.environ.get("CLIP_STOCK_TARGET_DAYS", "7")),
             reorder_stock_days=float(os.environ.get("CLIP_STOCK_REORDER_DAYS", "3")),
             max_videos_per_run=max(1, int(os.environ.get("MAX_VIDEOS_PER_RUN", "2"))),
-            clips_per_source_cap=max(1, int(os.environ.get("CLIPS_PER_SOURCE_CAP", "8"))),
+            clips_per_source_cap=max(1, int(os.environ.get("CLIPS_PER_SOURCE_CAP", "6"))),
             max_search_videos=max(5, int(os.environ.get("MAX_SEARCH_VIDEOS", "30"))),
             fallback_max_search_videos=max(
                 5, int(os.environ.get("FALLBACK_MAX_SEARCH_VIDEOS", "100"))
