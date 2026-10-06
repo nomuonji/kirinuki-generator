@@ -616,9 +616,16 @@ def main():
     )
 
     attempts = 0
+    completed_sources = 0
     for candidate in ranked_candidates:
-        if attempts >= config.max_videos_per_run:
-            print(f"Reached MAX_VIDEOS_PER_RUN={config.max_videos_per_run}.")
+        if completed_sources >= config.max_videos_per_run:
+            print(f"Reached MAX_VIDEOS_PER_RUN={config.max_videos_per_run} successful source(s).")
+            break
+        if attempts >= config.max_candidate_attempts_per_run:
+            print(
+                "Reached MAX_CANDIDATE_ATTEMPTS_PER_RUN="
+                f"{config.max_candidate_attempts_per_run}."
+            )
             break
 
         effective_stock = estimate_drive_clip_stock(
@@ -768,6 +775,7 @@ def main():
             metadata=selection_metadata(candidate, uploaded_count),
         )
         processed_ids.add(video_id)
+        completed_sources += 1
 
         # processed_videos.json is the durable operational ledger. Once the completion
         # receipt has been copied into it, the per-video state file is no longer needed.
