@@ -53,7 +53,7 @@ jobs:
           GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
           GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-        run: python scripts/clear_clip_stock.py
+        run: PYTHONPATH=. python scripts/clear_clip_stock.py
 
       - name: Verify post-reset production plan
         env:
