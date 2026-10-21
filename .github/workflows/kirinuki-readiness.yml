@@ -1,0 +1,48 @@
+name: Kirinuki Production Readiness
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/kirinuki-readiness.yml'
+      - '.github/workflows/direct-tertiary.yml'
+      - 'scripts/kirinuki_readiness.py'
+      - 'packages/youtube_direct.py'
+      - 'scripts/autonomous_direct.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      KIRINUKI_AUTOPUBLISH_ENABLED: ${{ vars.KIRINUKI_AUTOPUBLISH_ENABLED }}
+      KIRINUKI_SOURCE_RIGHTS_APPROVED: ${{ vars.KIRINUKI_SOURCE_RIGHTS_APPROVED }}
+      KIRINUKI_CHANNEL_AUTHORIZED: ${{ vars.KIRINUKI_CHANNEL_AUTHORIZED }}
+      YOUTUBE_DESTINATION_CHANNEL_ID: ${{ vars.KIRINUKI_DESTINATION_CHANNEL_ID }}
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+      GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install read-only OAuth client
+        run: python -m pip install --disable-pip-version-check google-api-python-client google-auth-httplib2 google-auth-oauthlib
+      - name: Inspect configuration and read-only destination authorization
+        run: python -m scripts.kirinuki_readiness --output readiness.json --verify-oauth
+      - name: Attach redacted readiness report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kirinuki-production-readiness
+          path: readiness.json
+          retention-days: 7

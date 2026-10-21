@@ -14,6 +14,9 @@ on:
       - 'scripts/autonomous_direct.py'
       - 'tests/test_direct_publish.py'
       - 'tests/test_youtube_direct.py'
+      - 'tests/test_readiness.py'
+      - 'scripts/kirinuki_readiness.py'
+      - '.github/workflows/kirinuki-readiness.yml'
       - '.github/workflows/direct-tertiary.yml'
       - 'packages/segmentation_gemini/client.py'
       - 'tests/test_quality_gate.py'
@@ -39,11 +42,11 @@ jobs:
           python-version: '3.11'
       - name: Compile changed Python modules
         run: |
-          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py
+          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py             scripts/kirinuki_readiness.py
       - name: Install direct publisher test dependencies
         run: python -m pip install --disable-pip-version-check requests google-api-python-client google-auth-httplib2 google-auth-oauthlib
       - name: Run operations unit tests
-        run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish tests.test_youtube_direct
+        run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish tests.test_youtube_direct tests.test_readiness
       - name: Verify direct workflow safely stays inactive without authorization
         run: |
           python -m scripts.autonomous_direct --plan-only --plan-output /tmp/kirinuki-plan.json
