@@ -223,6 +223,7 @@ class DirectLane:
         """Write metadata before MP4 so a partial fallback is not mistaken for ready stock."""
         from packages.shared.gdrive import (find_file, get_drive_service,
                                              upload_file, upload_json_data)
+        import hashlib
         folder = os.environ.get("GDRIVE_PARENT_FOLDER_ID")
         if not folder:
             self.ledger.set_clip(item["fingerprint"], **item,
@@ -230,6 +231,8 @@ class DirectLane:
             raise RuntimeError("No overflow Drive folder configured; clip remains regeneration_needed")
         service = get_drive_service()
         key = item["fingerprint"]
+        digest = hashlib.file_digest(Path(video_path).open("rb"), "sha256").hexdigest()
+        item = {**item, "overflowSha256": digest}
         # Avoid '_clip_' in fallback names: the legacy Drive watcher treats such
         # files as its own ready-to-post stock.
         base = f"overflow_{key}"
@@ -248,7 +251,9 @@ class DirectLane:
         print(f"Deferred {key} to Drive (metadata+MP4).")
 
     def replay_overflow(self):
-        from packages.shared.gdrive import (delete_file, download_file_bytes, get_drive_service)
+        from packages.shared.gdrive import (delete_file, download_file_to_path, get_drive_service)
+        from packages.quality_gate import verify_rendered_media
+        import hashlib
         records = [(k, r) for k, r in self.ledger.data["clips"].items()
                    if r.get("status") == "overflow" and r.get("driveVideoId")]
         if not records or not self.next_slot(records[0][1]["sourceVideoId"]):
@@ -257,7 +262,8 @@ class DirectLane:
         for key, recorded in records:
             if self.available_capacity() <= 0 or not self.next_slot(recorded["sourceVideoId"]):
                 break
-            raw = download_file_bytes(service, recorded["driveVideoId"])
+            # The video may be hundreds of MB; stream to disk and check both
+            # integrity and decodability before attempting a new YouTube upload.
             # The stored journal contains lifecycle keys. Do not pass them as
             # fresh publishing arguments or override the reserved status.
             item = {k: recorded[k] for k in (
@@ -267,7 +273,14 @@ class DirectLane:
             ) if k in recorded}
             with tempfile.TemporaryDirectory(prefix="kirinuki-overflow-") as tmp:
                 path = Path(tmp) / "video.mp4"
-                path.write_bytes(raw)
+                download_file_to_path(service, recorded["driveVideoId"], path)
+                if recorded.get("overflowSha256"):
+                    with path.open("rb") as fh:
+                        if hashlib.file_digest(fh, "sha256").hexdigest() != recorded["overflowSha256"]:
+                            self.ledger.set_clip(key, status="regeneration_needed",
+                                                 failure="drive_integrity_mismatch")
+                            raise RuntimeError("Drive overflow corruption detected; upload blocked")
+                verify_rendered_media(path)
                 disposition = self.publish(path, item)
             if disposition in ("scheduled", "verification_pending"):
                 delete_file(service, recorded["driveVideoId"])
