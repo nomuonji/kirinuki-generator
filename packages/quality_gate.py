@@ -130,7 +130,7 @@ def independent_review(candidates, segments, *, model_name: str | None = None) -
     response = with_quota_retry(lambda: model.generate_content(
         [prompt, json.dumps(payload, ensure_ascii=False)],
         generation_config={"response_mime_type": "application/json", "temperature": 0},
-        request_options={"timeout": 300},
+        request_options={"timeout": 300, "retry": None},
     ))
     try:
         reviewed = json.loads(response.text)
