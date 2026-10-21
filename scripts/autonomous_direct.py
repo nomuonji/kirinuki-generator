@@ -231,7 +231,8 @@ class DirectLane:
             raise RuntimeError("No overflow Drive folder configured; clip remains regeneration_needed")
         service = get_drive_service()
         key = item["fingerprint"]
-        digest = hashlib.file_digest(Path(video_path).open("rb"), "sha256").hexdigest()
+        with Path(video_path).open("rb") as fh:
+            digest = hashlib.file_digest(fh, "sha256").hexdigest()
         item = {**item, "overflowSha256": digest}
         # Avoid '_clip_' in fallback names: the legacy Drive watcher treats such
         # files as its own ready-to-post stock.
