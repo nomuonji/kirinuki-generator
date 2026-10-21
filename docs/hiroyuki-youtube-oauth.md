@@ -75,3 +75,19 @@ The report contains booleans only:
 
 `youtubeOAuthCheck=destination_verified` confirms matching OAuth but does not
 prove source clipping rights, transformation, or monetization.
+## Written Hiroyuki clipping terms
+
+The Gadget Tsushin Creator Network replied that clipping activity may proceed
+before YouTube Partner Program approval, while Content ID claims can occur.
+This is limited to Hiroyuki/Nishimura materials and is a tolerance to operate,
+not a claim that the channel is official or certified. The two source videos
+below are excluded from upload:
+- https://www.youtube.com/watch?v=exnFXUMMLLI
+- https://www.youtube.com/watch?v=q0GyNI3X8cg
+
+Every clip description must link to its source. Do not dispute Content ID
+claims, mislead about statements or context, use insulting or exaggerated
+editing, or ignore corrective requests. Avoid substantial overlap with an
+earlier clip's main points. After YPP approval, notify the creator network;
+monetization services for clips must use Gadget Tsushin's service only. Current
+automation does not enable monetization.

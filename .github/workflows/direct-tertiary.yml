@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '37 0,12 * * *'
   workflow_dispatch:
+    inputs:
+      one_clip_verification:
+        description: 'After the private render smoke passes, upload exactly one eligible clip with private/future scheduling.'
+        required: false
+        type: boolean
+        default: false
 
 # This is the only scheduled job for the official Hiroyuki source.
 # The legacy tertiary Drive producer remains manual-only.
@@ -17,15 +23,15 @@ permissions:
 env:
   KIRINUKI_LANE: hiroyuki-official
   KIRINUKI_DIRECT_MODE: 'true'
-  KIRINUKI_AUTOPUBLISH_ENABLED: ${{ vars.KIRINUKI_AUTOPUBLISH_ENABLED }}
+  KIRINUKI_AUTOPUBLISH_ENABLED: ${{ vars.KIRINUKI_AUTOPUBLISH_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.one_clip_verification == true) }}
   KIRINUKI_SOURCE_RIGHTS_APPROVED: ${{ vars.KIRINUKI_SOURCE_RIGHTS_APPROVED }}
   KIRINUKI_CHANNEL_AUTHORIZED: ${{ vars.KIRINUKI_CHANNEL_AUTHORIZED }}
   YOUTUBE_CHANNEL_ID: UC0yQ2h4gQXmVUFWZSqlMVOA
   YOUTUBE_DESTINATION_CHANNEL_ID: ${{ vars.KIRINUKI_DESTINATION_CHANNEL_ID || secrets.KIRINUKI_DESTINATION_CHANNEL_ID }}
   GDRIVE_PARENT_FOLDER_ID: 12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4
-  KIRINUKI_CLIPS_PER_RUN: '12'
-  KIRINUKI_UPLOADS_PER_24H: '6'
-  KIRINUKI_TARGET_RESERVATIONS: '14'
+  KIRINUKI_CLIPS_PER_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.one_clip_verification == true && '1' || '12' }}
+  KIRINUKI_UPLOADS_PER_24H: ${{ github.event_name == 'workflow_dispatch' && inputs.one_clip_verification == true && '1' || '6' }}
+  KIRINUKI_TARGET_RESERVATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.one_clip_verification == true && '1' || '14' }}
   KIRINUKI_RESERVATION_DAYS: '14'
   KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
   # Keep long-source transcript analysis within Gemini's shared free-tier daily request budget.
@@ -42,7 +48,7 @@ env:
 jobs:
   plan:
     # Zero hosted-runner minutes until rights and destination authorization exist.
-    if: ${{ vars.KIRINUKI_AUTOPUBLISH_ENABLED == 'true' && vars.KIRINUKI_SOURCE_RIGHTS_APPROVED == 'true' && vars.KIRINUKI_CHANNEL_AUTHORIZED == 'true' }}
+    if: ${{ (vars.KIRINUKI_AUTOPUBLISH_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.one_clip_verification == true)) && vars.KIRINUKI_SOURCE_RIGHTS_APPROVED == 'true' && vars.KIRINUKI_CHANNEL_AUTHORIZED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     outputs:

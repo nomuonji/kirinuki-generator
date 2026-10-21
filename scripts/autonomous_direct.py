@@ -20,6 +20,23 @@ from packages.github_ledger import GitHubLedger
 from packages.publish_scheduler import (aware, eligible_to_post, fingerprint,
                                         reserve_slots, rolling_uploads, utc_now)
 
+# Gadget Tsushin Creator Network's written Hiroyuki-specific clipping conditions.
+AUTHORIZED_SOURCE_CHANNEL_ID = "UC0yQ2h4gQXmVUFWZSqlMVOA"
+EXCLUDED_SOURCE_VIDEO_IDS = frozenset({"exnFXUMMLLI", "q0GyNI3X8cg"})
+MISREPRESENTATION_TERMS = re.compile(r"(公式|公認|official|endorsed)", re.IGNORECASE)
+
+
+def validate_rights_payload(item):
+    source_video_id = str(item.get("sourceVideoId") or "")
+    if source_video_id in EXCLUDED_SOURCE_VIDEO_IDS:
+        raise RuntimeError("Source video is excluded by the creator-network rules")
+    if str(item.get("sourceChannelId") or "") != AUTHORIZED_SOURCE_CHANNEL_ID:
+        raise RuntimeError("Source channel is outside the written Hiroyuki clipping scope")
+    title = str(item.get("title") or "")
+    description = str(item.get("description") or "")
+    if MISREPRESENTATION_TERMS.search(title + "\n" + description):
+        raise RuntimeError("Title or description may imply official or endorsed status")
+
 
 def command(args, timeout=2400):
     print("Stage:", " ".join(str(a) for a in args), flush=True)
@@ -81,11 +98,14 @@ def select_source(ledger):
     channel = os.environ.get("YOUTUBE_CHANNEL_ID")
     if not key or not channel:
         raise RuntimeError("Source YouTube API key / channel ID is missing")
+    if channel != AUTHORIZED_SOURCE_CHANNEL_ID:
+        raise RuntimeError("Direct Hiroyuki lane is restricted to the authorized source channel")
     config = OperationsConfig.from_env()
     playlist = get_uploads_playlist_id(key, channel)
     if not playlist:
         raise RuntimeError("Cannot resolve source channel")
-    videos = fetch_recent_videos(key, playlist, config.max_search_videos)
+    videos = [v for v in fetch_recent_videos(key, playlist, config.max_search_videos)
+              if str(v.get("id") or "") not in EXCLUDED_SOURCE_VIDEO_IDS]
     now = utc_now()
     ignored = set()
     for vid, record in ledger.data["sources"].items():
@@ -101,7 +121,8 @@ def select_source(ledger):
                 ignored.add(vid)
     ranked = build_ranked_candidates(videos, ignored, config)
     if not ranked and config.fallback_max_source_age_days > config.max_source_age_days:
-        videos = fetch_recent_videos(key, playlist, config.fallback_max_search_videos)
+        videos = [v for v in fetch_recent_videos(key, playlist, config.fallback_max_search_videos)
+                  if str(v.get("id") or "") not in EXCLUDED_SOURCE_VIDEO_IDS]
         ranked = build_ranked_candidates(
             videos, ignored, config,
             max_source_age_days=config.fallback_max_source_age_days,
@@ -153,6 +174,7 @@ class DirectLane:
     def publish(self, path, item):
         from packages.youtube_direct import (UploadDeferred, UploadUncertain, upload_once,
                                               readback_video, fingerprint_of)
+        validate_rights_payload(item)
         key = item["fingerprint"]
         old = self.ledger.clip(key)
         if old and old.get("status") in ("scheduled", "published", "verification_pending",
@@ -307,6 +329,10 @@ class DirectLane:
         from packages.quality_gate import (AUDIT_FILENAME, validated_receipt, verify_rendered_media)
         from run_all import run_remotion_render
         source_id = source["videoId"]
+        if source_id in EXCLUDED_SOURCE_VIDEO_IDS:
+            raise RuntimeError("Source video is excluded by the creator-network rules")
+        if os.environ.get("YOUTUBE_CHANNEL_ID") != AUTHORIZED_SOURCE_CHANNEL_ID:
+            raise RuntimeError("Source channel is outside the written Hiroyuki clipping scope")
         self.ledger.set_source(source_id, status="processing", attemptedAt=utc_now().isoformat(),
                                title=source["title"])
         source_title = str(source["title"])

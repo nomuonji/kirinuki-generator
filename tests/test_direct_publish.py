@@ -99,7 +99,24 @@ class DirectUploadContractTests(unittest.TestCase):
 
     def payload(self):
         return {"fingerprint": "a" * 24, "title": "編集済み動画",
-                "sourceVideoId": "123456789ab", "description": "独自の解説"}
+                "sourceVideoId": "123456789ab",
+                "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+                "description": "独自の解説"}
+
+    def test_rights_rules_block_excluded_sources_and_official_claims(self):
+        from scripts.autonomous_direct import validate_rights_payload
+        item = self.payload()
+        item["sourceVideoId"] = "exnFXUMMLLI"
+        with self.assertRaisesRegex(RuntimeError, "excluded"):
+            validate_rights_payload(item)
+        item = self.payload()
+        item["title"] = "公式切り抜き"
+        with self.assertRaisesRegex(RuntimeError, "official or endorsed"):
+            validate_rights_payload(item)
+        item = self.payload()
+        item["sourceChannelId"] = "another-channel"
+        with self.assertRaisesRegex(RuntimeError, "outside"):
+            validate_rights_payload(item)
 
     def test_scheduled_upload_is_journaled_without_duplicate(self):
         import sys
