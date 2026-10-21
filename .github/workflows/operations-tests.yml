@@ -40,7 +40,7 @@ jobs:
         run: |
           python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py
       - name: Install direct publisher test dependencies
-        run: python -m pip install --disable-pip-version-check requests
+        run: python -m pip install --disable-pip-version-check requests google-api-python-client google-auth-httplib2 google-auth-oauthlib
       - name: Run operations unit tests
         run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish
       - name: Verify direct workflow safely stays inactive without authorization
