@@ -10,6 +10,7 @@ from packages.segmentation_gemini.client import (
     polish_subtitles,
 )
 from packages.cutter_ffmpeg.cutter import cut_many, ClipSpec
+from packages.quality_gate import independent_review, static_filter, write_receipt
 from packages.subtitles.builder import clip_events_from_transcript, write_srt, write_ass
 
 # Encoding-safe sentence-ending punctuation (Japanese + English)
@@ -158,6 +159,20 @@ def main():
         print(f"  Timestamps: Start={p.start:.2f}, Raw End={original_end:.2f} -> Refined End={p.end:.2f}")
         print("------------------------------------------------------------------------")
 
+    # Independent, fail-closed editorial review before any cutting/rendering or upload.
+    # No human selection or review is required; an empty pass set stops this source.
+    props, static_decisions = static_filter(
+        props, items, min_sec=args.min_sec, max_sec=args.max_sec,
+        min_gap=args.min_gap,
+    )
+    print(f"Static quality gate: {len(props)} candidates accepted; decisions={static_decisions}")
+    if not props:
+        raise RuntimeError("No clip candidates passed the transcript evidence gate")
+    props, editorial_decisions = independent_review(props, items)
+    print(f"Independent editorial gate: {len(props)} candidates approved; decisions={editorial_decisions}")
+    if not props:
+        raise RuntimeError("No clips passed independent editorial review")
+
     # --out引数で指定されたディレクトリをPathオブジェクトとして扱う
     outdir = pathlib.Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -165,6 +180,10 @@ def main():
     json_path = outdir / "clip_candidates.json"
     json_path.write_text(json.dumps([p.model_dump() for p in props], ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\nsaved proposals -> {json_path}")
+    write_receipt(outdir, props, [
+        {"stage": "static", "decisions": static_decisions},
+        {"stage": "independent", "decisions": editorial_decisions},
+    ])
 
     if args.dry_run:
         return
