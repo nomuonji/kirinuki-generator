@@ -235,7 +235,7 @@ def generate_hook_text(clip_transcript: str) -> HookText:
 
     sys = (
         "You are a viral video producer crafting overlay text for short-form clips. "
-        "Write in energetic Japanese youth slang. Ensure ALL generated text is in Japanese. Follow these formatting rules strictly: "
+        "Write in natural, concise Japanese that fits the actual speaker and audience; do not force youth slang. Ensure ALL generated text is in Japanese. Follow these formatting rules strictly: "
         "1) Provide decorated text using **double asterisks** around up to three key phrases that must pop. "
         "2) Use \\n (newline) to break the copy into at most two short lines that read naturally. "
         "3) Avoid any markup besides the **emphasis** markers. No emojis that break encoding. "
@@ -295,10 +295,10 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
     concept_prompt = f"The overall concept of the video is: {concept}. " if concept else ""
     sys = (
         "You are a viral video producer. "
-        f"{concept_prompt}For each item, craft youth-slang overlay text for vertical video top/bottom bands. "
+        f"{concept_prompt}For each item, craft natural, precise Japanese overlay text for vertical video top/bottom bands. Never invent quotes or sensationalize the actual spoken meaning. "
         "Ensure ALL text is in Japanese. "
         "Top overlay text (upperDecorated) should quickly set context or tease the setup in 1-2 short lines. "
-        "Bottom overlay text (lowerDecorated) must be a bold punchline-style catchphrase that captures the clip's climax—"
+        "Bottom overlay text (lowerDecorated) should accurately capture the clip's real conclusion or payoff—"
         "keep it to a single, high-impact phrase (ideally under 14 Japanese characters), and spotlight the key word with **bold** if needed. "
         "Follow the same formatting rules for decorated text as above (wrap highlights with **, use at most two lines separated by \\n, and avoid other markup). "
         "Always include plain-text copies with markup removed, and provide 3-5 Japanese hashtags (starting with #) that match the clip. "

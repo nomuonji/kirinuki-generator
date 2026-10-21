@@ -1,6 +1,8 @@
 name: Tertiary Kirinuki Generator
 
 on:
+  # Legacy Drive lane stays available through workflow_dispatch only.
+  # The new direct-to-YouTube workflow owns this lane's scheduled checks.
   workflow_dispatch:
     inputs:
       youtube_channel_id:

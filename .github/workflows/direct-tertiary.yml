@@ -1,0 +1,113 @@
+name: Autonomous Kirinuki Direct-to-YouTube
+
+on:
+  schedule:
+    - cron: '37 0,12 * * *'
+  workflow_dispatch:
+
+# This is the only scheduled job for the official Hiroyuki source.
+# The legacy tertiary Drive producer remains manual-only.
+concurrency:
+  group: kirinuki-direct-hiroyuki-official
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  KIRINUKI_LANE: hiroyuki-official
+  KIRINUKI_DIRECT_MODE: 'true'
+  KIRINUKI_AUTOPUBLISH_ENABLED: ${{ vars.KIRINUKI_AUTOPUBLISH_ENABLED }}
+  KIRINUKI_SOURCE_RIGHTS_APPROVED: ${{ vars.KIRINUKI_SOURCE_RIGHTS_APPROVED }}
+  KIRINUKI_CHANNEL_AUTHORIZED: ${{ vars.KIRINUKI_CHANNEL_AUTHORIZED }}
+  YOUTUBE_CHANNEL_ID: UC0yQ2h4gQXmVUFWZSqlMVOA
+  YOUTUBE_DESTINATION_CHANNEL_ID: ${{ vars.KIRINUKI_DESTINATION_CHANNEL_ID }}
+  GDRIVE_PARENT_FOLDER_ID: 12ZiVI-m7HzdI9ittQZKwt0vT5YvZiHQ4
+  KIRINUKI_CLIPS_PER_RUN: '12'
+  KIRINUKI_UPLOADS_PER_24H: '6'
+  KIRINUKI_TARGET_RESERVATIONS: '14'
+  KIRINUKI_RESERVATION_DAYS: '14'
+  KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
+  SAVETUBE_QUALITY: '720'
+  SOURCE_FETCH_COUNTRY: US
+  PYTHONUNBUFFERED: '1'
+  GH_TOKEN: ${{ github.token }}
+  YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+  YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+  YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+  YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      should_process: ${{ steps.check.outputs.should_process }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install lightweight planner
+        run: python -m pip install --disable-pip-version-check requests python-dotenv google-api-python-client google-auth-httplib2 google-auth-oauthlib
+      - name: Verify source rights, destination OAuth, backlog and slots
+        id: check
+        run: |
+          python -m scripts.autonomous_direct --plan-only --plan-output direct-plan.json
+          python -c 'import json; p=json.load(open("direct-plan.json")); print(p)'
+          echo "should_process=$(python -c 'import json; print(str(json.load(open("direct-plan.json"))["shouldProcess"]).lower())')" >> "$GITHUB_OUTPUT"
+      - name: Save non-sensitive plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: kirinuki-direct-plan
+          path: direct-plan.json
+          retention-days: 7
+
+  produce-and-schedule:
+    needs: plan
+    if: needs.plan.outputs.should_process == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+      GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+      YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
+      PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
+      REMOTION_BROWSER_CACHE_DIR: ~/.cache/remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/remotion/package-lock.json
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install Python production dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Install Remotion and browser
+        working-directory: apps/remotion
+        run: |
+          npm ci
+          npx remotion browser ensure --log=warn || npx remotion browser ensure
+      - name: Prepare browser cache and downloader credentials
+        run: |
+          mkdir -p ~/.cache/puppeteer ~/.cache/remotion ~/.remotion
+          if [ -n "$YT_COOKIES_TXT" ]; then
+            printf '%s' "$YT_COOKIES_TXT" > cookies.txt
+            chmod 600 cookies.txt
+          fi
+      - name: Upload verified clips directly, Drive fallback on spillover
+        run: python -m scripts.autonomous_direct --plan-output direct-plan.json
+      - name: Upload diagnostic plan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kirinuki-direct-production-plan
+          path: direct-plan.json
+          retention-days: 7
