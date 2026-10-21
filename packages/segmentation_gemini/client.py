@@ -2,6 +2,7 @@ import os, json, time, re
 from typing import List, Dict, Iterable
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from packages.gemini_quota import with_quota_retry
 
 load_dotenv()
 
@@ -129,7 +130,7 @@ Output JSON only."""
     all_props: List[ClipCandidate] = []
     chunk_chars = int(os.environ.get("GEMINI_PROPOSAL_CHUNK_CHARS", "12000"))
     for chunk in _chunks(items, max_chars=chunk_chars):
-        resp = model.generate_content(
+        resp = with_quota_retry(lambda: model.generate_content(
             [sys, chunk],
             generation_config={
                 "response_mime_type": "application/json",
@@ -137,7 +138,7 @@ Output JSON only."""
                 "temperature": 0.2
             },
             request_options={"timeout": 600},
-        )
+        ))
         parsed = _safe_parsed(resp, expect_array=True)
         for d in parsed:
             try:
@@ -199,7 +200,7 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
     payload = json.dumps(lines, ensure_ascii=False)
     model = genai.GenerativeModel(GEMINI_MODEL)
     try:
-        resp = model.generate_content(
+        resp = with_quota_retry(lambda: model.generate_content(
             [sys, 'INPUT:', payload],
             generation_config={
                 'response_mime_type': 'application/json',
@@ -207,7 +208,7 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
                 'temperature': 0.2,
             },
             request_options={"timeout": 300},
-        )
+        ))
         cleaned = _safe_parsed(resp, expect_array=True)
         cleaned_lines = [str(x) for x in cleaned]
         if len(cleaned_lines) == len(lines):
@@ -245,14 +246,14 @@ def generate_hook_text(clip_transcript: str) -> HookText:
     )
 
     model = genai.GenerativeModel(HOOK_MODEL)
-    resp = model.generate_content(
+    resp = with_quota_retry(lambda: model.generate_content(
         [sys, clip_transcript],
         generation_config={
             "response_mime_type": "application/json",
             "response_schema": hook_schema,
             "temperature": 0.7,
         },
-    )
+    ))
     parsed = _safe_parsed(resp)
     upper_decorated = str(parsed.get("upperDecorated", ""))
     lower_decorated = str(parsed.get("lowerDecorated", ""))
@@ -316,7 +317,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
         payload = [{"index": int(it["index"]), "transcript": str(it.get("transcript", ""))[:4000]} for it in batch]
 
         try:
-            resp = model.generate_content(
+            resp = with_quota_retry(lambda: model.generate_content(
                 [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
                 generation_config={
                     "response_mime_type": "application/json",
@@ -324,7 +325,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
                     "temperature": 0.7,
                 },
                 request_options={"timeout": 600},
-            )
+            ))
             parsed = _safe_parsed(resp, expect_array=True)
 
             for obj in parsed:
