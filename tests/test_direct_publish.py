@@ -70,5 +70,99 @@ class DirectScheduleTests(unittest.TestCase):
                             fingerprint("id", 1.23, 42.35))
 
 
+
+
+class FakeJournal:
+    def __init__(self):
+        self.data = {"clips": {}, "sources": {}}
+    def clip(self, key):
+        return self.data["clips"].get(key)
+    def set_clip(self, key, **fields):
+        record = self.data["clips"].setdefault(key, {})
+        record.update(fields)
+        return record
+
+
+class DirectUploadContractTests(unittest.TestCase):
+    def setup_lane(self):
+        from scripts.autonomous_direct import DirectLane
+        lane = DirectLane.__new__(DirectLane)
+        lane.ledger = FakeJournal()
+        lane.youtube = object()
+        lane.actual = []
+        lane.provider_slots = []
+        lane.max_uploads_per_24h = 6
+        lane.uploaded_this_run = 0
+        lane.available_capacity = lambda: 4
+        lane.next_slot = lambda source: "2026-10-25T11:00:00Z"
+        return lane
+
+    def payload(self):
+        return {"fingerprint": "a" * 24, "title": "編集済み動画",
+                "sourceVideoId": "123456789ab", "description": "独自の解説"}
+
+    def test_scheduled_upload_is_journaled_without_duplicate(self):
+        import sys
+        import types
+        from unittest.mock import patch
+        fake = types.ModuleType("packages.youtube_direct")
+        fake.UploadDeferred = type("UploadDeferred", (RuntimeError,), {})
+        fake.UploadUncertain = type("UploadUncertain", (RuntimeError,), {})
+        calls = []
+        def upload(*args, **kwargs):
+            calls.append(kwargs)
+            return {"videoId": "posted-id", "publishAt": kwargs["publish_at"],
+                    "uploadedAt": "2026-10-21T06:00:00Z"}
+        fake.upload_once = upload
+        fake.readback_video = lambda *a: {
+            "status": {"privacyStatus": "private",
+                       "publishAt": "2026-10-25T11:00:00Z"}
+        }
+        fake.fingerprint_of = lambda v: None
+        lane = self.setup_lane()
+        with patch.dict(sys.modules, {"packages.youtube_direct": fake}):
+            first = lane.publish(__import__("pathlib").Path("not_used.mp4"), self.payload())
+            second = lane.publish(__import__("pathlib").Path("not_used.mp4"), self.payload())
+        self.assertEqual(first, "scheduled")
+        self.assertEqual(second, "already_handled")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(lane.ledger.clip("a" * 24)["videoId"], "posted-id")
+
+    def test_provider_capacity_rejects_and_does_not_retry(self):
+        import sys
+        import types
+        from unittest.mock import patch
+        fake = types.ModuleType("packages.youtube_direct")
+        fake.UploadDeferred = type("UploadDeferred", (RuntimeError,), {})
+        fake.UploadUncertain = type("UploadUncertain", (RuntimeError,), {})
+        fake.upload_once = lambda *a, **k: (_ for _ in ()).throw(fake.UploadDeferred("limit"))
+        fake.readback_video = lambda *a: None
+        fake.fingerprint_of = lambda v: None
+        lane = self.setup_lane()
+        with patch.dict(sys.modules, {"packages.youtube_direct": fake}):
+            disposition = lane.publish(__import__("pathlib").Path("unused.mp4"), self.payload())
+        self.assertEqual(disposition, "overflow")
+        self.assertEqual(lane.max_uploads_per_24h, 0)
+        self.assertEqual(lane.ledger.clip("a" * 24)["status"], "overflow_pending")
+
+    def test_unknown_upload_outcome_is_not_retried(self):
+        import sys
+        import types
+        from unittest.mock import patch
+        fake = types.ModuleType("packages.youtube_direct")
+        fake.UploadDeferred = type("UploadDeferred", (RuntimeError,), {})
+        fake.UploadUncertain = type("UploadUncertain", (RuntimeError,), {})
+        fake.upload_once = lambda *a, **k: (_ for _ in ()).throw(fake.UploadUncertain("timeout"))
+        fake.readback_video = lambda *a: None
+        fake.fingerprint_of = lambda v: None
+        lane = self.setup_lane()
+        with patch.dict(sys.modules, {"packages.youtube_direct": fake}):
+            self.assertEqual(lane.publish(__import__("pathlib").Path("unused.mp4"), self.payload()),
+                             "uncertain")
+            self.assertEqual(lane.publish(__import__("pathlib").Path("unused.mp4"), self.payload()),
+                             "already_handled")
+        self.assertEqual(lane.ledger.clip("a" * 24)["status"], "uncertain")
+
+
 if __name__ == "__main__":
     unittest.main()
