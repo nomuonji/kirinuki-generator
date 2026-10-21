@@ -137,7 +137,7 @@ Output JSON only."""
                 "response_schema": clip_schema,
                 "temperature": 0.2
             },
-            request_options={"timeout": 600},
+            request_options={"timeout": 600, "retry": None},
         ))
         parsed = _safe_parsed(resp, expect_array=True)
         for d in parsed:
@@ -207,7 +207,7 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
                 'response_schema': schema,
                 'temperature': 0.2,
             },
-            request_options={"timeout": 300},
+            request_options={"timeout": 300, "retry": None},
         ))
         cleaned = _safe_parsed(resp, expect_array=True)
         cleaned_lines = [str(x) for x in cleaned]
@@ -260,7 +260,7 @@ def polish_subtitles_bulk(clips: List[Dict], concept: str = "") -> Dict[int, Lis
             "response_schema": schema,
             "temperature": 0.2,
         },
-        request_options={"timeout": 600},
+        request_options={"timeout": 600, "retry": None},
     ))
     parsed = _safe_parsed(resp, expect_array=True)
     expected = {int(clip["index"]): len(clip.get("lines", [])) for clip in clips}
@@ -313,6 +313,7 @@ def generate_hook_text(clip_transcript: str) -> HookText:
             "response_schema": hook_schema,
             "temperature": 0.7,
         },
+        request_options={"retry": None},
     ))
     parsed = _safe_parsed(resp)
     upper_decorated = str(parsed.get("upperDecorated", ""))
@@ -384,7 +385,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
                     "response_schema": result_schema,
                     "temperature": 0.7,
                 },
-                request_options={"timeout": 600},
+                request_options={"timeout": 600, "retry": None},
             ))
             parsed = _safe_parsed(resp, expect_array=True)
 
