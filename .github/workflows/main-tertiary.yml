@@ -1,6 +1,9 @@
 name: Tertiary Kirinuki Generator
 
 on:
+  # Low-cost planning twice daily; full generation only when source and stock qualify.
+  schedule:
+    - cron: '37 0,12 * * *'
   workflow_dispatch:
     inputs:
       youtube_channel_id:
