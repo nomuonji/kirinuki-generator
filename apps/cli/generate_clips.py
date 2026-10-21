@@ -130,7 +130,7 @@ def main():
     # Previously --max-clips 1 checked exactly one proposal; when its ending
     # failed independent editorial QA the entire production source aborted,
     # even if the transcript had other strong self-contained moments.
-    review_pool_limit = max(args.max_clips * 4, 8) if args.max_clips > 0 else 0
+    review_pool_limit = max(args.max_clips + 6, 8) if args.max_clips > 0 else 0
     if review_pool_limit and len(props) > review_pool_limit:
         print(
             f"\nLimiting editorial review to {review_pool_limit} "
