@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/private_render_smoke.py'
+      - 'apps/cli/generate_clips.py'
+      - 'packages/quality_gate.py'
       - '.github/workflows/private-render-smoke.yml'
   workflow_dispatch:
     inputs:
