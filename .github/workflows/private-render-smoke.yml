@@ -1,0 +1,65 @@
+name: Kirinuki Private Full-Render Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/private_render_smoke.py'
+      - '.github/workflows/private-render-smoke.yml'
+  workflow_dispatch:
+    inputs:
+      source_video_id:
+        description: 'Source YouTube video ID to test (no uploading)'
+        required: false
+        default: '0YyAgmv5_Yc'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kirinuki-private-smoke
+  cancel-in-progress: false
+
+jobs:
+  private-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PYTHONUNBUFFERED: '1'
+      SOURCE_FETCH_COUNTRY: US
+      SAVETUBE_QUALITY: '720'
+      KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/remotion/package-lock.json
+      - name: Install production Python dependencies and ffmpeg
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Install Remotion and browser
+        working-directory: apps/remotion
+        run: |
+          npm ci
+          npx remotion browser ensure --log=warn || npx remotion browser ensure
+      - name: Run actual 1-clip AI pipeline without sending any footage
+        env:
+          SOURCE_VIDEO_ID: ${{ inputs.source_video_id || '0YyAgmv5_Yc' }}
+        run: |
+          python -m scripts.private_render_smoke --video-id "$SOURCE_VIDEO_ID" --output-dir private-smoke-results
+      - name: Save redacted diagnosis (do not expose copyrighted MP4)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kirinuki-private-smoke-report
+          path: private-smoke-results/report.json
+          retention-days: 7
