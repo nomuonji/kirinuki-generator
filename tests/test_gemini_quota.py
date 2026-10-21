@@ -31,6 +31,16 @@ retry_delay {
         with self.assertRaisesRegex(RuntimeError, "PerDay"):
             with_quota_retry(daily, sleep=lambda _: self.fail("must not sleep"))
 
+    def test_detects_daily_quota_in_structured_details(self):
+        class RpcQuotaError(RuntimeError):
+            def details(self):
+                return 'quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"'
+        with self.assertRaises(RpcQuotaError):
+            with_quota_retry(
+                lambda: (_ for _ in ()).throw(RpcQuotaError("429 quota exhausted")),
+                sleep=lambda _: self.fail("must not sleep"),
+            )
+
     def test_does_not_retry_bad_auth_or_invalid_json(self):
         for msg in ["403 permissionDenied", "bad JSON"]:
             with self.assertRaisesRegex(RuntimeError, msg):
