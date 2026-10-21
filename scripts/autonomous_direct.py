@@ -169,7 +169,10 @@ class DirectLane:
         except UploadDeferred as exc:
             print(f"Confirmed channel/API capacity rejection for {key}: {exc}")
             self.max_uploads_per_24h = 0  # stop attempting uploads in this run
-            self.ledger.set_clip(key, **item, status="overflow_pending", failure="upload_capacity")
+            self.ledger.set_clip(
+                key, **item, status="overflow" if old and old.get("driveVideoId")
+                else "overflow_pending", failure="upload_capacity"
+            )
             return "overflow"
         except UploadUncertain as exc:
             print(f"Ambiguous upload outcome for {key}: {exc}")
@@ -228,18 +231,25 @@ class DirectLane:
         if not records or not self.next_slot(records[0][1]["sourceVideoId"]):
             return
         service = get_drive_service()
-        for key, item in records:
-            if self.available_capacity() <= 0 or not self.next_slot(item["sourceVideoId"]):
+        for key, recorded in records:
+            if self.available_capacity() <= 0 or not self.next_slot(recorded["sourceVideoId"]):
                 break
-            raw = download_file_bytes(service, item["driveVideoId"])
+            raw = download_file_bytes(service, recorded["driveVideoId"])
+            # The stored journal contains lifecycle keys. Do not pass them as
+            # fresh publishing arguments or override the reserved status.
+            item = {k: recorded[k] for k in (
+                "fingerprint", "title", "sourceVideoId", "sourceChannelId",
+                "start", "end", "confidence", "mediaAudit", "editorialDigest",
+                "description"
+            ) if k in recorded}
             with tempfile.TemporaryDirectory(prefix="kirinuki-overflow-") as tmp:
                 path = Path(tmp) / "video.mp4"
                 path.write_bytes(raw)
                 disposition = self.publish(path, item)
             if disposition in ("scheduled", "verification_pending"):
-                delete_file(service, item["driveVideoId"])
-                if item.get("driveMetadataId"):
-                    delete_file(service, item["driveMetadataId"])
+                delete_file(service, recorded["driveVideoId"])
+                if recorded.get("driveMetadataId"):
+                    delete_file(service, recorded["driveMetadataId"])
             if disposition in ("overflow", "uncertain"):
                 break
 
