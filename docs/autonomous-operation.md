@@ -60,3 +60,24 @@ This configuration intentionally defaults to **inactive**, rather than uploading
 The Python unit tests and GitHub Actions CI verify scheduling, gating, data flows and Python syntax; they do not prove actual YouTube OAuth, long-form rendering, publication, creator permission, MCN revenue sharing, or Partner Program monetization. First live authorized run should verify returned video ID, private status, publishAt, quota use, and a spillover/replay with real Drive. If a video is in an uncertain upload state, do not blindly retry.
 
 YouTube official docs: https://developers.google.com/youtube/data/reference/rest/v3/videos/insert and https://developers.google.com/youtube/data/reference/rest/v3/videos
+
+## October 21 Hiroyuki OAuth secret-name mapping and verification
+
+The existing OAuth client IDs for this production lane are stored as
+`YT_CLIENT_ID_HIROYUKI` and `YT_CLIENT_SECRET_HIROYUKI`. Workflows now
+recognize them without renaming the already-configured secrets.
+
+**OAuth client credentials do not grant channel access.** The separate
+`YT_REFRESH_TOKEN_HIROYUKI` refresh-token secret and
+`KIRINUKI_DESTINATION_CHANNEL_ID` variable (or Secret) must still be
+configured, then a read-only OAuth channel match must succeed. `GDRIVE_REFRESH_TOKEN`
+remains Drive-only. See [hiroyuki-youtube-oauth.md](hiroyuki-youtube-oauth.md)
+for Google consent and the exact GitHub configuration.
+
+The first private live-source render on 2026-10-21 fetched a full source video
+and 52 draft moments; its original smoke setting `--max-clips=1` prematurely
+selected one moment which independent editorial review rejected for a truncated
+ending. The quality gate correctly failed. Production was changed to review a
+larger candidate pool **before** limiting final output, never lowering review
+standards. A subsequent private render test is required before treating
+end-to-end rendering as proven.
