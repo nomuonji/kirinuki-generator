@@ -319,18 +319,55 @@ def upload_clip_and_props(
     batch_idx: int,
     persist_state_fn,
 ):
+    # Never expose an MP4 as ready stock before its editorial and media
+    # receipts have been verified and durably stored as a sidecar.
+    if not prop_file or not prop_file.is_file():
+        raise RuntimeError(f"Clip {clip_key} missing its Remotion props; refusing upload")
+    audit_file = Path("apps/remotion/public/out_clips") / AUDIT_FILENAME
+    if not validated_receipt(audit_file.parent):
+        raise RuntimeError("Editorial receipt missing or stale before stock upload")
+    source_audit = json.loads(audit_file.read_text(encoding="utf-8"))
+    props_metadata = json.loads(prop_file.read_text(encoding="utf-8"))
+    if not isinstance(props_metadata, dict):
+        raise RuntimeError("Rendered props must be a JSON object")
     media_audit = verify_rendered_media(rendered_file)
     print(f"Media QA passed for {clip_key}: {media_audit}")
+    props_metadata["kirinukiAudit"] = {
+        "editorialVersion": source_audit["version"],
+        "approvedCandidateDigest": source_audit["candidateDigest"],
+        "media": media_audit,
+        "sourceVideoId": source_video_id,
+        "sourceVideoUrl": f"https://www.youtube.com/watch?v={source_video_id}",
+        "sourceChannelId": os.environ.get("YOUTUBE_CHANNEL_ID", ""),
+        "permissionVerified": False,
+        "transformativeUseVerified": False,
+        "publicPublishingAuthorized": False,
+    }
+    props_payload = json.dumps(props_metadata, ensure_ascii=False, indent=2).encode("utf-8")
     remote_base = build_safe_filename(sanitized_title, f"_clip_{clip_key}")
+    props_remote_name = f"{remote_base}.json"
     remote_name = f"{remote_base}.mp4"
+    clip_record = clips_state.setdefault(clip_key, {})
+
+    # A failed sidecar must not leave a publishable MP4 in the Drive folder.
+    props_file_id = upload_json_data(
+        drive_service, drive_parent_id, props_remote_name, props_payload,
+        clip_record.get("propsDriveFileId"),
+    )
+    if not props_file_id:
+        raise RuntimeError(f"Drive sidecar upload failed for {clip_key}")
+    clip_record["propsDriveFileId"] = props_file_id
+    clip_record["propsRemoteFileName"] = props_remote_name
+    clip_record["propsUploadedAt"] = _utc_now_iso()
+    persist_state_fn()
+
     file_size = rendered_file.stat().st_size
-    print(f"Uploading clip {clip_key} ({rendered_file.name}) to Drive as {remote_name}...")
+    print(f"Uploading approved clip {clip_key} ({rendered_file.name}) to Drive as {remote_name}...")
     file_id = upload_file(drive_service, rendered_file, remote_name, drive_parent_id)
     if not file_id:
         raise RuntimeError(f"Drive upload did not return a file ID for {remote_name}")
     print(f"  -> Drive upload succeeded for clip {clip_key}: id={file_id}, size={file_size} bytes")
 
-    clip_record = clips_state.setdefault(clip_key, {})
     clip_record["mediaAudit"] = media_audit
     clip_record["rendered"] = True
     clip_record["uploaded"] = True
@@ -340,47 +377,6 @@ def upload_clip_and_props(
     clip_record["uploadedAt"] = _utc_now_iso()
     clip_record["sizeBytes"] = file_size
     persist_state_fn()
-
-    if prop_file and prop_file.exists():
-        props_remote_name = f"{remote_base}.json"
-        print(f"Uploading props for clip {clip_key} ({prop_file.name}) to Drive as {props_remote_name}...")
-        # Keep per-clip editorial and media evidence in the durable Drive props.
-        # The processing state and source manifest may be deleted after completion.
-        audit_file = Path("apps/remotion/public/out_clips") / AUDIT_FILENAME
-        if not validated_receipt(audit_file.parent):
-            raise RuntimeError("Editorial receipt missing before props upload")
-        source_audit = json.loads(audit_file.read_text(encoding="utf-8"))
-        props_metadata = json.loads(prop_file.read_text(encoding="utf-8"))
-        if not isinstance(props_metadata, dict):
-            raise RuntimeError("Rendered props must be a JSON object")
-        props_metadata["kirinukiAudit"] = {
-            "editorialVersion": source_audit["version"],
-            "approvedCandidateDigest": source_audit["candidateDigest"],
-            "media": media_audit,
-            "sourceVideoId": source_video_id,
-            "sourceVideoUrl": f"https://www.youtube.com/watch?v={source_video_id}",
-            "sourceChannelId": os.environ.get("YOUTUBE_CHANNEL_ID", ""),
-            "permissionVerified": False,
-            "transformativeUseVerified": False,
-            "publicPublishingAuthorized": False,
-        }
-        props_payload = json.dumps(
-            props_metadata, ensure_ascii=False, indent=2
-        ).encode("utf-8")
-        props_file_id = upload_json_data(
-            drive_service,
-            drive_parent_id,
-            props_remote_name,
-            props_payload,
-            clip_record.get("propsDriveFileId"),
-        )
-        clip_record["propsDriveFileId"] = props_file_id
-        clip_record["propsRemoteFileName"] = props_remote_name
-        clip_record["propsUploadedAt"] = _utc_now_iso()
-        persist_state_fn()
-        print(f"  -> Drive upload succeeded for props {clip_key}: id={props_file_id}, size={len(props_payload)} bytes")
-    else:
-        print(f"Warning: Props file not found for clip {clip_key}; skipping props upload.", file=sys.stderr)
 
     try:
         rendered_file.unlink()
