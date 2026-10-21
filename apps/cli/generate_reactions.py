@@ -252,6 +252,7 @@ def _call_gemini(model_name: str, prompt: str, *, retries: int = 2) -> dict[str,
             response = with_quota_retry(lambda: model.generate_content(
                 contents=[prompt_variant],
                 generation_config=generation_config,
+                request_options={"retry": None},
             ))
         except Exception as exc:
             attempts.append(f"generation_error:{exc}")
