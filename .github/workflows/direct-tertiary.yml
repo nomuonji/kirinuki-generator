@@ -28,7 +28,7 @@ env:
   KIRINUKI_TARGET_RESERVATIONS: '14'
   KIRINUKI_RESERVATION_DAYS: '14'
   KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
-  # Keep long-source transcript analysis below Gemini's shared free-tier RPM ceiling.
+  # Keep long-source transcript analysis within Gemini's shared free-tier daily request budget.
   GEMINI_PROPOSAL_CHUNK_CHARS: '50000'
   SAVETUBE_QUALITY: '720'
   SOURCE_FETCH_COUNTRY: US
