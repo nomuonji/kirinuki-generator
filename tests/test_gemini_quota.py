@@ -1,0 +1,52 @@
+import unittest
+from packages.gemini_quota import quota_delay, with_quota_retry
+
+
+class GeminiQuotaTests(unittest.TestCase):
+    def test_parses_real_free_tier_retry_delay(self):
+        err = RuntimeError("""429 You exceeded your current quota.
+quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+retry_delay {
+ seconds: 17
+}""")
+        self.assertEqual(quota_delay(err), 20.0)
+
+    def test_waits_only_for_transient_429(self):
+        calls = []
+        sleeps = []
+        def flaky():
+            calls.append(1)
+            if len(calls) < 3:
+                raise RuntimeError("429 retry_delay { seconds: 17 }")
+            return "approved"
+        got = with_quota_retry(flaky, attempts=4, sleep=sleeps.append,
+                               notify=lambda *args: None)
+        self.assertEqual(got, "approved")
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(sleeps, [20.0, 20.0])
+
+    def test_does_not_retry_daily_quota(self):
+        def daily():
+            raise RuntimeError("429 GenerateRequestsPerDayPerProjectPerModel")
+        with self.assertRaisesRegex(RuntimeError, "PerDay"):
+            with_quota_retry(daily, sleep=lambda _: self.fail("must not sleep"))
+
+    def test_does_not_retry_bad_auth_or_invalid_json(self):
+        for msg in ["403 permissionDenied", "bad JSON"]:
+            with self.assertRaisesRegex(RuntimeError, msg):
+                with_quota_retry(lambda: (_ for _ in ()).throw(RuntimeError(msg)),
+                                 sleep=lambda _: self.fail("must not sleep"))
+
+    def test_stops_after_bounded_retries(self):
+        attempts = []
+        def exhausted():
+            attempts.append(1)
+            raise RuntimeError("429 retry_delay { seconds: 15 }")
+        with self.assertRaisesRegex(RuntimeError, "429"):
+            with_quota_retry(exhausted, attempts=3, sleep=lambda _: None,
+                             notify=lambda _: None)
+        self.assertEqual(len(attempts), 3)
+
+
+if __name__ == "__main__":
+    unittest.main()
