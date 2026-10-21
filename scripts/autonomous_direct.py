@@ -45,7 +45,7 @@ def reconcile(ledger, actual):
             inferred = ("scheduled" if status.get("publishAt") else
                         "published" if status.get("privacyStatus") == "public" else
                         "uploaded_private_unscheduled")
-            if rec.get("videoId") != remote["id"] or rec.get("status") not in ("scheduled", "published", "uploaded_private_unscheduled"):
+            if rec.get("videoId") != remote["id"] or rec.get("status") != inferred or rec.get("publishAt") != status.get("publishAt"):
                 rec.update({"videoId": remote["id"],
                             "status": inferred,
                             "publishAt": status.get("publishAt"),
@@ -350,7 +350,7 @@ class DirectLane:
                 "start": candidate["start"], "end": candidate["end"],
                 "confidence": candidate.get("confidence"), "mediaAudit": qa,
                 "editorialDigest": audit["candidateDigest"],
-                "description": "AIによる文脈整理付きの切り抜き。元動画の発言を独立した話として収録しています。",
+                "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
             }
             disposition = self.publish(mp4_path, item)
             if disposition == "overflow":
