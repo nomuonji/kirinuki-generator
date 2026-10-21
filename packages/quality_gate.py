@@ -31,6 +31,21 @@ def _digest(data) -> str:
     ).hexdigest()
 
 
+def select_top_candidates(candidates, limit):
+    """Take the strongest clips but keep numbering in transcript order."""
+    if limit <= 0 or len(candidates) <= limit:
+        return list(candidates)
+    chosen = sorted(
+        candidates,
+        key=lambda candidate: (
+            float(getattr(candidate, "confidence", 0.0) or 0.0),
+            float(candidate.end - candidate.start),
+        ),
+        reverse=True,
+    )[:limit]
+    return sorted(chosen, key=lambda candidate: candidate.start)
+
+
 def candidate_payload(candidates) -> list[dict]:
     return [
         {key: _get(c, key) for key in ("start", "end", "title", "punchline", "reason", "confidence")}
