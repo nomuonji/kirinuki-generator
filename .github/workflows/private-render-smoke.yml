@@ -31,7 +31,7 @@ jobs:
       SOURCE_FETCH_COUNTRY: US
       SAVETUBE_QUALITY: '720'
       KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
-      GEMINI_PROPOSAL_CHUNK_CHARS: '30000'
+      GEMINI_PROPOSAL_CHUNK_CHARS: '50000'
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
