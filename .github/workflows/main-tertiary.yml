@@ -1,9 +1,8 @@
 name: Tertiary Kirinuki Generator
 
 on:
-  # Low-cost planning twice daily; full generation only when source and stock qualify.
-  schedule:
-    - cron: '37 0,12 * * *'
+  # Legacy Drive lane stays available through workflow_dispatch only.
+  # The new direct-to-YouTube workflow owns this lane's scheduled checks.
   workflow_dispatch:
     inputs:
       youtube_channel_id:
