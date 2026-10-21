@@ -8,6 +8,12 @@ on:
       - 'download_video.py'
       - 'packages/operations.py'
       - 'packages/quality_gate.py'
+      - 'packages/publish_scheduler.py'
+      - 'packages/github_ledger.py'
+      - 'packages/youtube_direct.py'
+      - 'scripts/autonomous_direct.py'
+      - 'tests/test_direct_publish.py'
+      - '.github/workflows/direct-tertiary.yml'
       - 'packages/segmentation_gemini/client.py'
       - 'tests/test_quality_gate.py'
       - 'configs/video_concept_hiroyuki.md'
@@ -32,6 +38,6 @@ jobs:
           python-version: '3.11'
       - name: Compile changed Python modules
         run: |
-          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py
+          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py
       - name: Run operations unit tests
-        run: python -m unittest -v tests.test_operations tests.test_quality_gate
+        run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish
