@@ -68,7 +68,7 @@ The PO Token provider is started lazily only if SaveTube fails and the yt-dlp pa
 
 ## Scheduling and concurrency
 
-Primary, secondary, and tertiary workflows are checked four times per day, staggered by ten minutes. Healthy-stock runs stop in the lightweight plan job.
+Primary remains on its existing schedule. Secondary is manual-only. Tertiary's former Drive-first workflow is manual-only; the new direct-tertiary.yml checks twice per day, but remains a no-op until verified source rights, destination-channel OAuth and explicit publishing authorization are present. The direct workflow uses its own GitHub JSON journal and YouTube's actual private publishing reservations; Drive is used only for overflow and recovery. See docs/autonomous-operation.md.
 
 Each workflow has a concurrency lock with `cancel-in-progress: false`, preventing two runs for the same production lane from racing on Drive state or generating the same source concurrently.
 
