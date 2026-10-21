@@ -10,7 +10,7 @@ from packages.segmentation_gemini.client import (
     polish_subtitles,
 )
 from packages.cutter_ffmpeg.cutter import cut_many, ClipSpec
-from packages.quality_gate import independent_review, static_filter, write_receipt
+from packages.quality_gate import independent_review, select_top_candidates, static_filter, write_receipt
 from packages.subtitles.builder import clip_events_from_transcript, write_srt, write_ass
 
 # Encoding-safe sentence-ending punctuation (Japanese + English)
@@ -53,21 +53,6 @@ def refine_clip_end_time(p: ClipCandidate, items: List[dict], max_sec: float) ->
         return items[final_segment_idx]['end']
     
     return new_end
-
-def select_top_candidates(candidates, limit):
-    """Take the strongest clips but keep numbering in transcript order."""
-    if limit <= 0 or len(candidates) <= limit:
-        return list(candidates)
-    chosen = sorted(
-        candidates,
-        key=lambda candidate: (
-            float(getattr(candidate, "confidence", 0.0) or 0.0),
-            float(candidate.end - candidate.start),
-        ),
-        reverse=True,
-    )[:limit]
-    return sorted(chosen, key=lambda candidate: candidate.start)
-
 
 def main():
     ap = argparse.ArgumentParser(description="Transcript -> Gemini -> edit points -> FFmpeg cutter (+ optional subtitles)")
