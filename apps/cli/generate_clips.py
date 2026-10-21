@@ -7,7 +7,7 @@ from packages.segmentation_gemini.client import (
     generate_hooks_bulk,
     HookText,
     ClipCandidate,
-    polish_subtitles,
+    polish_subtitles_bulk,
 )
 from packages.cutter_ffmpeg.cutter import cut_many, ClipSpec
 from packages.quality_gate import independent_review, select_top_candidates, static_filter, write_receipt
@@ -198,6 +198,21 @@ def main():
         print(f"Generating hook texts in bulk for {len(bulk_inputs)} clips...")
         hooks_map = generate_hooks_bulk(bulk_inputs, concept=concept, batch_size=args.batch_size)
 
+    subtitle_events_by_clip: dict[int, list[dict]] = {}
+    polished_subtitles_by_clip: dict[int, List[str]] = {}
+    if needs_subs:
+        subtitle_inputs = []
+        for i, p in enumerate(props, start=1):
+            events = clip_events_from_transcript(items, start=p.start, end=p.end)
+            subtitle_events_by_clip[i] = events
+            subtitle_inputs.append({"index": i, "lines": [ev["text"] for ev in events]})
+        if any(item["lines"] for item in subtitle_inputs):
+            try:
+                print(f"Polishing subtitles in one batch for {len(subtitle_inputs)} clips...")
+                polished_subtitles_by_clip = polish_subtitles_bulk(subtitle_inputs, concept=concept)
+            except Exception as exc:
+                print(f"  -> Warning: Subtitle polishing skipped ({exc})")
+
     clip_specs = []
     for i, p in enumerate(props, start=1):
         print(f"\nProcessing clip {i}/{len(props)}: {p.title}")
@@ -223,15 +238,13 @@ def main():
         print(f"  -> Saved hooks to {hooks_path}")
         subs_path = None
         if needs_subs:
-            events = clip_events_from_transcript(items, start=p.start, end=p.end)
-            try:
-                cleaned_lines = polish_subtitles([ev['text'] for ev in events], concept=concept)
-                if len(cleaned_lines) == len(events):
-                    for ev, cleaned in zip(events, cleaned_lines):
-                        ev['text'] = cleaned
-            except Exception as exc:
-                print(f"  -> Warning: Subtitle polishing skipped ({exc})")
+            events = subtitle_events_by_clip.get(i, [])
+            cleaned_lines = polished_subtitles_by_clip.get(i)
+            if cleaned_lines is not None and len(cleaned_lines) == len(events):
+                for ev, cleaned in zip(events, cleaned_lines):
+                    ev['text'] = cleaned
             
+
             # Instead of writing SRT/ASS, write a JSON file for Remotion
             subs_json_path = outdir / f"clip_{i:03d}_subtitles.json"
             with open(subs_json_path, 'w', encoding='utf-8') as f:
