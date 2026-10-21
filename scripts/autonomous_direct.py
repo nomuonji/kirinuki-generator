@@ -140,13 +140,13 @@ class DirectLane:
             published_at = (video.get("snippet") or {}).get("publishedAt")
             if published_at:
                 known.append({"uploadedAt": published_at})
-        return max(0, self.max_uploads_per_24h - rolling_uploads(known, now=self.now))
+        return max(0, self.max_uploads_per_24h - rolling_uploads(known, now=utc_now()))
 
     def next_slot(self, source_id):
         entries = self.reservation_entries()
         if len(entries) >= self.target_reservations:
             return None
-        found = reserve_slots(entries, now=self.now, days=self.window_days,
+        found = reserve_slots(entries, now=utc_now(), days=self.window_days,
                               max_count=1, source_id=source_id)
         return found[0] if found else None
 
