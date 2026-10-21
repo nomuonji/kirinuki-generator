@@ -727,7 +727,16 @@ def main():
         os.environ["SOURCE_SELECTION_SCORE"] = str(candidate.get("selectionScore") or 0.0)
         os.environ["KIRINUKI_TARGET_CLIPS"] = str(target_clips)
 
+        # AI-only channel editorial presets; manual prompting is not required.
+        # Unknown channels use the generic preset until specifically configured.
+        channel_concepts = {
+            "UC0yQ2h4gQXmVUFWZSqlMVOA": "configs/video_concept_hiroyuki.md",
+            "UCj14-CcW0idWlvh3kQp683A": "configs/video_concept_hiroyuki.md",
+        }
+        concept_file = os.environ.get("KIRINUKI_CONCEPT_FILE") or channel_concepts.get(channel_id)
         command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
+        if concept_file:
+            command.extend(["--concept-file", concept_file])
         if resume_flag:
             command.append("--resume")
             print("Resuming processing based on remote state.")
