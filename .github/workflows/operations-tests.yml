@@ -28,6 +28,6 @@ jobs:
           python-version: '3.11'
       - name: Compile changed Python modules
         run: |
-          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py
+          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py
       - name: Run operations unit tests
-        run: python -m unittest -v tests.test_operations
+        run: python -m unittest -v tests.test_operations tests.test_quality_gate
