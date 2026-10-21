@@ -230,7 +230,9 @@ class DirectLane:
             raise RuntimeError("No overflow Drive folder configured; clip remains regeneration_needed")
         service = get_drive_service()
         key = item["fingerprint"]
-        base = f"overflow_{key}_clip_001"
+        # Avoid '_clip_' in fallback names: the legacy Drive watcher treats such
+        # files as its own ready-to-post stock.
+        base = f"overflow_{key}"
         meta_name = f"{base}.json"
         video_name = f"{base}.mp4"
         props = json.dumps(item, ensure_ascii=False, indent=2).encode("utf-8")
