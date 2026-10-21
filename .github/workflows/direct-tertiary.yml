@@ -53,7 +53,7 @@ jobs:
       - name: Verify source rights, destination OAuth, backlog and slots
         id: check
         run: |
-          python scripts/autonomous_direct.py --plan-only --plan-output direct-plan.json
+          python -m scripts.autonomous_direct --plan-only --plan-output direct-plan.json
           python -c 'import json; p=json.load(open("direct-plan.json")); print(p)'
           echo "should_process=$(python -c 'import json; print(str(json.load(open("direct-plan.json"))["shouldProcess"]).lower())')" >> "$GITHUB_OUTPUT"
       - name: Save non-sensitive plan
@@ -103,7 +103,7 @@ jobs:
             chmod 600 cookies.txt
           fi
       - name: Upload verified clips directly, Drive fallback on spillover
-        run: python scripts/autonomous_direct.py --plan-output direct-plan.json
+        run: python -m scripts.autonomous_direct --plan-output direct-plan.json
       - name: Upload diagnostic plan
         if: always()
         uses: actions/upload-artifact@v4
