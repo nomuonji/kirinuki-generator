@@ -227,6 +227,26 @@ def list_state_files(service, parent_id: str, prefix: str = "state_") -> list[di
     return response.get("files", [])
 
 
+def download_file_to_path(service, file_id: str, destination: Path) -> int:
+    """Download a large Drive overflow MP4 to disk using bounded memory.
+
+    Do not materialize the full video as a Python bytes object on an Actions
+    runner; the source video, Remotion browser and renderer already consume RAM.
+    """
+    request = service.files().get_media(fileId=file_id)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("wb") as output:
+        downloader = MediaIoBaseDownload(output, request, chunksize=8 * 1024 * 1024)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+    size = destination.stat().st_size
+    if size < 100_000:
+        destination.unlink(missing_ok=True)
+        raise RuntimeError("Drive overflow download is empty or implausibly short")
+    return size
+
+
 def download_file_bytes(service, file_id: str) -> bytes:
     """Downloads the contents of a file as bytes."""
     request = service.files().get_media(fileId=file_id)
