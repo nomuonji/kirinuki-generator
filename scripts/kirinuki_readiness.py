@@ -17,7 +17,10 @@ SOURCE_SECRETS = ("YOUTUBE_API_KEY", "GEMINI_API_KEY")
 
 def preflight(env, *, verify_oauth=False):
     gates = {name: str(env.get(name, "")).strip().lower() == "true" for name in BOOL_GATES}
-    oauth_present = all(bool(str(env.get(name, "")).strip()) for name in UPLOAD_SECRETS)
+    oauth_client_present = all(bool(str(env.get(name, "")).strip())
+                               for name in ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET"))
+    refresh_present = bool(str(env.get("YOUTUBE_REFRESH_TOKEN", "")).strip())
+    oauth_present = oauth_client_present and refresh_present
     source_present = all(bool(str(env.get(name, "")).strip()) for name in SOURCE_SECRETS)
     has_destination = bool(str(env.get("YOUTUBE_DESTINATION_CHANNEL_ID", "")).strip())
     oauth_result = "missing_credentials_or_destination"
@@ -43,8 +46,10 @@ def preflight(env, *, verify_oauth=False):
         blockers.append("YOUTUBE_API_KEY_or_GEMINI_API_KEY_missing")
     if not has_destination:
         blockers.append("YOUTUBE_DESTINATION_CHANNEL_ID_missing")
-    if not oauth_present:
-        blockers.append("YOUTUBE_OAUTH_secrets_missing")
+    if not oauth_client_present:
+        blockers.append("YOUTUBE_OAUTH_client_id_or_secret_missing")
+    if not refresh_present:
+        blockers.append("YOUTUBE_OAUTH_refresh_token_missing")
     if oauth_result.startswith("verification_failed"):
         blockers.append("YOUTUBE_OAUTH_channel_mismatch_or_auth_failure")
 
@@ -56,6 +61,8 @@ def preflight(env, *, verify_oauth=False):
         "destinationGateEnabled": gates["KIRINUKI_CHANNEL_AUTHORIZED"],
         "sourceApiAndAiCredentialsPresent": source_present,
         "youtubeDestinationConfigured": has_destination,
+        "youtubeOAuthClientPresent": oauth_client_present,
+        "youtubeOAuthRefreshTokenPresent": refresh_present,
         "youtubeOAuthCredentialPresent": oauth_present,
         "youtubeOAuthCheck": oauth_result,
         "driveOverflowCredentialsPresent": all(bool(str(env.get(k, "")).strip())

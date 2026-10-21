@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from packages.quality_gate import (
-    candidate_payload, independent_review, static_filter,
+    candidate_payload, independent_review, select_top_candidates, static_filter,
     validated_receipt, verify_rendered_media, write_receipt,
 )
 
@@ -30,6 +30,15 @@ def proposal(quote="生活費を先に計算しましょう", start=0, end=48, c
 
 
 class QualityGateTests(unittest.TestCase):
+    def test_choose_best_approved_not_just_first_proposal(self):
+        # Unapproved high-confidence proposal is removed before this operation.
+        c1 = SimpleNamespace(start=100, end=140, confidence=0.81)
+        c2 = SimpleNamespace(start=80, end=120, confidence=0.97)
+        c3 = SimpleNamespace(start=10, end=45, confidence=0.91)
+        chosen = select_top_candidates([c1, c2, c3], 2)
+        self.assertEqual([p.start for p in chosen], [10, 80])
+        self.assertEqual(select_top_candidates([c1, c2], 0), [c1, c2])
+
     def test_made_up_quote_cannot_enter_inventory(self):
         passed, audit = static_filter([proposal(quote="辞めるなら今すぐ逃げろ")], transcript())
         self.assertEqual(passed, [])

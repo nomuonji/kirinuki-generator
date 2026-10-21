@@ -20,6 +20,18 @@ class ReadinessUnitTests(unittest.TestCase):
         self.assertIn("KIRINUKI_SOURCE_RIGHTS_APPROVED", report["blockers"])
         self.assertNotIn("private-secret-value", str(report))
         self.assertNotIn("private-refresh-token", str(report))
+        self.assertTrue(report["youtubeOAuthClientPresent"])
+        self.assertTrue(report["youtubeOAuthRefreshTokenPresent"])
+
+    def test_missing_youtube_refresh_token_is_reported_separately(self):
+        env = {"YOUTUBE_CLIENT_ID": "configured",
+               "YOUTUBE_CLIENT_SECRET": "configured",
+               "YOUTUBE_DESTINATION_CHANNEL_ID": "UCexample"}
+        report = preflight(env)
+        self.assertTrue(report["youtubeOAuthClientPresent"])
+        self.assertFalse(report["youtubeOAuthRefreshTokenPresent"])
+        self.assertIn("YOUTUBE_OAUTH_refresh_token_missing", report["blockers"])
+        self.assertNotIn("YOUTUBE_OAUTH_client_id_or_secret_missing", report["blockers"])
 
     def test_flags_cannot_replace_oauth_readback(self):
         env = {k: "true" for k in (
