@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from packages.cutter_ffmpeg.cutter import ClipSpec, cut_many
+from packages.quality_gate import AUDIT_FILENAME, validated_receipt, verify_rendered_media
 from datetime import timedelta
 from packages.shared.gdrive import (
     build_safe_filename,
@@ -191,7 +192,11 @@ def build_clips_manifest(clips_dir: Path) -> dict | None:
         print(f"Warning: Failed to parse clip_candidates.json: {exc}", file=sys.stderr)
         return None
 
+    if not validated_receipt(clips_dir):
+        raise RuntimeError("Cannot build a manifest for clips without an editorial approval receipt")
+
     manifest: dict[str, object] = {
+        "qualityAudit": json.loads((clips_dir / AUDIT_FILENAME).read_text(encoding="utf-8")),
         "version": 1,
         "generatedAt": _utc_now_iso(),
         "candidates": candidates,
@@ -251,6 +256,13 @@ def restore_clips_from_manifest(manifest: dict, video_path: Path, clips_dir: Pat
 
     candidates_path = clips_dir / "clip_candidates.json"
     candidates_path.write_text(json.dumps(candidates, ensure_ascii=False, indent=2), encoding="utf-8")
+    quality_receipt = manifest.get("qualityAudit")
+    if quality_receipt:
+        (clips_dir / AUDIT_FILENAME).write_text(
+            json.dumps(quality_receipt, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    if not validated_receipt(clips_dir):
+        return False
 
     clip_specs: list[ClipSpec] = []
 
@@ -306,6 +318,8 @@ def upload_clip_and_props(
     batch_idx: int,
     persist_state_fn,
 ):
+    media_audit = verify_rendered_media(rendered_file)
+    print(f"Media QA passed for {clip_key}: {media_audit}")
     remote_base = build_safe_filename(sanitized_title, f"_clip_{clip_key}")
     remote_name = f"{remote_base}.mp4"
     file_size = rendered_file.stat().st_size
@@ -316,6 +330,7 @@ def upload_clip_and_props(
     print(f"  -> Drive upload succeeded for clip {clip_key}: id={file_id}, size={file_size} bytes")
 
     clip_record = clips_state.setdefault(clip_key, {})
+    clip_record["mediaAudit"] = media_audit
     clip_record["rendered"] = True
     clip_record["uploaded"] = True
     clip_record["batchIndex"] = batch_idx
@@ -926,6 +941,13 @@ def main():
                     clips_manifest = None
                     persist_state()
 
+        # A resumed source from an older pipeline may contain unreviewed clips.
+        # Rebuild rather than trusting an audit-less remote manifest.
+        if clips_stage.get("done") and clips_dir.exists() and not validated_receipt(clips_dir):
+            print("Missing or stale editorial approval on cached clips; regenerating.")
+            clips_stage["done"] = False
+            persist_state()
+
         need_generate = not clips_stage.get("done") or not clips_dir.exists()
         if need_generate:
             cmd_generate = [
@@ -1005,6 +1027,9 @@ def main():
                 artifacts["clipsManifest"] = clips_manifest_info
                 clips_manifest = manifest
                 persist_state()
+
+        if not validated_receipt(clips_dir):
+            raise RuntimeError("Refusing to render clips without a valid editorial approval receipt")
 
         # --- 5.5 Generate Reaction Timelines (optional) ---
         if args.reaction:
