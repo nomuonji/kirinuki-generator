@@ -54,6 +54,21 @@ def refine_clip_end_time(p: ClipCandidate, items: List[dict], max_sec: float) ->
     
     return new_end
 
+def select_top_candidates(candidates, limit):
+    """Take the strongest clips but keep numbering in transcript order."""
+    if limit <= 0 or len(candidates) <= limit:
+        return list(candidates)
+    chosen = sorted(
+        candidates,
+        key=lambda candidate: (
+            float(getattr(candidate, "confidence", 0.0) or 0.0),
+            float(candidate.end - candidate.start),
+        ),
+        reverse=True,
+    )[:limit]
+    return sorted(chosen, key=lambda candidate: candidate.start)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Transcript -> Gemini -> edit points -> FFmpeg cutter (+ optional subtitles)")
     ap.add_argument("--transcript", required=True, help="path to .json/.jsonl transcript with {start,end,text}")
@@ -126,23 +141,17 @@ def main():
 
     props = propose_clips_from_transcript(items, preset=args.platform,
                                           min_gap=args.min_gap, min_sec=args.min_sec, max_sec=args.max_sec, concept=concept)
-    if args.max_clips > 0 and len(props) > args.max_clips:
+    # Review a larger ranked pool BEFORE enforcing the final output count.
+    # Previously --max-clips 1 checked exactly one proposal; when its ending
+    # failed independent editorial QA the entire production source aborted,
+    # even if the transcript had other strong self-contained moments.
+    review_pool_limit = max(args.max_clips * 4, 8) if args.max_clips > 0 else 0
+    if review_pool_limit and len(props) > review_pool_limit:
         print(
-            f"\nLimiting clip proposals from {len(props)} to the "
-            f"{args.max_clips} highest-confidence entries."
+            f"\nLimiting editorial review to {review_pool_limit} "
+            f"highest-confidence proposals (of {len(props)})."
         )
-        # Gemini returns proposals in transcript order. Truncating that list used to keep
-        # the earliest moments rather than the strongest moments. Select by confidence
-        # first, then restore chronological order for deterministic clip numbering.
-        props = sorted(
-            props,
-            key=lambda candidate: (
-                float(getattr(candidate, "confidence", 0.0) or 0.0),
-                float(candidate.end - candidate.start),
-            ),
-            reverse=True,
-        )[: args.max_clips]
-        props.sort(key=lambda candidate: candidate.start)
+        props = select_top_candidates(props, review_pool_limit)
 
     print("\n--- Verifying Gemini's Raw Proposals and Refining End Times ---")
     for i, p in enumerate(props, start=1):
@@ -172,6 +181,9 @@ def main():
     print(f"Independent editorial gate: {len(props)} candidates approved; decisions={editorial_decisions}")
     if not props:
         raise RuntimeError("No clips passed independent editorial review")
+    if args.max_clips > 0 and len(props) > args.max_clips:
+        print(f"Selecting {args.max_clips} strongest *approved* clips from {len(props)}.")
+        props = select_top_candidates(props, args.max_clips)
 
     # --out引数で指定されたディレクトリをPathオブジェクトとして扱う
     outdir = pathlib.Path(args.out)
