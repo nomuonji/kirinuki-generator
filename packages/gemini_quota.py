@@ -40,9 +40,9 @@ def quota_delay(exc: Exception) -> float | None:
     )
     if any(marker in lowered for marker in daily_markers):
         return None
-    matched = re.search(r"retry_delay\\s*\\{\\s*seconds:\\s*(\\d+)", message, flags=re.I | re.S)
+    matched = re.search(r"retry_delay\s*\{\s*seconds:\s*(\d+)", message, flags=re.I | re.S)
     if not matched:
-        matched = re.search(r"retry in\\s*(\\d+(?:\\.\\d+)?)\\s*s", message, flags=re.I)
+        matched = re.search(r"retry in\s*(\d+(?:\.\d+)?)\s*s", message, flags=re.I)
     seconds = float(matched.group(1)) if matched else 60.0
     return max(10.0, min(120.0, seconds + 3.0))
 
