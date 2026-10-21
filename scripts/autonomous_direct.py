@@ -42,9 +42,12 @@ def reconcile(ledger, actual):
         remote = by_key.get(key)
         if remote:
             status = remote.get("status") or {}
-            if rec.get("videoId") != remote["id"] or rec.get("status") not in ("scheduled", "published"):
+            inferred = ("scheduled" if status.get("publishAt") else
+                        "published" if status.get("privacyStatus") == "public" else
+                        "uploaded_private_unscheduled")
+            if rec.get("videoId") != remote["id"] or rec.get("status") not in ("scheduled", "published", "uploaded_private_unscheduled"):
                 rec.update({"videoId": remote["id"],
-                            "status": "scheduled" if status.get("publishAt") else "published",
+                            "status": inferred,
                             "publishAt": status.get("publishAt"),
                             "privacyStatus": status.get("privacyStatus")})
                 dirty = True
@@ -58,12 +61,14 @@ def reconcile(ledger, actual):
 
 
 def combined_reservations(ledger, provider):
-    merged = list(provider)
+    now = utc_now()
+    merged = [r for r in provider if r.get("publishAt") and aware(r["publishAt"]) > now]
     keys = {(r.get("publishAt"), r.get("sourceVideoId")) for r in merged}
     for rec in ledger.data["clips"].values():
         if rec.get("status") not in ("scheduled", "verification_pending"):
             continue
-        if rec.get("publishAt") and (rec["publishAt"], rec.get("sourceVideoId")) not in keys:
+        if (rec.get("publishAt") and aware(rec["publishAt"]) > now
+                and (rec["publishAt"], rec.get("sourceVideoId")) not in keys):
             merged.append({"publishAt": rec["publishAt"], "sourceVideoId": rec.get("sourceVideoId")})
     return merged
 
@@ -151,9 +156,25 @@ class DirectLane:
         key = item["fingerprint"]
         old = self.ledger.clip(key)
         if old and old.get("status") in ("scheduled", "published", "verification_pending",
-                                        "uploading", "uncertain"):
+                                        "uploading", "uncertain", "uploaded_private_unscheduled"):
             print(f"Already handled or unresolved: {key}, {old['status']}")
             return "already_handled"
+        # Re-runs with slightly shifted timestamps must not create overlapping
+        # duplicate clips from the same long-form source.
+        start, end = float(item.get("start", -1)), float(item.get("end", -1))
+        if end > start >= 0:
+            for other_key, other in self.ledger.data["clips"].items():
+                if other_key == key or other.get("sourceVideoId") != item["sourceVideoId"]:
+                    continue
+                if other.get("status") not in (
+                    "scheduled", "published", "verification_pending", "uploading",
+                    "uncertain", "overflow", "uploaded_private_unscheduled",
+                ):
+                    continue
+                a, b = float(other.get("start", -1)), float(other.get("end", -1))
+                if b > a >= 0 and max(0.0, min(end, b)-max(start, a)) >= 0.75 * min(end-start, b-a):
+                    print(f"Skipping substantial same-source duplicate of {other_key}")
+                    return "already_handled"
         if self.available_capacity() == 0:
             return "overflow"
         slot = self.next_slot(item["sourceVideoId"])
