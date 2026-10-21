@@ -7,7 +7,6 @@ on:
       - 'scripts/private_render_smoke.py'
       - 'apps/cli/generate_clips.py'
       - 'packages/quality_gate.py'
-      - '.github/workflows/private-render-smoke.yml'
   workflow_dispatch:
     inputs:
       source_video_id:
@@ -57,7 +56,7 @@ jobs:
           npx remotion browser ensure --log=warn || npx remotion browser ensure
       - name: Run actual 1-clip AI pipeline without sending any footage
         env:
-          SOURCE_VIDEO_ID: ${{ inputs.source_video_id || '0YyAgmv5_Yc' }}
+          SOURCE_VIDEO_ID: ${{ inputs.source_video_id || 'KmCUBDWi6T0' }}
         run: |
           python -m scripts.private_render_smoke --video-id "$SOURCE_VIDEO_ID" --output-dir private-smoke-results
       - name: Save redacted diagnosis (do not expose copyrighted MP4)
