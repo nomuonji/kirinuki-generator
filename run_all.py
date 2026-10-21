@@ -309,6 +309,7 @@ def restore_clips_from_manifest(manifest: dict, video_path: Path, clips_dir: Pat
 
 def upload_clip_and_props(
     clip_key: str,
+    source_video_id: str,
     rendered_file: Path,
     prop_file: Path | None,
     sanitized_title: str,
@@ -343,7 +344,29 @@ def upload_clip_and_props(
     if prop_file and prop_file.exists():
         props_remote_name = f"{remote_base}.json"
         print(f"Uploading props for clip {clip_key} ({prop_file.name}) to Drive as {props_remote_name}...")
-        props_payload = prop_file.read_bytes()
+        # Keep per-clip editorial and media evidence in the durable Drive props.
+        # The processing state and source manifest may be deleted after completion.
+        audit_file = Path("apps/remotion/public/out_clips") / AUDIT_FILENAME
+        if not validated_receipt(audit_file.parent):
+            raise RuntimeError("Editorial receipt missing before props upload")
+        source_audit = json.loads(audit_file.read_text(encoding="utf-8"))
+        props_metadata = json.loads(prop_file.read_text(encoding="utf-8"))
+        if not isinstance(props_metadata, dict):
+            raise RuntimeError("Rendered props must be a JSON object")
+        props_metadata["kirinukiAudit"] = {
+            "editorialVersion": source_audit["version"],
+            "approvedCandidateDigest": source_audit["candidateDigest"],
+            "media": media_audit,
+            "sourceVideoId": source_video_id,
+            "sourceVideoUrl": f"https://www.youtube.com/watch?v={source_video_id}",
+            "sourceChannelId": os.environ.get("YOUTUBE_CHANNEL_ID", ""),
+            "permissionVerified": False,
+            "transformativeUseVerified": False,
+            "publicPublishingAuthorized": False,
+        }
+        props_payload = json.dumps(
+            props_metadata, ensure_ascii=False, indent=2
+        ).encode("utf-8")
         props_file_id = upload_json_data(
             drive_service,
             drive_parent_id,
@@ -1126,6 +1149,7 @@ def main():
                     return
                 upload_clip_and_props(
                     clip_key,
+                    args.video_id,
                     rendered_path,
                     prop_path,
                     sanitized_title,
