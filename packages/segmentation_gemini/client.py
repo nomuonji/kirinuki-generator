@@ -216,6 +216,66 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
     except Exception as exc:
         print(f"  -> Warning: Subtitle polishing failed: {exc}")
     return lines
+
+
+def polish_subtitles_bulk(clips: List[Dict], concept: str = "") -> Dict[int, List[str]]:
+    """Polish subtitle lines for multiple clips in one Gemini request.
+
+    Each input is {"index": int, "lines": List[str]}. A clip is returned only
+    when Gemini preserves its exact line count; callers retain originals for
+    any omitted or malformed result.
+    """
+    if not clips:
+        return {}
+
+    from google.generativeai import protos
+
+    schema = protos.Schema(
+        type=protos.Type.ARRAY,
+        items=protos.Schema(
+            type=protos.Type.OBJECT,
+            properties={
+                "index": protos.Schema(type=protos.Type.NUMBER),
+                "lines": protos.Schema(type=protos.Type.ARRAY, items=protos.Schema(type=protos.Type.STRING)),
+            },
+            required=["index", "lines"],
+        ),
+    )
+    concept_prompt = f"Overall video concept: {concept}. " if concept else ""
+    sys = (
+        "You are a professional Japanese subtitle editor. "
+        f"{concept_prompt}For every clip, correct typos and punctuation while preserving meaning. "
+        "Do not merge or split subtitle lines. Keep each clip's line count, order, and index unchanged. "
+        "Return one object per input with the same index and a lines array. JSON only."
+    )
+    payload = [
+        {"index": int(clip["index"]), "lines": [str(line) for line in clip.get("lines", [])]}
+        for clip in clips
+    ]
+    model = genai.GenerativeModel(GEMINI_MODEL)
+    resp = with_quota_retry(lambda: model.generate_content(
+        [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
+        generation_config={
+            "response_mime_type": "application/json",
+            "response_schema": schema,
+            "temperature": 0.2,
+        },
+        request_options={"timeout": 600},
+    ))
+    parsed = _safe_parsed(resp, expect_array=True)
+    expected = {int(clip["index"]): len(clip.get("lines", [])) for clip in clips}
+    out: Dict[int, List[str]] = {}
+    for item in parsed:
+        try:
+            index = int(item["index"])
+            lines = item["lines"]
+            if index in expected and isinstance(lines, list) and len(lines) == expected[index]:
+                out[index] = [str(line) for line in lines]
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
 def generate_hook_text(clip_transcript: str) -> HookText:
     """
     Generates catchy hook texts for a video clip based on its transcript.
