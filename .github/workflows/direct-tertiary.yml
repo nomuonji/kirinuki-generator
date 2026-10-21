@@ -39,6 +39,8 @@ env:
 
 jobs:
   plan:
+    # Zero hosted-runner minutes until rights and destination authorization exist.
+    if: ${{ vars.KIRINUKI_AUTOPUBLISH_ENABLED == 'true' && vars.KIRINUKI_SOURCE_RIGHTS_APPROVED == 'true' && vars.KIRINUKI_CHANNEL_AUTHORIZED == 'true' && vars.KIRINUKI_DESTINATION_CHANNEL_ID != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     outputs:
