@@ -7,6 +7,8 @@ on:
       - 'scripts/private_render_smoke.py'
       - 'apps/cli/generate_clips.py'
       - 'packages/quality_gate.py'
+      - 'packages/opencode_go.py'
+      - 'tests/test_opencode_go.py'
       - 'packages/gemini_quota.py'
       - 'packages/segmentation_gemini/client.py'
       - 'scripts/autonomous_direct.py'
