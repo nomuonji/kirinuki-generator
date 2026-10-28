@@ -110,7 +110,7 @@ Return a JSON array of objects. Each object must have these fields:
 Output JSON only."""
 
     all_props: List[ClipCandidate] = []
-    chunk_chars = int(os.environ.get("OPENCODE_GO_PROPOSAL_CHUNK_CHARS", "50000"))
+    chunk_chars = int(os.environ.get("OPENCODE_GO_PROPOSAL_CHUNK_CHARS", "18000"))
     for chunk in _chunks(items, max_chars=chunk_chars):
         resp = generate_chat_completion(
             OPENCODE_GO_MODEL,
@@ -118,7 +118,7 @@ Output JSON only."""
             generation_config={
                 "temperature": 0.2
             },
-            request_options={"timeout": 600, "retry": None},
+            request_options={"timeout": 180, "attempts": 2, "retry": None},
         )
         parsed = _safe_parsed(resp, expect_array=True)
         for d in parsed:
@@ -179,7 +179,7 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
             generation_config={
                 'temperature': 0.2,
             },
-            request_options={"timeout": 300, "retry": None},
+            request_options={"timeout": 180, "attempts": 2, "retry": None},
         )
         cleaned = _safe_parsed(resp, expect_array=True)
         cleaned_lines = [str(x) for x in cleaned]
