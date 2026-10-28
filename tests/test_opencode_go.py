@@ -120,7 +120,7 @@ class OpenCodeGoTests(unittest.TestCase):
         self.assertEqual(post.call_count, 2)
         self.assertEqual(post.call_args_list[0].kwargs["json"]["max_tokens"], 8192)
         self.assertEqual(post.call_args_list[1].kwargs["json"]["max_tokens"], 16384)
-        self.assertEqual(result.text, "{\\"ok\\":true}")
+        self.assertEqual(result.text, '{"ok":true}')
 
     def test_does_not_retry_authentication_failure(self):
         with patch.dict(os.environ, {"OPENCODE_GO_API_KEY": "test-key"}, clear=True):
