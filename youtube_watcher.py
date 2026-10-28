@@ -535,7 +535,7 @@ def main():
         required_vars.update(
             {
                 "RAPIDAPI_KEY": os.environ.get("RAPIDAPI_KEY"),
-                "GEMINI_API_KEY": os.environ.get("GEMINI_API_KEY"),
+                "OPENCODE_GO_API_KEY": os.environ.get("OPENCODE_GO_API_KEY") or os.environ.get("OPENCODE_API_KEY"),
             }
         )
 
