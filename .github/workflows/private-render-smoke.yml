@@ -39,6 +39,7 @@ jobs:
       KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
       OPENCODE_GO_PROPOSAL_CHUNK_CHARS: '12000'
       OPENCODE_GO_MAX_TIMEOUT_SECONDS: '180'
+      OPENCODE_GO_REASONING_EFFORT: low
       OPENCODE_GO_MODEL: deepseek-v4.1-flash
       HOOK_MODEL: deepseek-v4.1-flash
       KIRINUKI_REVIEW_MODEL: deepseek-v4.1-flash
