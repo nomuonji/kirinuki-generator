@@ -81,6 +81,18 @@ class OpenCodeGoTests(unittest.TestCase):
         self.assertEqual(result.model, DEFAULT_MODEL)
         self.assertEqual(post.call_args.kwargs["json"]["model"], DEFAULT_MODEL)
 
+    def test_request_timeout_is_bounded(self):
+        with patch.dict(os.environ, {
+            "OPENCODE_GO_API_KEY": "test-key",
+            "OPENCODE_GO_MAX_TIMEOUT_SECONDS": "90",
+        }, clear=True):
+            with patch("packages.opencode_go.requests.post", return_value=FakeResponse()) as post:
+                generate_chat_completion(
+                    DEFAULT_MODEL, "prompt", request_options={"timeout": 600},
+                    sleep=lambda _: None, notify=lambda _: None,
+                )
+        self.assertEqual(post.call_args.kwargs["timeout"], 90)
+
     def test_retries_transient_http_status(self):
         responses = [FakeResponse(status_code=503, text="high demand"), FakeResponse()]
         with patch.dict(os.environ, {"OPENCODE_GO_API_KEY": "test-key"}, clear=True):
