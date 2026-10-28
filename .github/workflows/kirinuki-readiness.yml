@@ -1,6 +1,9 @@
 name: Kirinuki Production Readiness
 
 on:
+  schedule:
+    # Read-only readiness diagnosis twice daily; does not produce or publish clips.
+    - cron: '17 0,12 * * *'
   push:
     branches:
       - main
