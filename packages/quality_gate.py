@@ -11,7 +11,7 @@ import re
 import subprocess
 import unicodedata
 from pathlib import Path
-from packages.gemini_quota import with_quota_retry
+from packages.gemini_quota import generate_content_with_fallback, with_quota_retry
 
 AUDIT_FILENAME = ".quality_audit.json"
 AUDIT_VERSION = 1
@@ -126,12 +126,12 @@ def independent_review(candidates, segments, *, model_name: str | None = None) -
         '"completeEnding":true,"payoff":true,"reason":"短い具体的説明"}. '
         "No markdown. All booleans must be genuine JSON booleans."
     )
-    model = genai.GenerativeModel(model_name or os.environ.get("KIRINUKI_REVIEW_MODEL", "gemini-2.5-flash"))
-    response = with_quota_retry(lambda: model.generate_content(
+    response = generate_content_with_fallback(
+        model_name or os.environ.get("KIRINUKI_REVIEW_MODEL", "gemini-2.5-flash"),
         [prompt, json.dumps(payload, ensure_ascii=False)],
         generation_config={"response_mime_type": "application/json", "temperature": 0},
         request_options={"timeout": 300, "retry": None},
-    ))
+    )
     try:
         reviewed = json.loads(response.text)
     except (TypeError, ValueError, AttributeError) as exc:
