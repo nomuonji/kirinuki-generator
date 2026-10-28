@@ -1,6 +1,13 @@
 name: Operations Logic Tests
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/gemini_quota.py'
+      - 'tests/test_gemini_quota.py'
+      - '.github/workflows/operations-tests.yml'
   pull_request:
     paths:
       - 'youtube_watcher.py'
