@@ -87,7 +87,7 @@ def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30
                 "reason": protos.Schema(type=protos.Type.STRING),
                 "confidence": protos.Schema(type=protos.Type.NUMBER),
             },
-            required=["start", "end"],
+            required=["start", "end", "title", "punchline", "reason", "confidence"],
         ),
     )
 
@@ -119,7 +119,7 @@ def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30
 Return a JSON array of objects. Each object must have these fields:
 - `start`: The start time in seconds.
 - `end`: The end time of the clip in seconds.
-- `title`: A concise, engaging title for the clip in Japanese. **Highlight the most important word** with `**`.
+- `title`: A concise, engaging Japanese title of at most 45 characters. **Highlight the most important word** with `**`. Never append hashtag lists, SEO keywords, category labels, or bracketed metadata.
 - `punchline`: Extract the single most impactful, funny, or memorable punchline spoken in the clip. This must be a verbatim quote from the transcript, not a summary. It must be very short (under 15 characters) and readable in one second. **Highlight the key word** with `**`.
 - `reason`: Explain why this segment is a good, self-contained clip (in Japanese).
 - `confidence`: A score from 0 to 1.
