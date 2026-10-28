@@ -91,7 +91,18 @@ def _response_text(payload: Any) -> str:
         joined = "".join(chunks).strip()
         if joined:
             return joined
-    raise OpenCodeGoAPIError("OpenCode Go returned empty assistant content")
+    finish_reason = choices[0].get("finish_reason")
+    message_keys = sorted(str(key) for key in message.keys())
+    reasoning = message.get("reasoning_content")
+    reasoning_chars = len(reasoning) if isinstance(reasoning, str) else 0
+    content_type = type(content).__name__ if content is not None else "null"
+    refusal = bool(message.get("refusal"))
+    raise OpenCodeGoAPIError(
+        "OpenCode Go returned empty assistant content "
+        f"(finish_reason={finish_reason!r}, content_type={content_type}, "
+        f"reasoning_content_chars={reasoning_chars}, refusal={refusal}, "
+        f"message_keys={message_keys})"
+    )
 
 
 def generate_chat_completion(
@@ -210,7 +221,19 @@ def generate_chat_completion(
             result = response.json()
         except (ValueError, AttributeError) as exc:
             raise OpenCodeGoAPIError("OpenCode Go returned invalid JSON") from exc
-        text = _response_text(result)
+        try:
+            text = _response_text(result)
+        except OpenCodeGoAPIError as exc:
+            if "OpenCode Go returned empty assistant content" in str(exc) and attempt < max_attempts - 1:
+                current_budget = int(payload.get("max_tokens", 8192))
+                payload["max_tokens"] = min(max(current_budget + 4096, current_budget * 2), 32768)
+                notify(
+                    "OpenCode Go returned empty assistant content; retrying with a larger "
+                    f"completion budget ({payload['max_tokens']} tokens, attempt {attempt + 2}/{max_attempts})."
+                )
+                sleep(1)
+                continue
+            raise
         return SimpleNamespace(text=text, raw=result, model=payload["model"])
 
     raise OpenCodeGoAPIError(f"OpenCode Go request failed: {last_error}")
