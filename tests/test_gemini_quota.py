@@ -41,6 +41,33 @@ retry_delay {
                 sleep=lambda _: self.fail("must not sleep"),
             )
 
+
+    def test_retries_temporary_model_capacity_503(self):
+        calls = []
+        sleeps = []
+
+        def flaky():
+            calls.append(1)
+            if len(calls) < 3:
+                raise RuntimeError("503 ServiceUnavailable: This model is currently experiencing high demand.")
+            return "render-ready"
+
+        got = with_quota_retry(flaky, attempts=4, sleep=sleeps.append,
+                               notify=lambda *args: None)
+        self.assertEqual(got, "render-ready")
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(sleeps, [15.0, 15.0])
+
+    def test_does_not_retry_unknown_server_failures(self):
+        for msg in ["403 permissionDenied", "bad JSON", "502 malformed response"]:
+            if msg.startswith("502"):
+                # Explicit 5xx responses are transient and should be retried.
+                self.assertIsNotNone(quota_delay(RuntimeError(msg)))
+                continue
+            with self.assertRaises(RuntimeError):
+                with_quota_retry(lambda: (_ for _ in ()).throw(RuntimeError(msg)),
+                                 sleep=lambda _: self.fail("must not sleep"))
+
     def test_does_not_retry_bad_auth_or_invalid_json(self):
         for msg in ["403 permissionDenied", "bad JSON"]:
             with self.assertRaisesRegex(RuntimeError, msg):
