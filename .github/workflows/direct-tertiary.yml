@@ -34,13 +34,12 @@ env:
   KIRINUKI_TARGET_RESERVATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.one_clip_verification == true && '1' || '14' }}
   KIRINUKI_RESERVATION_DAYS: '14'
   KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
-  # Keep long-source transcript analysis within Gemini's shared free-tier daily request budget.
-  GEMINI_PROPOSAL_CHUNK_CHARS: '50000'
-  GEMINI_MODEL: gemini-3.6-flash
-  HOOK_MODEL: gemini-3.6-flash
-  KIRINUKI_REVIEW_MODEL: gemini-3.6-flash
-  REACTION_MODEL: gemini-3.6-flash
-  GEMINI_FALLBACK_MODELS: gemini-3.5-flash-lite,gemini-3.1-flash-lite
+  # Use OpenCode Go / DeepSeek V4.1 Flash for all model calls.
+  OPENCODE_GO_PROPOSAL_CHUNK_CHARS: '50000'
+  OPENCODE_GO_MODEL: deepseek-v4.1-flash
+  HOOK_MODEL: deepseek-v4.1-flash
+  KIRINUKI_REVIEW_MODEL: deepseek-v4.1-flash
+  REACTION_MODEL: deepseek-v4.1-flash
   SAVETUBE_QUALITY: '720'
   SOURCE_FETCH_COUNTRY: US
   PYTHONUNBUFFERED: '1'
@@ -86,7 +85,7 @@ jobs:
     env:
       GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
       GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
       RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
       YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
       PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
