@@ -301,7 +301,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
 
 def _safe_parsed(resp, expect_array: bool = False):
     """Try multiple ways to extract JSON from OpenCode Go response."""
-    # Newer SDKs may support .parsed when response_schema is provided
+    # The OpenCode Go adapter returns text; keep plain JSON parsing as the source of truth
     try:
         return resp.parsed
     except Exception:
