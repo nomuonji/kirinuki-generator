@@ -7,11 +7,10 @@ import sys
 import textwrap
 from typing import Any, Dict, List
 
-import google.generativeai as genai
 from dotenv import load_dotenv
-from packages.gemini_quota import generate_content_with_fallback, with_quota_retry
+from packages.opencode_go import generate_chat_completion
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "deepseek-v4.1-flash"
 MAX_TRANSCRIPT_LINES = 160
 MAX_TRANSCRIPT_CHARS = 6500
 
@@ -235,11 +234,8 @@ def _candidate_texts(response: Any) -> List[str]:
     return texts
 
 
-def _call_gemini(model_name: str, prompt: str, *, retries: int = 2) -> dict[str, Any]:
-    generation_config = genai.types.GenerationConfig(
-        response_mime_type="application/json",
-        temperature=0.7,
-    )
+def _call_model(model_name: str, prompt: str, *, retries: int = 2) -> dict[str, Any]:
+    generation_config = {"response_mime_type": "application/json", "temperature": 0.7}
 
     attempts: List[str] = []
     for attempt in range(retries + 1):
@@ -248,7 +244,7 @@ def _call_gemini(model_name: str, prompt: str, *, retries: int = 2) -> dict[str,
             prompt_variant = prompt + "\n\nREMINDER: Respond with JSON only. No prose."
 
         try:
-            response = generate_content_with_fallback(
+            response = generate_chat_completion(
                 model_name,
                 [prompt_variant],
                 generation_config=generation_config,
@@ -268,7 +264,7 @@ def _call_gemini(model_name: str, prompt: str, *, retries: int = 2) -> dict[str,
         attempts.append(f"unparsed:{snippet}")
 
     details = "; ".join(attempts) or "no_attempts"
-    raise RuntimeError(f"Gemini API did not return valid JSON content ({details})")
+    raise RuntimeError(f"OpenCode Go API did not return valid JSON content ({details})")
 
 def _extract_json(value: str) -> dict[str, Any] | None:
     try:
@@ -393,7 +389,7 @@ def _sanitize_bulk_reactions(
 ) -> Dict[str, List[dict[str, Any]]]:
     clips = payload.get("clips")
     if not isinstance(clips, list):
-        print("Warning: Gemini response missing 'clips' array; treating as no reactions.", file=sys.stderr)
+        print("Warning: OpenCode Go response missing 'clips' array; treating as no reactions.", file=sys.stderr)
         clips = []
 
     sanitized: Dict[str, List[dict[str, Any]]] = {}
@@ -423,18 +419,18 @@ def _sanitize_bulk_reactions(
     return sanitized
 
 def main(argv: List[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Generate mascot reaction timelines via Gemini API.")
+    parser = argparse.ArgumentParser(description="Generate mascot reaction timelines via OpenCode Go.")
     parser.add_argument("--transcript", required=True, help="Path to transcript JSON (list of segments).")
     parser.add_argument("--output", help="Output JSON path when generating a single clip timeline.")
     parser.add_argument("--output-dir", help="Directory for per-clip reaction JSON when generating in bulk.")
     parser.add_argument("--clip-candidates", help="Path to clip_candidates.json for bulk generation.")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model ID.")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="OpenCode Go model ID.")
     parser.add_argument("--max-reactions", type=int, default=8, help="Max reactions to request per clip.")
     parser.add_argument("--character-name", default="Kirinuki Friend", help="Name of the reaction character.")
     parser.add_argument("--tone", help="Optional short description of the character tone.")
     parser.add_argument("--start-sec", type=float, help="Clip start second (single mode).")
     parser.add_argument("--end-sec", type=float, help="Clip end second (single mode).")
-    parser.add_argument("--api-key", help="Gemini API key. Overrides GEMINI_API_KEY env var if provided.")
+    parser.add_argument("--api-key", help="OpenCode Go API key. Overrides OPENCODE_GO_API_KEY env var if provided.")
 
     args = parser.parse_args(argv)
 
@@ -451,11 +447,10 @@ def main(argv: List[str] | None = None) -> int:
 
     single_mode = args.start_sec is not None or args.end_sec is not None or args.output is not None
 
-    api_key = args.api_key or os.getenv("GEMINI_API_KEY")
+    api_key = args.api_key or os.getenv("OPENCODE_GO_API_KEY") or os.getenv("OPENCODE_API_KEY")
     if not api_key:
-        parser.error("Gemini API key missing. Pass --api-key or set GEMINI_API_KEY.")
-    
-    genai.configure(api_key=api_key)
+        parser.error("OpenCode Go API key missing. Set OPENCODE_GO_API_KEY or pass --api-key.")
+    os.environ["OPENCODE_GO_API_KEY"] = api_key
 
     if single_mode:
         if args.start_sec is None or args.end_sec is None:
@@ -475,7 +470,7 @@ def main(argv: List[str] | None = None) -> int:
             args.tone,
         )
         try:
-            response_payload = _call_gemini(args.model, prompt)
+            response_payload = _call_model(args.model, prompt)
             reactions = _sanitize_reaction_entries(
                 response_payload.get("reactions", []),
                 max_reactions=max(1, args.max_reactions),
@@ -483,7 +478,7 @@ def main(argv: List[str] | None = None) -> int:
                 segments=window_segments,
             )
         except Exception as exc:
-            parser.error(f"Gemini API error: {exc}")
+            parser.error(f"OpenCode Go API error: {exc}")
 
         if args.output:
             output_path = pathlib.Path(args.output)
@@ -559,14 +554,14 @@ def main(argv: List[str] | None = None) -> int:
     )
 
     try:
-        response_payload = _call_gemini(args.model, prompt)
+        response_payload = _call_model(args.model, prompt)
         sanitized_map = _sanitize_bulk_reactions(
             response_payload,
             clip_meta,
             max(1, args.max_reactions),
         )
     except Exception as exc:
-        parser.error(f"Gemini API error: {exc}")
+        parser.error(f"OpenCode Go API error: {exc}")
 
     for clip_id, meta in clip_meta.items():
         reactions = sanitized_map.get(clip_id, [])
