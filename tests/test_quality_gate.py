@@ -100,21 +100,11 @@ class QualityGateTests(unittest.TestCase):
             self.assertFalse(validated_receipt(folder))
 
     def test_independent_review_rejects_missing_response(self):
-        # Import the model SDK in production; here isolate an invalid model
-        # response so the no-humans fallback is a hard failure.
-        import sys
-        import types
-        fake_genai = types.ModuleType("google.generativeai")
-        fake_genai.configure = lambda **kw: None
-        fake_genai.GenerativeModel = lambda name: SimpleNamespace(
-            generate_content=lambda *a, **k: SimpleNamespace(text="[]")
-        )
-        google = types.ModuleType("google")
-        google.generativeai = fake_genai
-        with patch.dict(sys.modules, {"google": google, "google.generativeai": fake_genai}):
-            with patch.dict("os.environ", {"GEMINI_API_KEY": "local-test"}):
-                with self.assertRaisesRegex(RuntimeError, "incomplete"):
-                    independent_review([proposal()], transcript())
+        # Isolate an invalid provider response; incomplete review must fail closed.
+        with patch("packages.quality_gate.generate_chat_completion",
+                   return_value=SimpleNamespace(text="[]")):
+            with self.assertRaisesRegex(RuntimeError, "incomplete"):
+                independent_review([proposal()], transcript())
 
     def test_media_without_audio_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
