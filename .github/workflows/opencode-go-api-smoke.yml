@@ -1,0 +1,59 @@
+name: OpenCode Go DeepSeek API Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/opencode_go.py'
+      - '.github/workflows/opencode-go-api-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opencode-go-api-smoke
+  cancel-in-progress: true
+
+jobs:
+  api-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+      OPENCODE_GO_MODEL: deepseek-v4.1-flash
+      OPENCODE_GO_MAX_TOKENS: '128'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install minimal client dependency
+        run: python -m pip install --disable-pip-version-check requests
+      - name: Send one minimal DeepSeek API request and validate JSON
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from packages.opencode_go import generate_chat_completion
+
+          response = generate_chat_completion(
+              os.environ.get("OPENCODE_GO_MODEL"),
+              [
+                  "Return exactly one JSON object, with no markdown or explanation. "
+                  "Use the shape: {\"status\":\"ok\",\"model\":\"deepseek-v4.1-flash\"}.",
+                  "API connectivity test only. Do not answer anything else."
+              ],
+              generation_config={"temperature": 0},
+              request_options={"timeout": 60},
+              attempts=2,
+          )
+          result = json.loads(response.text)
+          assert result.get("status") == "ok", "Model response did not contain status=ok"
+          print(json.dumps({
+              "result": "PASS",
+              "model": response.model,
+              "responseValidated": True,
+              "sessionHeaderPresent": True,
+          }))
+          PY
