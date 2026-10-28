@@ -100,7 +100,7 @@ def generate_chat_completion(
     *,
     generation_config: Any = None,
     request_options: Mapping[str, Any] | None = None,
-    attempts: int = 3,
+    attempts: int = 2,
     sleep=time.sleep,
     notify=print,
     http_post=None,
@@ -124,13 +124,24 @@ def generate_chat_completion(
     base_url = os.environ.get("OPENCODE_GO_BASE_URL", DEFAULT_BASE_URL).strip()
     if not base_url:
         base_url = DEFAULT_BASE_URL
-    timeout = 600
+    timeout_cap = 180
+    try:
+        timeout_cap = max(30, int(os.environ.get("OPENCODE_GO_MAX_TIMEOUT_SECONDS", "180")))
+    except (TypeError, ValueError):
+        timeout_cap = 180
+    timeout = timeout_cap
     if request_options:
         try:
-            timeout = max(1, int(request_options.get("timeout", timeout)))
+            timeout = max(1, min(timeout_cap, int(request_options.get("timeout", timeout_cap))))
         except (TypeError, ValueError):
             pass
-    max_attempts = max(1, min(int(attempts), 5))
+    configured_attempts = attempts
+    if request_options and request_options.get("attempts") is not None:
+        try:
+            configured_attempts = int(request_options["attempts"])
+        except (TypeError, ValueError):
+            raise RuntimeError("OpenCode Go request attempts must be an integer")
+    max_attempts = max(1, min(int(configured_attempts), 3))
     post = http_post or requests.post
 
     payload: dict[str, Any] = {
