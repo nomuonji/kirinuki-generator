@@ -5,16 +5,19 @@ variables only and are never written to logs or request diagnostics.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import time
+import uuid
 from types import SimpleNamespace
 from typing import Any, Mapping
 
 import requests
 
 DEFAULT_MODEL = "deepseek-v4.1-flash"
-DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1/chat/completions"
+DEFAULT_BASE_URL = "https://opencode.ai/inference/go/openai/v1/chat/completions"
 _TRANSIENT_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
+_LOCAL_SESSION_ID = "ses_" + uuid.uuid4().hex
 
 
 class OpenCodeGoAPIError(RuntimeError):
@@ -27,6 +30,21 @@ def _model_id(model_name: str | None) -> str:
     if not model or model.lower().startswith("gemini-"):
         model = os.environ.get("OPENCODE_GO_MODEL", DEFAULT_MODEL).strip()
     return model or DEFAULT_MODEL
+
+
+def _session_id() -> str:
+    """Return a stable session ID for the whole Actions run / local process."""
+    configured = os.environ.get("OPENCODE_GO_SESSION_ID", "").strip()
+    if configured:
+        return configured if configured.startswith("ses_") else "ses_" + configured
+
+    run_id = os.environ.get("GITHUB_RUN_ID", "").strip()
+    if run_id:
+        attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "1").strip() or "1"
+        digest = hashlib.sha256(f"{run_id}:{attempt}".encode("utf-8")).hexdigest()[:32]
+        return "ses_" + digest
+
+    return _LOCAL_SESSION_ID
 
 
 def _messages(contents: Any) -> list[dict[str, str]]:
@@ -129,16 +147,19 @@ def generate_chat_completion(
         except ValueError:
             raise RuntimeError("OPENCODE_GO_MAX_TOKENS must be a positive integer")
 
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "kirinuki-generator/1.0",
+        "x-opencode-session": _session_id(),
+    }
     last_error: Exception | None = None
     for attempt in range(max_attempts):
         try:
             response = post(
                 base_url,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
+                headers=headers,
                 json=payload,
                 timeout=timeout,
             )
@@ -160,9 +181,9 @@ def generate_chat_completion(
             if attempt >= max_attempts - 1:
                 raise last_error
             retry_after = None
-            headers = getattr(response, "headers", {}) or {}
+            headers_response = getattr(response, "headers", {}) or {}
             try:
-                retry_after = float(headers.get("Retry-After"))
+                retry_after = float(headers_response.get("Retry-After"))
             except (TypeError, ValueError):
                 pass
             delay = max(1, min(30, retry_after if retry_after is not None else 2 ** (attempt + 1)))
