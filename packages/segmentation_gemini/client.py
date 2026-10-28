@@ -110,7 +110,7 @@ Return a JSON array of objects. Each object must have these fields:
 Output JSON only."""
 
     all_props: List[ClipCandidate] = []
-    chunk_chars = int(os.environ.get("OPENCODE_GO_PROPOSAL_CHUNK_CHARS", "18000"))
+    chunk_chars = int(os.environ.get("OPENCODE_GO_PROPOSAL_CHUNK_CHARS", "12000"))
     for chunk in _chunks(items, max_chars=chunk_chars):
         resp = generate_chat_completion(
             OPENCODE_GO_MODEL,
