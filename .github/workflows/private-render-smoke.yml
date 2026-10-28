@@ -37,7 +37,7 @@ jobs:
       SOURCE_FETCH_COUNTRY: US
       SAVETUBE_QUALITY: '720'
       KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
-      OPENCODE_GO_PROPOSAL_CHUNK_CHARS: '18000'
+      OPENCODE_GO_PROPOSAL_CHUNK_CHARS: '12000'
       OPENCODE_GO_MAX_TIMEOUT_SECONDS: '180'
       OPENCODE_GO_MODEL: deepseek-v4.1-flash
       HOOK_MODEL: deepseek-v4.1-flash
