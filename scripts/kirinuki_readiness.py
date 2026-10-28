@@ -12,7 +12,7 @@ from pathlib import Path
 BOOL_GATES = ("KIRINUKI_AUTOPUBLISH_ENABLED", "KIRINUKI_SOURCE_RIGHTS_APPROVED",
               "KIRINUKI_CHANNEL_AUTHORIZED")
 UPLOAD_SECRETS = ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN")
-SOURCE_SECRETS = ("YOUTUBE_API_KEY", "GEMINI_API_KEY")
+SOURCE_SECRETS = ("YOUTUBE_API_KEY", "OPENCODE_GO_API_KEY")
 
 
 def preflight(env, *, verify_oauth=False):
@@ -43,7 +43,7 @@ def preflight(env, *, verify_oauth=False):
     )
     blockers = [name for name, enabled in gates.items() if not enabled]
     if not source_present:
-        blockers.append("YOUTUBE_API_KEY_or_GEMINI_API_KEY_missing")
+        blockers.append("YOUTUBE_API_KEY_or_OPENCODE_GO_API_KEY_missing")
     if not has_destination:
         blockers.append("YOUTUBE_DESTINATION_CHANNEL_ID_missing")
     if not oauth_client_present:
