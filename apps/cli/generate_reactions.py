@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 import google.generativeai as genai
 from dotenv import load_dotenv
-from packages.gemini_quota import with_quota_retry
+from packages.gemini_quota import generate_content_with_fallback, with_quota_retry
 
 DEFAULT_MODEL = "gemini-2.5-flash"
 MAX_TRANSCRIPT_LINES = 160
@@ -236,7 +236,6 @@ def _candidate_texts(response: Any) -> List[str]:
 
 
 def _call_gemini(model_name: str, prompt: str, *, retries: int = 2) -> dict[str, Any]:
-    model = genai.GenerativeModel(model_name)
     generation_config = genai.types.GenerationConfig(
         response_mime_type="application/json",
         temperature=0.7,
@@ -249,11 +248,12 @@ def _call_gemini(model_name: str, prompt: str, *, retries: int = 2) -> dict[str,
             prompt_variant = prompt + "\n\nREMINDER: Respond with JSON only. No prose."
 
         try:
-            response = with_quota_retry(lambda: model.generate_content(
-                contents=[prompt_variant],
+            response = generate_content_with_fallback(
+                model_name,
+                [prompt_variant],
                 generation_config=generation_config,
                 request_options={"retry": None},
-            ))
+            )
         except Exception as exc:
             attempts.append(f"generation_error:{exc}")
             continue
