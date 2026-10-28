@@ -35,13 +35,12 @@ jobs:
       SOURCE_FETCH_COUNTRY: US
       SAVETUBE_QUALITY: '720'
       KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
-      GEMINI_PROPOSAL_CHUNK_CHARS: '50000'
-      GEMINI_MODEL: gemini-3.6-flash
-      HOOK_MODEL: gemini-3.6-flash
-      KIRINUKI_REVIEW_MODEL: gemini-3.6-flash
-      REACTION_MODEL: gemini-3.6-flash
-      GEMINI_FALLBACK_MODELS: gemini-3.5-flash-lite,gemini-3.1-flash-lite
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENCODE_GO_PROPOSAL_CHUNK_CHARS: '50000'
+      OPENCODE_GO_MODEL: deepseek-v4.1-flash
+      HOOK_MODEL: deepseek-v4.1-flash
+      KIRINUKI_REVIEW_MODEL: deepseek-v4.1-flash
+      REACTION_MODEL: deepseek-v4.1-flash
+      OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
       RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       YOUTUBE_CHANNEL_ID: UC0yQ2h4gQXmVUFWZSqlMVOA
