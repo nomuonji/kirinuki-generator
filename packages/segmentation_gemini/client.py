@@ -2,7 +2,7 @@ import os, json, time, re
 from typing import List, Dict, Iterable
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-from packages.gemini_quota import with_quota_retry
+from packages.gemini_quota import generate_content_with_fallback, with_quota_retry
 
 load_dotenv()
 
@@ -126,11 +126,11 @@ Return a JSON array of objects. Each object must have these fields:
 
 Output JSON only."""
 
-    model = genai.GenerativeModel(GEMINI_MODEL)
     all_props: List[ClipCandidate] = []
     chunk_chars = int(os.environ.get("GEMINI_PROPOSAL_CHUNK_CHARS", "12000"))
     for chunk in _chunks(items, max_chars=chunk_chars):
-        resp = with_quota_retry(lambda: model.generate_content(
+        resp = generate_content_with_fallback(
+            GEMINI_MODEL,
             [sys, chunk],
             generation_config={
                 "response_mime_type": "application/json",
@@ -138,7 +138,7 @@ Output JSON only."""
                 "temperature": 0.2
             },
             request_options={"timeout": 600, "retry": None},
-        ))
+        )
         parsed = _safe_parsed(resp, expect_array=True)
         for d in parsed:
             try:
@@ -200,7 +200,8 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
     payload = json.dumps(lines, ensure_ascii=False)
     model = genai.GenerativeModel(GEMINI_MODEL)
     try:
-        resp = with_quota_retry(lambda: model.generate_content(
+        resp = generate_content_with_fallback(
+            GEMINI_MODEL,
             [sys, 'INPUT:', payload],
             generation_config={
                 'response_mime_type': 'application/json',
@@ -208,7 +209,7 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
                 'temperature': 0.2,
             },
             request_options={"timeout": 300, "retry": None},
-        ))
+        )
         cleaned = _safe_parsed(resp, expect_array=True)
         cleaned_lines = [str(x) for x in cleaned]
         if len(cleaned_lines) == len(lines):
@@ -253,7 +254,8 @@ def polish_subtitles_bulk(clips: List[Dict], concept: str = "") -> Dict[int, Lis
         for clip in clips
     ]
     model = genai.GenerativeModel(GEMINI_MODEL)
-    resp = with_quota_retry(lambda: model.generate_content(
+    resp = generate_content_with_fallback(
+        GEMINI_MODEL,
         [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
         generation_config={
             "response_mime_type": "application/json",
@@ -261,7 +263,7 @@ def polish_subtitles_bulk(clips: List[Dict], concept: str = "") -> Dict[int, Lis
             "temperature": 0.2,
         },
         request_options={"timeout": 600, "retry": None},
-    ))
+    )
     parsed = _safe_parsed(resp, expect_array=True)
     expected = {int(clip["index"]): len(clip.get("lines", [])) for clip in clips}
     out: Dict[int, List[str]] = {}
@@ -305,8 +307,8 @@ def generate_hook_text(clip_transcript: str) -> HookText:
         "Return JSON with fields upperDecorated, lowerDecorated, upperPlain, lowerPlain, hashtags."
     )
 
-    model = genai.GenerativeModel(HOOK_MODEL)
-    resp = with_quota_retry(lambda: model.generate_content(
+    resp = generate_content_with_fallback(
+        HOOK_MODEL,
         [sys, clip_transcript],
         generation_config={
             "response_mime_type": "application/json",
@@ -314,7 +316,7 @@ def generate_hook_text(clip_transcript: str) -> HookText:
             "temperature": 0.7,
         },
         request_options={"retry": None},
-    ))
+    )
     parsed = _safe_parsed(resp)
     upper_decorated = str(parsed.get("upperDecorated", ""))
     lower_decorated = str(parsed.get("lowerDecorated", ""))
@@ -378,7 +380,8 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
         payload = [{"index": int(it["index"]), "transcript": str(it.get("transcript", ""))[:4000]} for it in batch]
 
         try:
-            resp = with_quota_retry(lambda: model.generate_content(
+            resp = generate_content_with_fallback(
+                HOOK_MODEL,
                 [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
                 generation_config={
                     "response_mime_type": "application/json",
@@ -386,7 +389,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
                     "temperature": 0.7,
                 },
                 request_options={"timeout": 600, "retry": None},
-            ))
+            )
             parsed = _safe_parsed(resp, expect_array=True)
 
             for obj in parsed:
