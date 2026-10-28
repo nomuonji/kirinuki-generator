@@ -1,5 +1,5 @@
 import unittest
-from packages.gemini_quota import quota_delay, with_quota_retry
+from packages.gemini_quota import quota_delay, with_quota_retry, generate_content_with_fallback
 
 
 class GeminiQuotaTests(unittest.TestCase):
@@ -67,6 +67,36 @@ retry_delay {
             with self.assertRaises(RuntimeError):
                 with_quota_retry(lambda: (_ for _ in ()).throw(RuntimeError(msg)),
                                  sleep=lambda _: self.fail("must not sleep"))
+
+    def test_falls_back_to_alternate_model_on_temporary_503(self):
+        requested = []
+        notices = []
+
+        class FakeModel:
+            def __init__(self, name):
+                self.name = name
+
+            def generate_content(self, *args, **kwargs):
+                if self.name == "primary-model":
+                    raise RuntimeError("503 ServiceUnavailable: high demand")
+                return {"model": self.name, "ok": True}
+
+        def factory(name):
+            requested.append(name)
+            return FakeModel(name)
+
+        got = generate_content_with_fallback(
+            "primary-model",
+            ["prompt"],
+            fallback_models=["backup-model"],
+            model_factory=factory,
+            attempts=1,
+            sleep=lambda _: self.fail("first model must fall back without another retry"),
+            notify=notices.append,
+        )
+        self.assertEqual(got, {"model": "backup-model", "ok": True})
+        self.assertEqual(requested, ["primary-model", "backup-model"])
+        self.assertEqual(len(notices), 1)
 
     def test_does_not_retry_bad_auth_or_invalid_json(self):
         for msg in ["403 permissionDenied", "bad JSON"]:
