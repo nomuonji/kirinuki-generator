@@ -5,8 +5,27 @@ on:
     branches:
       - main
     paths:
+      - 'youtube_watcher.py'
+      - 'run_all.py'
+      - 'download_video.py'
+      - 'packages/operations.py'
+      - 'packages/quality_gate.py'
       - 'packages/gemini_quota.py'
       - 'tests/test_gemini_quota.py'
+      - 'tests/test_quality_gate.py'
+      - 'apps/cli/generate_reactions.py'
+      - 'packages/publish_scheduler.py'
+      - 'packages/github_ledger.py'
+      - 'packages/youtube_direct.py'
+      - 'packages/segmentation_gemini/client.py'
+      - 'scripts/autonomous_direct.py'
+      - 'scripts/private_render_smoke.py'
+      - 'scripts/kirinuki_readiness.py'
+      - 'tests/test_readiness.py'
+      - 'tests/test_direct_publish.py'
+      - 'tests/test_youtube_direct.py'
+      - 'tests/test_operations.py'
+      - '.github/workflows/private-render-smoke.yml'
       - '.github/workflows/operations-tests.yml'
   pull_request:
     paths:
