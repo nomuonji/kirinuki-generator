@@ -59,7 +59,7 @@ def sanitize_candidate_title(title: str) -> tuple[str, bool]:
     raw = str(title or "").strip()
     # Gemini occasionally appends a bracketed slash-separated keyword dump after
     # an otherwise usable title. Remove that metadata-like tail, never the title.
-    match = re.search(r"\s+[\[（【]([^\]）】]{30,})[\]）】]\s*$", raw)
+    match = re.search(r"\s+[\[（【]([^\]）】]{15,})[\]）】]\s*$", raw)
     if match:
         suffix = match.group(1)
         separator_count = sum(suffix.count(char) for char in ("/", "／", "|", "｜", "#", "、", ",", "，"))
