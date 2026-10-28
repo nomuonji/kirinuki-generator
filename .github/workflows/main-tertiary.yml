@@ -113,7 +113,7 @@ jobs:
           YOUTUBE_CHANNEL_ID: ${{ github.event.inputs.youtube_channel_id || env.YOUTUBE_CHANNEL_ID_SCHEDULED }}
           GDRIVE_PARENT_FOLDER_ID: ${{ github.event.inputs.gdrive_folder_id || env.GDRIVE_FOLDER_ID_SCHEDULED }}
           RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
           GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
         run: python youtube_watcher.py
