@@ -50,7 +50,7 @@ python run_all.py <YouTubeのビデオID> --reaction
         cp .env.example .env
         ```
     -   `.env` ファイルを開き、以下のAPIキーを設定します。
-        -   `GEMINI_API_KEY`: AIによる分析に必須です。
+        -   `OPENCODE_GO_API_KEY`: OpenCode Go のAPIキー（モデルは `deepseek-v4.1-flash`）です。
         -   `RAPIDAPI_KEY`: YouTube動画の文字起こし機能を使う場合のみ必要です。
 
 ---
@@ -128,7 +128,7 @@ python run_all.py <YouTubeのビデオID> --reaction
       --max-reactions 6
     ```
 
--   `GEMINI_API_KEY` を `.env` に書いておけば自動で読み込まれます。生成された `clip_XXX_reactions.json` は `render_clips.py` が props に取り込みます。
+-   `OPENCODE_GO_API_KEY` を `.env` に書いておけばOpenCode Go経由で自動生成されます。生成された `clip_XXX_reactions.json` は `render_clips.py` が props に取り込みます。
 -   特定のクリップだけを調整したいときは `--start-sec` `--end-sec` `--output` を付けて単体モードで実行してください。
 -   `run_all.py --reaction` も同じ一括モードを使うので、追加の操作は不要です。
 
