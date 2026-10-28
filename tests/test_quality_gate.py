@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from packages.quality_gate import (
-    candidate_payload, independent_review, select_top_candidates, static_filter,
+    candidate_payload, independent_review, select_top_candidates, static_filter, sanitize_candidate_title,
     validated_receipt, verify_rendered_media, write_receipt,
 )
 
@@ -43,6 +43,32 @@ class QualityGateTests(unittest.TestCase):
         passed, audit = static_filter([proposal(quote="辞めるなら今すぐ逃げろ")], transcript())
         self.assertEqual(passed, [])
         self.assertEqual(audit[0]["decision"], "unsupported_punchline")
+
+    def test_strips_only_appended_keyword_dump_before_title_gate(self):
+        title = "男性は**金**で人生が変わる？ひろゆきが語る現実の厳しさ [ひろゆき/切り抜き/論破/恋愛/仕事/人生相談/収益化/副業/名言]"
+        cleaned, changed = sanitize_candidate_title(title)
+        self.assertTrue(changed)
+        self.assertEqual(cleaned, "男性は**金**で人生が変わる？ひろゆきが語る現実の厳しさ")
+
+    def test_does_not_rewrite_a_normal_title_with_brackets(self):
+        title = "「お金が8割」——ひろゆきの現実論"
+        self.assertEqual(sanitize_candidate_title(title), (title, False))
+
+    def test_tagged_title_is_sanitized_but_transcript_gate_still_applies(self):
+        good = proposal(quote="生活費を先に計算しましょう")
+        good["title"] = "辞める前に考えること [生活費/退職/貯金/転職/キャリア/働き方/相談]"
+        passed, audit = static_filter([good], transcript())
+        self.assertEqual(len(passed), 1)
+        self.assertEqual(passed[0]["title"], "辞める前に考えること")
+        self.assertEqual(audit[0]["decision"], "approved")
+        self.assertTrue(audit[0]["titleNormalized"])
+
+        bad = proposal(quote="辞めるなら今すぐ逃げろ")
+        bad["title"] = "辞める前に考えること [生活費/退職/貯金/転職/キャリア/働き方/相談]"
+        passed_bad, audit_bad = static_filter([bad], transcript())
+        self.assertEqual(passed_bad, [])
+        self.assertEqual(audit_bad[0]["decision"], "unsupported_punchline")
+        self.assertTrue(audit_bad[0]["titleNormalized"])
 
     def test_overlap_rejection_preserves_high_confidence_candidate(self):
         strong = proposal(confidence=.95)
