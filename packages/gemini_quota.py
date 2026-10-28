@@ -1,4 +1,4 @@
-"""Bounded retry for transient Gemini per-minute 429s only."""
+"""Bounded retry for transient Gemini rate limits and server-capacity failures."""
 from __future__ import annotations
 import re
 import time
@@ -20,15 +20,16 @@ def _exception_text(exc: Exception) -> str:
 
 
 def quota_delay(exc: Exception) -> float | None:
-    """Return cooldown seconds only for a transient per-minute 429.
+    """Return a bounded cooldown only for transient 429s or server-capacity errors.
 
-    Daily/project quota exhaustion must fail immediately instead of wasting
-    runner time on retries that cannot succeed before the quota resets.
+    Daily/project quota exhaustion and authentication, validation, or editorial
+    failures must fail immediately instead of consuming more runner time.
     """
     message = _exception_text(exc)
     lowered = message.lower()
-    if "429" not in message and "resourceexhausted" not in type(exc).__name__.lower():
-        return None
+    type_name = type(exc).__name__.lower()
+    is_rate_limited = "429" in message or "resourceexhausted" in type_name
+
     daily_markers = (
         "perday",
         "per_day",
@@ -38,21 +39,36 @@ def quota_delay(exc: Exception) -> float | None:
         "requestsperday",
         "generate_content_free_tier_requests",
     )
-    if any(marker in lowered for marker in daily_markers):
+    if is_rate_limited and any(marker in lowered for marker in daily_markers):
         return None
+
+    transient_markers = (
+        "serviceunavailable",
+        "internalservererror",
+        "badgateway",
+        "gatewaytimeout",
+        "temporarily unavailable",
+        "high demand",
+    )
+    is_transient_server_error = (
+        bool(re.search(r"\b(?:502|503|504)\b", message))
+        or any(marker in lowered or marker in type_name for marker in transient_markers)
+    )
+    if not is_rate_limited and not is_transient_server_error:
+        return None
+
     matched = re.search(r"retry_delay\s*\{\s*seconds:\s*(\d+)", message, flags=re.I | re.S)
     if not matched:
         matched = re.search(r"retry in\s*(\d+(?:\.\d+)?)\s*s", message, flags=re.I)
-    seconds = float(matched.group(1)) if matched else 60.0
-    return max(10.0, min(120.0, seconds + 3.0))
+    if matched:
+        seconds = float(matched.group(1)) + 3.0
+    else:
+        seconds = 15.0 if is_transient_server_error else 60.0
+    return max(5.0, min(120.0 if is_rate_limited else 60.0, seconds))
 
 
 def with_quota_retry(fn, *, attempts=4, sleep=time.sleep, notify=print):
-    """Retry transient per-minute quota errors without catching other failures.
-
-    Persistent quota and editorial QA errors propagate; quality gates remain
-    fail-closed.
-    """
+    """Retry transient Gemini throttling/capacity errors, not daily quota failures."""
     for i in range(max(1, attempts)):
         try:
             return fn()
@@ -60,6 +76,6 @@ def with_quota_retry(fn, *, attempts=4, sleep=time.sleep, notify=print):
             delay = quota_delay(exc)
             if delay is None or i >= attempts - 1:
                 raise
-            notify(f"Gemini per-minute quota reached; pause {delay:.0f}s (retry {i+2}/{attempts})")
+            notify(f"Gemini transient rate/capacity limit; pause {delay:.0f}s (retry {i+2}/{attempts})")
             sleep(delay)
     raise RuntimeError("Unexpected retry state")
