@@ -8,7 +8,7 @@ The owner does not review source videos, choose highlights, edit scripts or insp
 - Secondary Hiroyuki Questions stays manual-only because the recent source pool is sparse. The primary Japan-only source is unchanged and remains blocked.
 - Hiroyuki sources use configs/video_concept_hiroyuki.md without manual prompting.
 - Deterministic QA rejects unsupported quotes, bad timestamps, weak confidence and duplicate moments.
-- An independent Gemini review rejects incoherent clips, misleading titles, missing payoff and abrupt endings. Unavailable reviews fail closed.
+- An independent OpenCode Go / DeepSeek V4.1 Flash review rejects incoherent clips, misleading titles, missing payoff and abrupt endings. Unavailable reviews fail closed.
 - An approval receipt hashes the exact approved candidate data; Drive manifests preserve it for resume. Unreviewed older clips are regenerated.
 - ffprobe and ffmpeg verify vertical dimensions, duration, an audio track and actual decoding before each MP4 upload to Drive.
 - No additional paid infrastructure or card registration is required, subject to provider free quotas.
@@ -48,7 +48,7 @@ GitHub Actions repository **variables**:
 
 GitHub Actions **secrets**:
 - YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN, YOUTUBE_API_KEY
-- GEMINI_API_KEY, RAPIDAPI_KEY
+- OPENCODE_GO_API_KEY, RAPIDAPI_KEY
 - GDRIVE_CLIENT_SECRET_JSON and GDRIVE_REFRESH_TOKEN only used by overflow, plus optional YT_COOKIES_TXT
 
 The OAuth refresh token must grant the necessary YouTube scope and belong to the specified destination channel. Google auth consent in Testing may cause refresh credentials to expire. Never copy a token from a different channel or guess authorization.
