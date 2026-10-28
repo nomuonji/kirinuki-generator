@@ -90,7 +90,7 @@ def _is_fallback_worthy(exc: Exception) -> bool:
     return (
         "429" in message
         or "resourceexhausted" in type_name
-        or bool(re.search(r"\\b(?:502|503|504)\\b", message))
+        or bool(re.search(r"\b(?:502|503|504)\b", message))
         or any(marker in message or marker in type_name for marker in (
             "serviceunavailable", "internalservererror", "badgateway",
             "gatewaytimeout", "temporarily unavailable", "high demand",
@@ -116,9 +116,10 @@ def generate_content_with_fallback(
     requests, or invalid application output. Daily-limit failures switch models
     immediately rather than retrying the exhausted model.
     """
-    import google.generativeai as genai
-
-    factory = model_factory or genai.GenerativeModel
+    factory = model_factory
+    if factory is None:
+        import google.generativeai as genai
+        factory = genai.GenerativeModel
     if fallback_models is None:
         fallback_models = [
             name.strip() for name in os.environ.get(
