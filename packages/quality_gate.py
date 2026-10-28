@@ -11,7 +11,7 @@ import re
 import subprocess
 import unicodedata
 from pathlib import Path
-from packages.gemini_quota import generate_content_with_fallback, with_quota_retry
+from packages.opencode_go import generate_chat_completion
 
 AUDIT_FILENAME = ".quality_audit.json"
 AUDIT_VERSION = 1
@@ -121,15 +121,10 @@ def static_filter(candidates, segments, *, min_confidence: float = 0.76,
 
 
 def independent_review(candidates, segments, *, model_name: str | None = None) -> tuple[list, list[dict]]:
-    """A separate low-temperature Gemini pass; API/JSON failures reject all clips."""
+    """A separate low-temperature OpenCode Go pass; API/JSON failures reject all clips."""
     if not candidates:
         return [], []
     import os
-    import google.generativeai as genai
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("Editorial review requires GEMINI_API_KEY")
-    genai.configure(api_key=api_key)
     payload = []
     for i, c in enumerate(candidates):
         excerpt = [
@@ -155,8 +150,8 @@ def independent_review(candidates, segments, *, model_name: str | None = None) -
         '"completeEnding":true,"payoff":true,"reason":"短い具体的説明"}. '
         "No markdown. All booleans must be genuine JSON booleans."
     )
-    response = generate_content_with_fallback(
-        model_name or os.environ.get("KIRINUKI_REVIEW_MODEL", "gemini-2.5-flash"),
+    response = generate_chat_completion(
+        model_name or os.environ.get("KIRINUKI_REVIEW_MODEL", os.environ.get("OPENCODE_GO_MODEL", "deepseek-v4.1-flash")),
         [prompt, json.dumps(payload, ensure_ascii=False)],
         generation_config={"response_mime_type": "application/json", "temperature": 0},
         request_options={"timeout": 300, "retry": None},
