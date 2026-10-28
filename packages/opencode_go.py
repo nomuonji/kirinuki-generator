@@ -182,7 +182,7 @@ def generate_chat_completion(
             response = post(
                 base_url,
                 headers=headers,
-                json=payload,
+                json=dict(payload),
                 timeout=timeout,
             )
         except requests.RequestException as exc:
