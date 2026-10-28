@@ -41,7 +41,7 @@ class ReadinessUnitTests(unittest.TestCase):
             "YOUTUBE_CLIENT_ID": "id", "YOUTUBE_CLIENT_SECRET": "secret",
             "YOUTUBE_REFRESH_TOKEN": "refresh",
             "YOUTUBE_DESTINATION_CHANNEL_ID": "UCDESTINATION",
-            "YOUTUBE_API_KEY": "yt", "GEMINI_API_KEY": "ai",
+            "YOUTUBE_API_KEY": "yt", "OPENCODE_GO_API_KEY": "ai",
         })
         report = preflight(env, verify_oauth=False)
         self.assertEqual(report["youtubeOAuthCheck"], "not_checked")
@@ -63,7 +63,7 @@ class ReadinessUnitTests(unittest.TestCase):
             "YOUTUBE_CLIENT_ID": "id", "YOUTUBE_CLIENT_SECRET": "sensitive",
             "YOUTUBE_REFRESH_TOKEN": "refresh",
             "YOUTUBE_DESTINATION_CHANNEL_ID": "UCMISMATCH",
-            "YOUTUBE_API_KEY": "yt", "GEMINI_API_KEY": "ai",
+            "YOUTUBE_API_KEY": "yt", "OPENCODE_GO_API_KEY": "ai",
         })
         fake = types.ModuleType("packages.youtube_direct")
         def invalid_auth():
