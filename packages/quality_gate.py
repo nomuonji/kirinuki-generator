@@ -54,6 +54,29 @@ def candidate_payload(candidates) -> list[dict]:
     ]
 
 
+def sanitize_candidate_title(title: str) -> tuple[str, bool]:
+    """Remove only an obvious appended SEO/tag list; leave substantive title defects to QA."""
+    raw = str(title or "").strip()
+    # Gemini occasionally appends a bracketed slash-separated keyword dump after
+    # an otherwise usable title. Remove that metadata-like tail, never the title.
+    match = re.search(r"\s+[\[（【]([^\]）】]{30,})[\]）】]\s*$", raw)
+    if match:
+        suffix = match.group(1)
+        separator_count = sum(suffix.count(char) for char in ("/", "／", "|", "｜", "#", "、", ",", "，"))
+        if len(suffix) >= 70 or separator_count >= 4:
+            cleaned = raw[:match.start()].rstrip(" -–—|｜、,，")
+            if cleaned:
+                return cleaned, True
+    return raw, False
+
+
+def _set_candidate_title(candidate, title: str) -> None:
+    if isinstance(candidate, dict):
+        candidate["title"] = title
+    else:
+        setattr(candidate, "title", title)
+
+
 def static_filter(candidates, segments, *, min_confidence: float = 0.76,
                   min_sec: float = 30, max_sec: float = 120,
                   min_gap: float = 30) -> tuple[list, list[dict]]:
@@ -65,6 +88,9 @@ def static_filter(candidates, segments, *, min_confidence: float = 0.76,
     for c in ranked:
         start, end = float(_get(c, "start", -1)), float(_get(c, "end", -1))
         confidence = float(_get(c, "confidence", 0) or 0)
+        cleaned_title, title_normalized = sanitize_candidate_title(_get(c, "title", ""))
+        if title_normalized:
+            _set_candidate_title(c, cleaned_title)
         quote = _plain(_get(c, "punchline", ""))
         excerpt = [s for s in segments if float(s["end"]) > start and float(s["start"]) < end]
         whole_text = _plain(" ".join(str(s.get("text", "")) for s in excerpt))
@@ -86,7 +112,10 @@ def static_filter(candidates, segments, *, min_confidence: float = 0.76,
             reason = "overlapping_or_repetitive"
         if reason == "approved":
             approved.append(c)
-        decisions.append({"start": start, "end": end, "decision": reason})
+        decisions.append({
+            "start": start, "end": end, "decision": reason,
+            **({"titleNormalized": True} if title_normalized else {}),
+        })
     approved.sort(key=lambda c: float(_get(c, "start")))
     return approved, decisions
 
