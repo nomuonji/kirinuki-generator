@@ -1,5 +1,6 @@
 """Bounded retry for transient Gemini rate limits and server-capacity failures."""
 from __future__ import annotations
+import os
 import re
 import time
 
@@ -79,3 +80,80 @@ def with_quota_retry(fn, *, attempts=4, sleep=time.sleep, notify=print):
             notify(f"Gemini transient rate/capacity limit; pause {delay:.0f}s (retry {i+2}/{attempts})")
             sleep(delay)
     raise RuntimeError("Unexpected retry state")
+
+
+
+def _is_fallback_worthy(exc: Exception) -> bool:
+    """Permit a model switch only for throttling, quota, or temporary capacity failures."""
+    message = _exception_text(exc).lower()
+    type_name = type(exc).__name__.lower()
+    return (
+        "429" in message
+        or "resourceexhausted" in type_name
+        or bool(re.search(r"\\b(?:502|503|504)\\b", message))
+        or any(marker in message or marker in type_name for marker in (
+            "serviceunavailable", "internalservererror", "badgateway",
+            "gatewaytimeout", "temporarily unavailable", "high demand",
+        ))
+    )
+
+
+def generate_content_with_fallback(
+    model_name: str,
+    contents,
+    *,
+    generation_config=None,
+    request_options=None,
+    fallback_models: list[str] | None = None,
+    model_factory=None,
+    attempts: int = 2,
+    sleep=time.sleep,
+    notify=print,
+):
+    """Run Gemini generation with bounded model fallback on transient capacity/limit errors.
+
+    Fallback never bypasses editorial QA and never handles authentication, malformed
+    requests, or invalid application output. Daily-limit failures switch models
+    immediately rather than retrying the exhausted model.
+    """
+    import google.generativeai as genai
+
+    factory = model_factory or genai.GenerativeModel
+    if fallback_models is None:
+        fallback_models = [
+            name.strip() for name in os.environ.get(
+                "GEMINI_FALLBACK_MODELS",
+                "gemini-2.5-flash-lite,gemini-3.5-flash-lite",
+            ).split(",") if name.strip()
+        ]
+    names = []
+    for name in [model_name, *fallback_models]:
+        candidate = str(name or "").strip()
+        if candidate and candidate not in names:
+            names.append(candidate)
+    if not names:
+        raise ValueError("At least one Gemini model name is required")
+
+    last_error = None
+    for index, name in enumerate(names):
+        model = factory(name)
+        try:
+            return with_quota_retry(
+                lambda: model.generate_content(
+                    contents,
+                    generation_config=generation_config,
+                    request_options=request_options,
+                ),
+                attempts=attempts,
+                sleep=sleep,
+                notify=notify,
+            )
+        except Exception as exc:
+            last_error = exc
+            if index == len(names) - 1 or not _is_fallback_worthy(exc):
+                raise
+            notify(
+                f"Gemini model {name} unavailable or quota-limited; "
+                f"falling back to {names[index + 1]} ({type(exc).__name__})."
+            )
+    raise last_error
