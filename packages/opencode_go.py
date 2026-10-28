@@ -158,7 +158,10 @@ def generate_chat_completion(
     payload: dict[str, Any] = {
         "model": _model_id(model_name),
         "messages": _messages(contents),
+        "reasoning_effort": os.environ.get("OPENCODE_GO_REASONING_EFFORT", "low").strip().lower() or "low",
     }
+    if payload["reasoning_effort"] not in {"none", "low", "high", "max"}:
+        raise RuntimeError("OPENCODE_GO_REASONING_EFFORT must be none, low, high, or max")
     temperature = _config_value(generation_config, "temperature")
     if temperature is not None:
         payload["temperature"] = float(temperature)
