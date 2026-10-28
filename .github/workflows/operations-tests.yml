@@ -10,9 +10,11 @@ on:
       - 'download_video.py'
       - 'packages/operations.py'
       - 'packages/quality_gate.py'
+      - 'packages/opencode_go.py'
       - 'packages/gemini_quota.py'
       - 'tests/test_gemini_quota.py'
       - 'tests/test_quality_gate.py'
+      - 'tests/test_opencode_go.py'
       - 'apps/cli/generate_reactions.py'
       - 'packages/publish_scheduler.py'
       - 'packages/github_ledger.py'
@@ -34,6 +36,7 @@ on:
       - 'download_video.py'
       - 'packages/operations.py'
       - 'packages/quality_gate.py'
+      - 'packages/opencode_go.py'
       - 'packages/gemini_quota.py'
       - 'tests/test_gemini_quota.py'
       - 'apps/cli/generate_reactions.py'
@@ -51,6 +54,7 @@ on:
       - '.github/workflows/direct-tertiary.yml'
       - 'packages/segmentation_gemini/client.py'
       - 'tests/test_quality_gate.py'
+      - 'tests/test_opencode_go.py'
       - 'configs/video_concept_hiroyuki.md'
       - 'packages/shared/gdrive.py'
       - 'apps/cli/generate_clips.py'
@@ -73,11 +77,11 @@ jobs:
           python-version: '3.11'
       - name: Compile changed Python modules
         run: |
-          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/gemini_quota.py             apps/cli/generate_reactions.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py             scripts/kirinuki_readiness.py             scripts/private_render_smoke.py
+          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/opencode_go.py             packages/gemini_quota.py             apps/cli/generate_reactions.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py             scripts/kirinuki_readiness.py             scripts/private_render_smoke.py
       - name: Install direct publisher test dependencies
         run: python -m pip install --disable-pip-version-check requests google-api-python-client google-auth-httplib2 google-auth-oauthlib
       - name: Run operations unit tests
-        run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish tests.test_youtube_direct tests.test_readiness tests.test_gemini_quota
+        run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish tests.test_youtube_direct tests.test_readiness tests.test_opencode_go tests.test_gemini_quota
       - name: Verify direct workflow safely stays inactive without authorization
         run: |
           python -m scripts.autonomous_direct --plan-only --plan-output /tmp/kirinuki-plan.json
