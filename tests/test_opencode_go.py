@@ -42,6 +42,7 @@ class OpenCodeGoTests(unittest.TestCase):
         self.assertTrue(kwargs["headers"]["x-opencode-session"].startswith("ses_"))
         self.assertEqual(kwargs["headers"]["User-Agent"], "kirinuki-generator/1.0")
         self.assertEqual(kwargs["json"]["model"], DEFAULT_MODEL)
+        self.assertEqual(kwargs["json"]["reasoning_effort"], "low")
         self.assertEqual(kwargs["json"]["temperature"], 0.2)
         self.assertEqual(kwargs["json"]["messages"][0]["role"], "system")
         self.assertIn("Return one object.", kwargs["json"]["messages"][1]["content"])
@@ -80,6 +81,24 @@ class OpenCodeGoTests(unittest.TestCase):
                 )
         self.assertEqual(result.model, DEFAULT_MODEL)
         self.assertEqual(post.call_args.kwargs["json"]["model"], DEFAULT_MODEL)
+
+    def test_reasoning_effort_is_configurable_and_validated(self):
+        with patch.dict(os.environ, {
+            "OPENCODE_GO_API_KEY": "test-key",
+            "OPENCODE_GO_REASONING_EFFORT": "none",
+        }, clear=True):
+            with patch("packages.opencode_go.requests.post", return_value=FakeResponse()) as post:
+                generate_chat_completion(DEFAULT_MODEL, "prompt", sleep=lambda _: None, notify=lambda _: None)
+        self.assertEqual(post.call_args.kwargs["json"]["reasoning_effort"], "none")
+
+        with patch.dict(os.environ, {
+            "OPENCODE_GO_API_KEY": "test-key",
+            "OPENCODE_GO_REASONING_EFFORT": "unbounded",
+        }, clear=True):
+            with patch("packages.opencode_go.requests.post") as post:
+                with self.assertRaisesRegex(RuntimeError, "OPENCODE_GO_REASONING_EFFORT"):
+                    generate_chat_completion(DEFAULT_MODEL, "prompt")
+        post.assert_not_called()
 
     def test_request_timeout_is_bounded(self):
         with patch.dict(os.environ, {
