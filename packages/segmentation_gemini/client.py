@@ -68,24 +68,6 @@ def _chunks(items, max_chars=6000):
         yield "\n".join(buf)
 
 def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30.0, min_sec=30.0, max_sec=120.0, concept: str = "") -> List[ClipCandidate]:
-    from google.generativeai import protos
-
-    clip_schema = protos.Schema(
-        type=protos.Type.ARRAY,
-        items=protos.Schema(
-            type=protos.Type.OBJECT,
-            properties={
-                "start": protos.Schema(type=protos.Type.NUMBER),
-                "end": protos.Schema(type=protos.Type.NUMBER),
-                "title": protos.Schema(type=protos.Type.STRING),
-                "punchline": protos.Schema(type=protos.Type.STRING),
-                "reason": protos.Schema(type=protos.Type.STRING),
-                "confidence": protos.Schema(type=protos.Type.NUMBER),
-            },
-            required=["start", "end", "title", "punchline", "reason", "confidence"],
-        ),
-    )
-
     concept_prompt = f"**Video Concept:**\n{concept}\n\n" if concept else ""
     sys = f"""{concept_prompt}You are a master video editor, specializing in creating viral short-form content. Your task is to analyze a timestamped transcript and identify the most compelling, self-contained clips.
 
@@ -128,14 +110,12 @@ Return a JSON array of objects. Each object must have these fields:
 Output JSON only."""
 
     all_props: List[ClipCandidate] = []
-    chunk_chars = int(os.environ.get("OPENCODE_GO_PROPOSAL_CHUNK_CHARS", "12000"))
+    chunk_chars = int(os.environ.get("OPENCODE_GO_PROPOSAL_CHUNK_CHARS", "50000"))
     for chunk in _chunks(items, max_chars=chunk_chars):
         resp = generate_chat_completion(
             OPENCODE_GO_MODEL,
             [sys, chunk],
             generation_config={
-                "response_mime_type": "application/json",
-                "response_schema": clip_schema,
                 "temperature": 0.2
             },
             request_options={"timeout": 600, "retry": None},
@@ -181,13 +161,6 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
     if not non_empty:
         return lines
 
-    from google.generativeai import protos
-
-    schema = protos.Schema(
-        type=protos.Type.ARRAY,
-        items=protos.Schema(type=protos.Type.STRING),
-    )
-
     concept_prompt = f"Clip concept: {concept}. " if concept else ""
     sys = (
         f"You are a professional Japanese subtitle editor. {concept_prompt}"
@@ -204,8 +177,6 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
             OPENCODE_GO_MODEL,
             [sys, 'INPUT:', payload],
             generation_config={
-                'response_mime_type': 'application/json',
-                'response_schema': schema,
                 'temperature': 0.2,
             },
             request_options={"timeout": 300, "retry": None},
@@ -223,77 +194,11 @@ def polish_subtitles_bulk(clips: List[Dict], concept: str = "") -> Dict[int, Lis
     """Polish subtitle lines for multiple clips in one OpenCode Go request.
 
     Each input is {"index": int, "lines": List[str]}. A clip is returned only
-    when Gemini preserves its exact line count; callers retain originals for
+    when OpenCode Go preserves its exact line count; callers retain originals for
     any omitted or malformed result.
     """
     if not clips:
         return {}
-
-    from google.generativeai import protos
-
-    schema = protos.Schema(
-        type=protos.Type.ARRAY,
-        items=protos.Schema(
-            type=protos.Type.OBJECT,
-            properties={
-                "index": protos.Schema(type=protos.Type.NUMBER),
-                "lines": protos.Schema(type=protos.Type.ARRAY, items=protos.Schema(type=protos.Type.STRING)),
-            },
-            required=["index", "lines"],
-        ),
-    )
-    concept_prompt = f"Overall video concept: {concept}. " if concept else ""
-    sys = (
-        "You are a professional Japanese subtitle editor. "
-        f"{concept_prompt}For every clip, correct typos and punctuation while preserving meaning. "
-        "Do not merge or split subtitle lines. Keep each clip's line count, order, and index unchanged. "
-        "Return one object per input with the same index and a lines array. JSON only."
-    )
-    payload = [
-        {"index": int(clip["index"]), "lines": [str(line) for line in clip.get("lines", [])]}
-        for clip in clips
-    ]
-    resp = generate_chat_completion(
-        OPENCODE_GO_MODEL,
-        [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
-        generation_config={
-            "response_mime_type": "application/json",
-            "response_schema": schema,
-            "temperature": 0.2,
-        },
-        request_options={"timeout": 600, "retry": None},
-    )
-    parsed = _safe_parsed(resp, expect_array=True)
-    expected = {int(clip["index"]): len(clip.get("lines", [])) for clip in clips}
-    out: Dict[int, List[str]] = {}
-    for item in parsed:
-        try:
-            index = int(item["index"])
-            lines = item["lines"]
-            if index in expected and isinstance(lines, list) and len(lines) == expected[index]:
-                out[index] = [str(line) for line in lines]
-        except (KeyError, TypeError, ValueError):
-            continue
-    return out
-
-
-def generate_hook_text(clip_transcript: str) -> HookText:
-    """
-    Generates catchy hook texts for a video clip based on its transcript.
-    """
-    from google.generativeai import protos
-
-    hook_schema = protos.Schema(
-        type=protos.Type.OBJECT,
-        properties={
-            "upperDecorated": protos.Schema(type=protos.Type.STRING),
-            "lowerDecorated": protos.Schema(type=protos.Type.STRING),
-            "upperPlain": protos.Schema(type=protos.Type.STRING),
-            "lowerPlain": protos.Schema(type=protos.Type.STRING),
-            "hashtags": protos.Schema(type=protos.Type.ARRAY, items=protos.Schema(type=protos.Type.STRING)),
-        },
-        required=["upperDecorated", "lowerDecorated"],
-    )
 
     sys = (
         "You are a viral video producer crafting overlay text for short-form clips. "
@@ -310,8 +215,6 @@ def generate_hook_text(clip_transcript: str) -> HookText:
         HOOK_MODEL,
         [sys, clip_transcript],
         generation_config={
-            "response_mime_type": "application/json",
-            "response_schema": hook_schema,
             "temperature": 0.7,
         },
         request_options={"retry": None},
@@ -333,28 +236,10 @@ def generate_hook_text(clip_transcript: str) -> HookText:
 
 def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: int = 10) -> Dict[int, HookText]:
     """
-    Generate hook texts for multiple clips in a single Gemini call.
+    Generate hook texts for multiple clips in a single OpenCode Go call.
     clip_items: [{"index": int, "transcript": str}]
     Returns: {index: HookText}
     """
-    from google.generativeai import protos
-
-    result_schema = protos.Schema(
-        type=protos.Type.ARRAY,
-        items=protos.Schema(
-            type=protos.Type.OBJECT,
-            properties={
-                "index": protos.Schema(type=protos.Type.NUMBER),
-                "upperDecorated": protos.Schema(type=protos.Type.STRING),
-                "lowerDecorated": protos.Schema(type=protos.Type.STRING),
-                "upperPlain": protos.Schema(type=protos.Type.STRING),
-                "lowerPlain": protos.Schema(type=protos.Type.STRING),
-                "hashtags": protos.Schema(type=protos.Type.ARRAY, items=protos.Schema(type=protos.Type.STRING)),
-            },
-            required=["index", "upperDecorated", "lowerDecorated"],
-        ),
-    )
-
     concept_prompt = f"The overall concept of the video is: {concept}. " if concept else ""
     sys = (
         "You are a viral video producer. "
@@ -382,8 +267,6 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
                 HOOK_MODEL,
                 [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
                 generation_config={
-                    "response_mime_type": "application/json",
-                    "response_schema": result_schema,
                     "temperature": 0.7,
                 },
                 request_options={"timeout": 600, "retry": None},
@@ -417,7 +300,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
 
 
 def _safe_parsed(resp, expect_array: bool = False):
-    """Try multiple ways to extract JSON from Gemini response."""
+    """Try multiple ways to extract JSON from OpenCode Go response."""
     # Newer SDKs may support .parsed when response_schema is provided
     try:
         return resp.parsed
