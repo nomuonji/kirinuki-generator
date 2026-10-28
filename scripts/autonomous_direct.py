@@ -367,7 +367,8 @@ class DirectLane:
         command([sys.executable, "-m", "apps.cli.generate_reactions",
                  "--transcript", str(transcript),
                  "--clip-candidates", str(clip_dir / "clip_candidates.json"),
-                 "--output-dir", str(clip_dir), "--max-reactions", "3"],
+                 "--output-dir", str(clip_dir), "--max-reactions", "3",
+                 "--model", os.environ.get("REACTION_MODEL", os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"))],
                 timeout=1400)
         command([sys.executable, "-m", "apps.cli.render_clips", "--input-dir", str(clip_dir)],
                 timeout=1900)
