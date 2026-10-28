@@ -115,6 +115,12 @@ def propose_clips_from_transcript(items: List[dict], preset="shorts", min_gap=30
 - **Crucial:** The 'end' time for each proposed clip MUST exactly match the 'end' time of one of the transcript segments provided. Do not invent timestamps.
 - **LANGUAGE:** All output text (title, punchline, reason) MUST be in Japanese.
 
+**Candidate Coverage:**
+- For each transcript chunk containing several distinct conversation beats, return 3-6 different candidate clips rather than only your single favorite.
+- Prefer different topics or moments; candidates must not overlap or repeat the same punchline. Use fewer than 3 only when the supplied chunk genuinely has fewer self-contained moments.
+- Treat confidence honestly. Do not inflate confidence to satisfy the requested count; the static and independent QA gates will decide what survives.
+- Use timestamps from the supplied transcript as absolute source timestamps, not offsets from the beginning of the chunk.
+
 **Output Format:**
 Return a JSON array of objects. Each object must have these fields:
 - `start`: The start time in seconds.
