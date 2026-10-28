@@ -7,6 +7,7 @@ on:
       - 'scripts/private_render_smoke.py'
       - 'apps/cli/generate_clips.py'
       - 'packages/quality_gate.py'
+      - 'packages/gemini_quota.py'
       - 'packages/segmentation_gemini/client.py'
       - 'scripts/autonomous_direct.py'
       - 'apps/cli/generate_reactions.py'
@@ -35,10 +36,10 @@ jobs:
       SAVETUBE_QUALITY: '720'
       KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
       GEMINI_PROPOSAL_CHUNK_CHARS: '50000'
-      GEMINI_MODEL: gemini-3.5-flash-lite
-      HOOK_MODEL: gemini-3.5-flash-lite
-      KIRINUKI_REVIEW_MODEL: gemini-3.5-flash-lite
-      REACTION_MODEL: gemini-3.5-flash-lite
+      GEMINI_MODEL: gemini-3.6-flash
+      HOOK_MODEL: gemini-3.6-flash
+      KIRINUKI_REVIEW_MODEL: gemini-3.6-flash
+      REACTION_MODEL: gemini-3.6-flash
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
