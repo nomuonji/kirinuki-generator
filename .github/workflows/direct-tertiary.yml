@@ -36,6 +36,10 @@ env:
   KIRINUKI_CONCEPT_FILE: configs/video_concept_hiroyuki.md
   # Keep long-source transcript analysis within Gemini's shared free-tier daily request budget.
   GEMINI_PROPOSAL_CHUNK_CHARS: '50000'
+  GEMINI_MODEL: gemini-3.6-flash
+  HOOK_MODEL: gemini-3.6-flash
+  KIRINUKI_REVIEW_MODEL: gemini-3.6-flash
+  REACTION_MODEL: gemini-3.6-flash
   SAVETUBE_QUALITY: '720'
   SOURCE_FETCH_COUNTRY: US
   PYTHONUNBUFFERED: '1'
