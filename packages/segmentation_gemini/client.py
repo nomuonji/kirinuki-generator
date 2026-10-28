@@ -2,17 +2,12 @@ import os, json, time, re
 from typing import List, Dict, Iterable
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-from packages.gemini_quota import generate_content_with_fallback, with_quota_retry
+from packages.opencode_go import generate_chat_completion
 
 load_dotenv()
 
-import google.generativeai as genai
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-HOOK_MODEL = os.environ.get("HOOK_MODEL", os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"))
-API_KEY = os.environ.get("GEMINI_API_KEY")
-if not API_KEY:
-    raise RuntimeError("GEMINI_API_KEY is not set")
-genai.configure(api_key=API_KEY)
+OPENCODE_GO_MODEL = os.environ.get("OPENCODE_GO_MODEL", "deepseek-v4.1-flash")
+HOOK_MODEL = os.environ.get("HOOK_MODEL", OPENCODE_GO_MODEL)
 
 class ClipCandidate(BaseModel):
     start: float = Field(..., description="Start time in seconds")
@@ -133,10 +128,10 @@ Return a JSON array of objects. Each object must have these fields:
 Output JSON only."""
 
     all_props: List[ClipCandidate] = []
-    chunk_chars = int(os.environ.get("GEMINI_PROPOSAL_CHUNK_CHARS", "12000"))
+    chunk_chars = int(os.environ.get("OPENCODE_GO_PROPOSAL_CHUNK_CHARS", "12000"))
     for chunk in _chunks(items, max_chars=chunk_chars):
-        resp = generate_content_with_fallback(
-            GEMINI_MODEL,
+        resp = generate_chat_completion(
+            OPENCODE_GO_MODEL,
             [sys, chunk],
             generation_config={
                 "response_mime_type": "application/json",
@@ -181,7 +176,7 @@ class HookText(BaseModel):
 
 
 def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
-    """Clean up subtitle lines via Gemini while preserving alignment."""
+    """Clean up subtitle lines via OpenCode Go while preserving alignment."""
     non_empty = [line for line in lines if isinstance(line, str) and line.strip()]
     if not non_empty:
         return lines
@@ -204,10 +199,9 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
     )
 
     payload = json.dumps(lines, ensure_ascii=False)
-    model = genai.GenerativeModel(GEMINI_MODEL)
     try:
-        resp = generate_content_with_fallback(
-            GEMINI_MODEL,
+        resp = generate_chat_completion(
+            OPENCODE_GO_MODEL,
             [sys, 'INPUT:', payload],
             generation_config={
                 'response_mime_type': 'application/json',
@@ -226,7 +220,7 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
 
 
 def polish_subtitles_bulk(clips: List[Dict], concept: str = "") -> Dict[int, List[str]]:
-    """Polish subtitle lines for multiple clips in one Gemini request.
+    """Polish subtitle lines for multiple clips in one OpenCode Go request.
 
     Each input is {"index": int, "lines": List[str]}. A clip is returned only
     when Gemini preserves its exact line count; callers retain originals for
@@ -259,9 +253,8 @@ def polish_subtitles_bulk(clips: List[Dict], concept: str = "") -> Dict[int, Lis
         {"index": int(clip["index"]), "lines": [str(line) for line in clip.get("lines", [])]}
         for clip in clips
     ]
-    model = genai.GenerativeModel(GEMINI_MODEL)
-    resp = generate_content_with_fallback(
-        GEMINI_MODEL,
+    resp = generate_chat_completion(
+        OPENCODE_GO_MODEL,
         [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
         generation_config={
             "response_mime_type": "application/json",
@@ -313,7 +306,7 @@ def generate_hook_text(clip_transcript: str) -> HookText:
         "Return JSON with fields upperDecorated, lowerDecorated, upperPlain, lowerPlain, hashtags."
     )
 
-    resp = generate_content_with_fallback(
+    resp = generate_chat_completion(
         HOOK_MODEL,
         [sys, clip_transcript],
         generation_config={
@@ -375,7 +368,6 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
         "Return an array aligning 1:1 with input items by 'index'. Output JSON only."
     )
 
-    model = genai.GenerativeModel(HOOK_MODEL)
     out: Dict[int, HookText] = {}
 
     for i in range(0, len(clip_items), batch_size):
@@ -386,7 +378,7 @@ def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: i
         payload = [{"index": int(it["index"]), "transcript": str(it.get("transcript", ""))[:4000]} for it in batch]
 
         try:
-            resp = generate_content_with_fallback(
+            resp = generate_chat_completion(
                 HOOK_MODEL,
                 [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
                 generation_config={
