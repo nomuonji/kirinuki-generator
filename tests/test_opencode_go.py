@@ -103,6 +103,25 @@ class OpenCodeGoTests(unittest.TestCase):
         self.assertEqual(post.call_count, 2)
         self.assertEqual(result.text, "{\"ok\":true}")
 
+    def test_retries_empty_content_with_larger_output_budget(self):
+        empty_response = FakeResponse(payload={
+            "choices": [{
+                "message": {"role": "assistant", "content": None, "reasoning_content": "thinking"},
+                "finish_reason": "length",
+            }]
+        })
+        responses = [empty_response, FakeResponse()]
+        with patch.dict(os.environ, {"OPENCODE_GO_API_KEY": "test-key"}, clear=True):
+            with patch("packages.opencode_go.requests.post", side_effect=responses) as post:
+                result = generate_chat_completion(
+                    DEFAULT_MODEL, "long prompt", attempts=2,
+                    sleep=lambda _: None, notify=lambda _: None,
+                )
+        self.assertEqual(post.call_count, 2)
+        self.assertEqual(post.call_args_list[0].kwargs["json"]["max_tokens"], 8192)
+        self.assertEqual(post.call_args_list[1].kwargs["json"]["max_tokens"], 16384)
+        self.assertEqual(result.text, "{\\"ok\\":true}")
+
     def test_does_not_retry_authentication_failure(self):
         with patch.dict(os.environ, {"OPENCODE_GO_API_KEY": "test-key"}, clear=True):
             with patch("packages.opencode_go.requests.post", return_value=FakeResponse(
