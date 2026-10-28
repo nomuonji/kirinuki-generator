@@ -37,6 +37,7 @@ env:
   # Use OpenCode Go / DeepSeek V4.1 Flash for all model calls.
   OPENCODE_GO_PROPOSAL_CHUNK_CHARS: '12000'
   OPENCODE_GO_MAX_TIMEOUT_SECONDS: '180'
+  OPENCODE_GO_REASONING_EFFORT: low
   OPENCODE_GO_MODEL: deepseek-v4.1-flash
   HOOK_MODEL: deepseek-v4.1-flash
   KIRINUKI_REVIEW_MODEL: deepseek-v4.1-flash
