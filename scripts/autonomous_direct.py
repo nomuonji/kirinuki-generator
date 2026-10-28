@@ -368,7 +368,7 @@ class DirectLane:
                  "--transcript", str(transcript),
                  "--clip-candidates", str(clip_dir / "clip_candidates.json"),
                  "--output-dir", str(clip_dir), "--max-reactions", "3",
-                 "--model", os.environ.get("REACTION_MODEL", os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"))],
+                 "--model", os.environ.get("REACTION_MODEL", os.environ.get("OPENCODE_GO_MODEL", "deepseek-v4.1-flash"))],
                 timeout=1400)
         command([sys.executable, "-m", "apps.cli.render_clips", "--input-dir", str(clip_dir)],
                 timeout=1900)
