@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'packages/opencode_go.py'
+      - 'packages/segmentation_gemini/client.py'
       - '.github/workflows/opencode-go-api-smoke.yml'
   workflow_dispatch:
 
@@ -29,7 +30,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install minimal client dependency
-        run: python -m pip install --disable-pip-version-check requests
+        run: python -m pip install --disable-pip-version-check requests pydantic python-dotenv
       - name: Send one minimal DeepSeek API request and validate JSON
         run: |
           python - <<'PY'
@@ -56,4 +57,28 @@ jobs:
               "responseValidated": True,
               "sessionHeaderPresent": True,
           }))
+          PY
+
+      - name: Verify real OpenCode Go subtitle polishing returns aligned lines
+        run: |
+          python - <<'PY'
+          import json
+          from packages.segmentation_gemini.client import polish_subtitles_bulk
+
+          result = polish_subtitles_bulk([
+              {
+                  "index": 77,
+                  "lines": ["今日は晴れです", "午後は散歩に行きます"],
+              }
+          ], concept="日本語字幕の校正")
+          polished = result.get(77)
+          assert isinstance(polished, list), "Subtitle polisher returned no validated result for clip 77"
+          assert len(polished) == 2, f"Expected 2 aligned lines, got {len(polished)}"
+          assert all(isinstance(line, str) and line.strip() for line in polished), "Polisher returned an empty or non-string line"
+          print(json.dumps({
+              "result": "PASS",
+              "validatedClipCount": 1,
+              "lineCount": len(polished),
+              "lineAlignmentPreserved": True,
+          }, ensure_ascii=False))
           PY
