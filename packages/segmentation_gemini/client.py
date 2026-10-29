@@ -191,48 +191,60 @@ def polish_subtitles(lines: List[str], concept: str = "") -> List[str]:
 
 
 def polish_subtitles_bulk(clips: List[Dict], concept: str = "") -> Dict[int, List[str]]:
-    """Polish subtitle lines for multiple clips in one OpenCode Go request.
-
-    Each input is {"index": int, "lines": List[str]}. A clip is returned only
-    when OpenCode Go preserves its exact line count; callers retain originals for
-    any omitted or malformed result.
-    """
+    """Polish subtitle batches while preserving clip indexes and line counts."""
     if not clips:
         return {}
 
+    concept_prompt = f"Clip concept: {concept}. " if concept else ""
     sys = (
-        "You are a viral video producer crafting overlay text for short-form clips. "
-        "Write in natural, concise Japanese that fits the actual speaker and audience; do not force youth slang. Ensure ALL generated text is in Japanese. Follow these formatting rules strictly: "
-        "1) Provide decorated text using **double asterisks** around up to three key phrases that must pop. "
-        "2) Use \\n (newline) to break the copy into at most two short lines that read naturally. "
-        "3) Avoid any markup besides the **emphasis** markers. No emojis that break encoding. "
-        "4) Also supply a plain version with no markup, replacing newlines by spaces, for metadata storage. "
-        "5) Provide 3-5 concise Japanese hashtags relevant to the clip in the \"hashtags\" field (each should start with #, no spaces). "
-        "Return JSON with fields upperDecorated, lowerDecorated, upperPlain, lowerPlain, hashtags."
+        "You are a professional Japanese subtitle editor. "
+        f"{concept_prompt}"
+        "You receive an array of clips, each with an integer index and ordered subtitle lines. "
+        "Correct obvious transcription typos and normalize punctuation without changing meaning. "
+        "Do not merge, split, reorder, or omit lines. Do not add labels or timestamps. "
+        'Return JSON only: [{"index": 1, "lines": ["corrected line 1"]}].'
     )
-
-    resp = generate_chat_completion(
-        HOOK_MODEL,
-        [sys, clip_transcript],
-        generation_config={
-            "temperature": 0.7,
-        },
-        request_options={"retry": None},
-    )
-    parsed = _safe_parsed(resp)
-    upper_decorated = str(parsed.get("upperDecorated", ""))
-    lower_decorated = str(parsed.get("lowerDecorated", ""))
-    upper_plain = _sanitize_plain_text(str(parsed.get("upperPlain", "")), upper_decorated)
-    lower_plain = _sanitize_plain_text(str(parsed.get("lowerPlain", "")), lower_decorated)
-    hashtags = _normalize_hashtags(parsed.get("hashtags"))
-    return HookText(
-        upper=upper_plain,
-        lower=lower_plain,
-        upper_decorated=upper_decorated,
-        lower_decorated=lower_decorated,
-        hashtags=hashtags,
-    )
-
+    out: Dict[int, List[str]] = {}
+    batch_size = 4
+    for offset in range(0, len(clips), batch_size):
+        batch = clips[offset:offset + batch_size]
+        payload = [
+            {"index": int(item["index"]), "lines": [str(line) for line in item.get("lines", [])]}
+            for item in batch if item.get("lines")
+        ]
+        if not payload:
+            continue
+        try:
+            resp = generate_chat_completion(
+                OPENCODE_GO_MODEL,
+                [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
+                generation_config={"temperature": 0.2},
+                request_options={"timeout": 180, "attempts": 2, "retry": None},
+            )
+            parsed = _safe_parsed(resp, expect_array=True)
+            if not isinstance(parsed, list):
+                print("  -> Warning: Subtitle polishing returned a non-array response")
+                continue
+            expected = {int(item["index"]): item["lines"] for item in payload}
+            for obj in parsed:
+                if not isinstance(obj, dict):
+                    continue
+                try:
+                    idx = int(obj["index"])
+                    original = expected.get(idx)
+                    lines = obj.get("lines")
+                    if original is None or not isinstance(lines, list):
+                        continue
+                    cleaned = [str(line) for line in lines]
+                    if len(cleaned) != len(original):
+                        print(f"  -> Warning: Subtitle line count changed for clip {idx}; retaining originals")
+                        continue
+                    out[idx] = cleaned
+                except (KeyError, TypeError, ValueError):
+                    continue
+        except Exception as exc:
+            print(f"  -> Warning: Subtitle polishing failed for batch: {exc}")
+    return out
 
 def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: int = 10) -> Dict[int, HookText]:
     """

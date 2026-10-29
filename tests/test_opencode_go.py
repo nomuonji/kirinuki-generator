@@ -162,3 +162,45 @@ class OpenCodeGoTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SubtitlePolishingBulkTests(unittest.TestCase):
+    def test_bulk_polishing_preserves_clip_indexes_and_line_counts(self):
+        from packages.segmentation_gemini import client
+
+        class ParsedResponse:
+            parsed = [
+                {"index": 2, "lines": ["修正二"]},
+                {"index": 1, "lines": ["修正一", "修正一・二"]},
+            ]
+
+        with patch.object(client, "generate_chat_completion", return_value=ParsedResponse()) as call:
+            result = client.polish_subtitles_bulk([
+                {"index": 1, "lines": ["原文一", "原文二"]},
+                {"index": 2, "lines": ["原文三"]},
+            ], concept="テスト")
+
+        self.assertEqual(result, {2: ["修正二"], 1: ["修正一", "修正一・二"]})
+        args, _ = call.call_args
+        self.assertIn('"index": 1', args[1][2])
+        self.assertIn('"index": 2', args[1][2])
+
+    def test_bulk_polishing_rejects_changed_line_count(self):
+        from packages.segmentation_gemini import client
+
+        class ParsedResponse:
+            parsed = [{"index": 1, "lines": ["1行だけ"]}]
+
+        with patch.object(client, "generate_chat_completion", return_value=ParsedResponse()):
+            result = client.polish_subtitles_bulk([
+                {"index": 1, "lines": ["原文一", "原文二"]},
+            ])
+
+        self.assertEqual(result, {})
+
+    def test_bulk_polishing_empty_input_does_not_call_model(self):
+        from packages.segmentation_gemini import client
+
+        with patch.object(client, "generate_chat_completion") as call:
+            self.assertEqual(client.polish_subtitles_bulk([]), {})
+        call.assert_not_called()
