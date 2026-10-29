@@ -79,7 +79,7 @@ jobs:
         run: |
           python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/opencode_go.py             packages/gemini_quota.py             apps/cli/generate_reactions.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py             scripts/kirinuki_readiness.py             scripts/private_render_smoke.py
       - name: Install direct publisher test dependencies
-        run: python -m pip install --disable-pip-version-check requests google-api-python-client google-auth-httplib2 google-auth-oauthlib
+        run: python -m pip install --disable-pip-version-check requests google-api-python-client google-auth-httplib2 google-auth-oauthlib pydantic
       - name: Run operations unit tests
         run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish tests.test_youtube_direct tests.test_readiness tests.test_opencode_go tests.test_gemini_quota
       - name: Verify direct workflow safely stays inactive without authorization
