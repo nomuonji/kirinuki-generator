@@ -208,6 +208,11 @@ class SubtitlePolishingTests(unittest.TestCase):
             self.assertEqual(polish_subtitles_bulk([]), {})
         generate.assert_not_called()
 
+    def test_hook_generator_remains_available(self):
+        from packages.segmentation_gemini.client import generate_hooks_bulk
+
+        self.assertTrue(callable(generate_hooks_bulk))
+
 
 if __name__ == "__main__":
     unittest.main()

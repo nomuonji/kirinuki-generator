@@ -276,6 +276,71 @@ def polish_subtitles_bulk(clips: List[Dict], concept: str = "") -> Dict[int, Lis
     return polished
 
 
+def generate_hooks_bulk(clip_items: List[Dict], concept: str = "", batch_size: int = 10) -> Dict[int, HookText]:
+    """
+    Generate hook texts for multiple clips in a single OpenCode Go call.
+    clip_items: [{"index": int, "transcript": str}]
+    Returns: {index: HookText}
+    """
+    concept_prompt = f"The overall concept of the video is: {concept}. " if concept else ""
+    sys = (
+        "You are a viral video producer. "
+        f"{concept_prompt}For each item, craft natural, precise Japanese overlay text for vertical video top/bottom bands. Never invent quotes or sensationalize the actual spoken meaning. "
+        "Ensure ALL text is in Japanese. "
+        "Top overlay text (upperDecorated) should quickly set context or tease the setup in 1-2 short lines. "
+        "Bottom overlay text (lowerDecorated) should accurately capture the clip's real conclusion or payoff—"
+        "keep it to a single, high-impact phrase (ideally under 14 Japanese characters), and spotlight the key word with **bold** if needed. "
+        "Follow the same formatting rules for decorated text as above (wrap highlights with **, use at most two lines separated by \\n, and avoid other markup). "
+        "Always include plain-text copies with markup removed, and provide 3-5 Japanese hashtags (starting with #) that match the clip. "
+        "Return an array aligning 1:1 with input items by 'index'. Output JSON only."
+    )
+
+    out: Dict[int, HookText] = {}
+
+    for i in range(0, len(clip_items), batch_size):
+        batch = clip_items[i:i + batch_size]
+        print(f"  -> Processing batch {i//batch_size + 1}/{(len(clip_items) + batch_size - 1)//batch_size}...")
+
+        # Build input payload compactly to stay under token limits
+        payload = [{"index": int(it["index"]), "transcript": str(it.get("transcript", ""))[:4000]} for it in batch]
+
+        try:
+            resp = generate_chat_completion(
+                HOOK_MODEL,
+                [sys, "INPUT:", json.dumps(payload, ensure_ascii=False)],
+                generation_config={
+                    "temperature": 0.7,
+                },
+                request_options={"timeout": 600, "retry": None},
+            )
+            parsed = _safe_parsed(resp, expect_array=True)
+
+            for obj in parsed:
+                try:
+                    idx = int(obj.get("index"))
+                    upper_decorated = str(obj.get("upperDecorated", ""))
+                    lower_decorated = str(obj.get("lowerDecorated", ""))
+                    upper_plain = _sanitize_plain_text(str(obj.get("upperPlain", "")), upper_decorated)
+                    lower_plain = _sanitize_plain_text(str(obj.get("lowerPlain", "")), lower_decorated)
+                    hashtags = _normalize_hashtags(obj.get("hashtags"))
+                    out[idx] = HookText(
+                        upper=upper_plain,
+                        lower=lower_plain,
+                        upper_decorated=upper_decorated,
+                        lower_decorated=lower_decorated,
+                        hashtags=hashtags,
+                    )
+                except Exception as e:
+                    print(f"    -> Warning: Failed to parse a hook object: {e}")
+                    continue
+        except Exception as e:
+            print(f"  -> Error processing batch: {e}")
+            continue
+
+    return out
+
+
+
 def _safe_parsed(resp, expect_array: bool = False):
     """Try multiple ways to extract JSON from OpenCode Go response."""
     # The OpenCode Go adapter returns text; keep plain JSON parsing as the source of truth
