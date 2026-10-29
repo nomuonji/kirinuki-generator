@@ -160,5 +160,54 @@ class OpenCodeGoTests(unittest.TestCase):
         post.assert_not_called()
 
 
+class SubtitlePolishingTests(unittest.TestCase):
+    def test_returns_only_aligned_subtitle_lines_by_clip_index(self):
+        from types import SimpleNamespace
+        from packages.segmentation_gemini.client import polish_subtitles_bulk
+
+        response = SimpleNamespace(parsed=[
+            {"index": 2, "lines": ["こんにちは。", "元気ですか？"]},
+            {"index": 1, "lines": ["今日は晴れです。"]},
+        ])
+        with patch("packages.segmentation_gemini.client.generate_chat_completion", return_value=response) as generate:
+            result = polish_subtitles_bulk([
+                {"index": 1, "lines": ["今日は晴れです"]},
+                {"index": 2, "lines": ["こんにちは", "元気ですか"]},
+            ], concept="テスト")
+
+        self.assertEqual(result, {
+            1: ["今日は晴れです。"],
+            2: ["こんにちは。", "元気ですか？"],
+        })
+        prompt_messages = generate.call_args.args[1]
+        self.assertIn('"index": 1', prompt_messages[2])
+        self.assertIn("same number of lines", prompt_messages[0])
+
+    def test_omits_malformed_results_so_callers_keep_original_lines(self):
+        from types import SimpleNamespace
+        from packages.segmentation_gemini.client import polish_subtitles_bulk
+
+        response = SimpleNamespace(parsed=[
+            {"index": 1, "lines": ["修正済み"]},
+            {"index": 2, "lines": ["一行だけ"]},  # Original has two lines.
+            {"index": 3, "lines": ["", "二行目"]},  # Must not erase a non-empty line.
+        ])
+        with patch("packages.segmentation_gemini.client.generate_chat_completion", return_value=response):
+            result = polish_subtitles_bulk([
+                {"index": 1, "lines": ["修正前"]},
+                {"index": 2, "lines": ["一行目", "二行目"]},
+                {"index": 3, "lines": ["一行目", "二行目"]},
+            ])
+
+        self.assertEqual(result, {1: ["修正済み"]})
+
+    def test_empty_inputs_do_not_call_model(self):
+        from packages.segmentation_gemini.client import polish_subtitles_bulk
+
+        with patch("packages.segmentation_gemini.client.generate_chat_completion") as generate:
+            self.assertEqual(polish_subtitles_bulk([]), {})
+        generate.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
