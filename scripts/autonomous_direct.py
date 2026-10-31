@@ -122,7 +122,8 @@ def select_source(ledger):
                     ignored.add(vid)
             except ValueError:
                 ignored.add(vid)
-    ranked = build_ranked_candidates(videos, ignored, config)
+    diag: dict = {}
+    ranked = build_ranked_candidates(videos, ignored, config, diagnostics=diag)
     if not ranked and config.fallback_max_source_age_days > config.max_source_age_days:
         videos = [v for v in fetch_recent_videos(key, playlist, config.fallback_max_search_videos)
                   if str(v.get("id") or "") not in EXCLUDED_SOURCE_VIDEO_IDS]
@@ -130,7 +131,12 @@ def select_source(ledger):
             videos, ignored, config,
             max_source_age_days=config.fallback_max_source_age_days,
             max_source_duration_minutes=config.fallback_max_source_duration_minutes,
+            diagnostics=diag,
         )
+    # why a source was (not) chosen, for the run log
+    print("source selection:", json.dumps({**diag, "videosSeen": len(videos), "ignoredByLedger": sorted(ignored),
+          "top": [(v["videoId"], round(float(v.get("selectionScore", 0)), 3)) for v in ranked[:5]],
+          "minScore": config.min_selection_score}, ensure_ascii=False, default=str))
     return next((v for v in ranked if float(v.get("selectionScore", 0)) >= config.min_selection_score), None)
 
 
