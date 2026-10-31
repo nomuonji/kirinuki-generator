@@ -456,9 +456,14 @@ def main():
     try:
         result = lane.produce(source)
         print("Production result:", json.dumps(result, ensure_ascii=False))
-    except Exception:
-        failures = int(lane.ledger.data["sources"].get(source["videoId"], {}).get("failures") or 0) + 1
+    except Exception as exc:
+        # A download failure is usually the downloader being down (SaveTube outage, yt-dlp bot
+        # wall), not the source being bad: it only parks the source for 6 h. Other failures
+        # count toward MAX_SOURCE_FAILURES.
+        download = isinstance(exc, subprocess.CalledProcessError) and "download_video.py" in " ".join(map(str, exc.cmd or []))
+        failures = int(lane.ledger.data["sources"].get(source["videoId"], {}).get("failures") or 0) + (0 if download else 1)
         lane.ledger.set_source(source["videoId"], status="failed", failures=failures,
+                               failure="download" if download else type(exc).__name__,
                                attemptedAt=utc_now().isoformat())
         raise
 
