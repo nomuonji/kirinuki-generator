@@ -3,8 +3,9 @@
   "lane": "hiroyuki-official",
   "sources": {
     "R9fFru7ST-o": {
-      "attemptedAt": "2026-10-31T22:37:41.948035+00:00",
-      "status": "processing",
+      "attemptedAt": "2026-10-31T22:44:22.195670+00:00",
+      "failures": 1,
+      "status": "failed",
       "title": "「ひろゆき＆いずみ新党（仮）」 キックオフ LIVE 説明会"
     },
     "pUsi5NQQgrA": {
@@ -13,6 +14,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-10-31T22:37:41.948049+00:00",
+  "updatedAt": "2026-10-31T22:44:22.195693+00:00",
   "version": 1
 }
