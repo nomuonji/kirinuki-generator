@@ -23,6 +23,9 @@ from packages.publish_scheduler import (aware, eligible_to_post, fingerprint,
 # Gadget Tsushin Creator Network's written Hiroyuki-specific clipping conditions.
 AUTHORIZED_SOURCE_CHANNEL_ID = "UC0yQ2h4gQXmVUFWZSqlMVOA"
 EXCLUDED_SOURCE_VIDEO_IDS = frozenset({"exnFXUMMLLI", "q0GyNI3X8cg"})
+# A source that failed this many times (download/transcript/render) is skipped for good, so one
+# broken video cannot block the lane: before this, the planner re-picked pUsi5NQQgrA every 6 h.
+MAX_SOURCE_FAILURES = 2
 MISREPRESENTATION_TERMS = re.compile(r"(公式|公認|official|endorsed)", re.IGNORECASE)
 
 
@@ -111,7 +114,7 @@ def select_source(ledger):
     for vid, record in ledger.data["sources"].items():
         status = record.get("status")
         last = record.get("attemptedAt")
-        if status == "completed":
+        if status == "completed" or int(record.get("failures") or 0) >= MAX_SOURCE_FAILURES:
             ignored.add(vid)
         elif status in ("processing", "failed", "partial") and last:
             try:
@@ -442,7 +445,8 @@ def main():
         result = lane.produce(source)
         print("Production result:", json.dumps(result, ensure_ascii=False))
     except Exception:
-        lane.ledger.set_source(source["videoId"], status="failed",
+        failures = int(lane.ledger.data["sources"].get(source["videoId"], {}).get("failures") or 0) + 1
+        lane.ledger.set_source(source["videoId"], status="failed", failures=failures,
                                attemptedAt=utc_now().isoformat())
         raise
 
