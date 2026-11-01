@@ -85,10 +85,25 @@
     },
     "pUsi5NQQgrA": {
       "attemptedAt": "2026-11-01T06:44:41.290154+00:00",
-      "status": "processing",
+      "completedAt": "2026-11-01T07:50:03.684863+00:00",
+      "outcomes": [
+        {
+          "key": "b4a4e1b8e4c5605b708caded",
+          "status": "scheduled"
+        },
+        {
+          "key": "358357a4e6c4dbf6ceed6c4c",
+          "status": "scheduled"
+        },
+        {
+          "key": "e10edecbbc039080159758ac",
+          "status": "uncertain"
+        }
+      ],
+      "status": "completed",
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-01T07:50:02.918910+00:00",
+  "updatedAt": "2026-11-01T07:50:03.684882+00:00",
   "version": 1
 }
