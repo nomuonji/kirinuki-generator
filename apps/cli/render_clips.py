@@ -5,6 +5,8 @@ import pathlib
 import re
 import ffmpeg
 
+from packages.design_rotation import forced_design, history_from_env, pick_designs
+
 
 FRAME_RATE = 30
 
@@ -233,6 +235,22 @@ def main():
                 return
         print("--- Optimization Complete ---")
 
+    # One design per clip, continuing the rotation from earlier uploads (see design_rotation).
+    selected = []
+    for clip_path in clip_files:
+        m = re.search(r"clip_(\d{3})", clip_path.name)
+        if m and (not include_filter or int(m.group(1)) in include_filter):
+            selected.append(clip_path.name)
+    pinned = forced_design()
+    rotation_seed = os.environ.get("SOURCE_VIDEO_ID", "") or source_title or str(input_dir)
+    picks = pick_designs(history_from_env(), len(selected), seed=rotation_seed)
+    designs = {}
+    for name, pick in zip(selected, picks):
+        designs[name] = {**pick, **pinned} if pinned else pick
+    if designs:
+        print("Design rotation: " + ", ".join(
+            f"{name}={d['template']}/{d['variant']}" for name, d in designs.items()))
+
     print("\n--- Generating props files with duration ---")
     for clip_path in clip_files:
         match = re.search(r"clip_(\d{3})", clip_path.name)
@@ -367,6 +385,10 @@ def main():
             "subtitleTimeline": subtitle_timeline,
             "sourceVideoTitle": source_title,
         }
+        design = designs.get(clip_path.name)
+        if design:
+            props_dict.update(template=design["template"], variant=design["variant"],
+                              designSeed=design["designSeed"])
 
         props_json_path = props_dir / f"{clip_path.stem}.json"
         with open(props_json_path, 'w', encoding='utf-8') as f:
