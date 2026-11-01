@@ -1,8 +1,17 @@
-import '@fontsource/m-plus-rounded-1c';
+// Only the weights the templates use, so the bundle stays small.
+import "@fontsource/noto-sans-jp/800.css";
+import "@fontsource/noto-sans-jp/900.css";
+import "@fontsource/shippori-mincho-b1/800.css";
+import "@fontsource/dela-gothic-one/400.css";
+import "@fontsource/dotgothic16/400.css";
+import "@fontsource/zen-kaku-gothic-new/500.css";
+import "@fontsource/zen-kaku-gothic-new/700.css";
+import "@fontsource/zen-kaku-gothic-new/900.css";
+import "@fontsource/yusei-magic/400.css";
 
-import {AbsoluteFill, Composition} from 'remotion';
-import {VideoWithBands} from './VideoWithBands';
-import {z} from 'zod';
+import {Composition} from "remotion";
+import {VideoWithBands} from "./VideoWithBands";
+import {z} from "zod";
 
 const reactionTimelineSchema = z.object({
 	startFrame: z.number().int().nonnegative(),
@@ -17,7 +26,6 @@ const subtitleTimelineSchema = z.object({
 	text: z.string(),
 });
 
-// Define the schema for the input props
 export const inputPropsSchema = z.object({
 	videoFileName: z.string(),
 	topText: z.string(),
@@ -25,10 +33,13 @@ export const inputPropsSchema = z.object({
 	topRichText: z.string().optional(),
 	bottomRichText: z.string().optional(),
 	sourceVideoTitle: z.string().optional(),
-	// The duration is now passed as a prop
+	sourceAspect: z.number().positive().optional(),
 	durationInFrames: z.number().positive(),
 	reactionTimeline: z.array(reactionTimelineSchema).optional(),
 	subtitleTimeline: z.array(subtitleTimelineSchema).optional(),
+	template: z.string().optional(),
+	variant: z.number().int().nonnegative().optional(),
+	designSeed: z.number().int().nonnegative().optional(),
 });
 
 export const RemotionRoot: React.FC = () => {
@@ -37,30 +48,23 @@ export const RemotionRoot: React.FC = () => {
 			<Composition
 				id="VideoWithBands"
 				component={VideoWithBands}
-				// A dummy duration is required, but it will be overridden by calculateMetadata
+				// A dummy duration is required, but it is overridden by calculateMetadata.
 				durationInFrames={1}
 				fps={30}
 				width={1080}
 				height={1920}
 				schema={inputPropsSchema}
 				defaultProps={{
-					videoFileName: 'out_clips/clip_001_84-125.mp4',
-					topText: 'Default Top Text',
-					bottomText: 'Default Bottom Text',
+					videoFileName: "out_clips/clip_001_84-125.mp4",
+					topText: "Default Top Text",
+					bottomText: "Default Bottom Text",
 					topRichText: undefined,
 					bottomRichText: undefined,
-					sourceVideoTitle: 'Sample Video Title',
-					durationInFrames: 1200, // Default to 40 seconds
+					sourceVideoTitle: "Sample Video Title",
+					durationInFrames: 1200,
 					reactionTimeline: [],
 				}}
-				// Use calculateMetadata to dynamically set the duration from props
-				calculateMetadata={async ({props}) => {
-					// No async work is needed, but the function must be async.
-					// We simply return the duration that was passed in via props.
-					return {
-						durationInFrames: props.durationInFrames,
-					};
-				}}
+				calculateMetadata={async ({props}) => ({durationInFrames: props.durationInFrames})}
 			/>
 		</>
 	);

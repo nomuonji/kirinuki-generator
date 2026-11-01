@@ -385,6 +385,10 @@ class DirectLane:
                  "--output-dir", str(clip_dir), "--max-reactions", "3",
                  "--model", os.environ.get("REACTION_MODEL", os.environ.get("OPENCODE_GO_MODEL", "deepseek-v4.1-flash"))],
                 timeout=1400)
+        from packages.design_rotation import history_from_ledger
+        os.environ["SOURCE_VIDEO_ID"] = source_id
+        os.environ["KIRINUKI_DESIGN_HISTORY"] = json.dumps(
+            history_from_ledger(self.ledger.data.get("clips", {})))
         command([sys.executable, "-m", "apps.cli.render_clips", "--input-dir", str(clip_dir)],
                 timeout=1900)
         if not list(props_dir.glob("clip_*.json")):
@@ -410,6 +414,9 @@ class DirectLane:
                 "editorialDigest": audit["candidateDigest"],
                 "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
             }
+            props = json.loads(Path(prop_path).read_text(encoding="utf-8"))
+            if props.get("template"):
+                item["design"] = {"template": props["template"], "variant": props.get("variant", 0)}
             disposition = self.publish(mp4_path, item)
             if disposition == "overflow":
                 self.overflow(mp4_path, item)
