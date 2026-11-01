@@ -38,12 +38,12 @@
         "sizeBytes": 55468713,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-01T11:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "pUsi5NQQgrA",
       "start": 1861.04,
-      "status": "scheduled",
+      "status": "published",
       "title": "AppleWatchの心拍数で遊ぶ理由",
       "uploadedAt": "2026-11-01T07:21:52.806060+00:00",
       "videoId": "5B9jk9dg_q4"
@@ -104,6 +104,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-01T07:50:03.684882+00:00",
+  "updatedAt": "2026-11-01T18:03:56.121263+00:00",
   "version": 1
 }
