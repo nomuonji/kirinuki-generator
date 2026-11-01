@@ -1,5 +1,26 @@
 {
   "clips": {
+    "358357a4e6c4dbf6ceed6c4c": {
+      "attemptedAt": "2026-11-01T07:35:26.554993+00:00",
+      "confidence": 0.89,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "editorialDigest": "744f995f0787bf64f19545c6100964fbbf5dc3b556cc1109e59ad24269c37010",
+      "end": 2398.169,
+      "fingerprint": "358357a4e6c4dbf6ceed6c4c",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 102.91,
+        "height": 1920,
+        "sizeBytes": 67511729,
+        "width": 1080
+      },
+      "publishAt": "2026-11-02T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "pUsi5NQQgrA",
+      "start": 2295.32,
+      "status": "uploading",
+      "title": "38歳のモテは顔より金"
+    },
     "b4a4e1b8e4c5605b708caded": {
       "attemptedAt": "2026-11-01T07:21:47.258354+00:00",
       "confidence": 0.87,
@@ -39,6 +60,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-01T07:21:53.639644+00:00",
+  "updatedAt": "2026-11-01T07:35:26.555003+00:00",
   "version": 1
 }
