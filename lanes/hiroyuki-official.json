@@ -77,6 +77,11 @@
   },
   "lane": "hiroyuki-official",
   "sources": {
+    "2zED6c6zgx4": {
+      "attemptedAt": "2026-11-01T18:04:53.284116+00:00",
+      "status": "processing",
+      "title": "「なぜ遅刻をするのに開始時間を設定してしまうのか？」Domaine De La Valliere Cidre"
+    },
     "R9fFru7ST-o": {
       "attemptedAt": "2026-10-31T22:44:22.195670+00:00",
       "failures": 1,
@@ -104,6 +109,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-01T18:04:50.714923+00:00",
+  "updatedAt": "2026-11-01T18:04:53.284147+00:00",
   "version": 1
 }
