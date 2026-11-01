@@ -46,14 +46,22 @@ def command(args, timeout=2400):
     subprocess.run(args, check=True, timeout=timeout)
 
 
+OWNED_VIDEO_SCAN_LIMIT = 250
+# An upload whose outcome was unknown is only released for a retry after this long, so a
+# video that YouTube accepted but had not listed yet has time to appear in the uploads list.
+UNCERTAIN_RELEASE_AFTER = timedelta(hours=3)
+
+
 def runtime():
     from packages.youtube_direct import auth_youtube, owned_videos, reservations
     yt, uploads = auth_youtube()
-    actual = owned_videos(yt, uploads)
-    return yt, actual, reservations(actual)
+    actual = owned_videos(yt, uploads, limit=OWNED_VIDEO_SCAN_LIMIT)
+    # owned_videos stops early only when the uploads playlist has no more pages.
+    complete = len(actual) < OWNED_VIDEO_SCAN_LIMIT
+    return yt, actual, reservations(actual), complete
 
 
-def reconcile(ledger, actual):
+def reconcile(ledger, actual, *, listing_complete=False, now=None):
     """Known YouTube upload IDs and unique markers prevent blind duplicate retries."""
     from packages.youtube_direct import fingerprint_of
     by_key = {fingerprint_of(v): v for v in actual if fingerprint_of(v)}
@@ -72,9 +80,25 @@ def reconcile(ledger, actual):
                             "privacyStatus": status.get("privacyStatus")})
                 dirty = True
         elif rec.get("status") in ("uploading", "uncertain"):
-            # A video can exist while absent from the most recent upload pages.
-            # Never treat absence as proof that a retry is safe.
-            rec["status"] = "uncertain"
+            # A video can exist while absent from the most recent upload pages, so absence
+            # only proves anything when the whole uploads list was read and the attempt is
+            # old enough for YouTube to have listed it.
+            attempted = rec.get("attemptedAt")
+            old_enough = bool(attempted) and (now or utc_now()) - aware(attempted) >= UNCERTAIN_RELEASE_AFTER
+            if listing_complete and old_enough:
+                if rec.get("driveVideoId"):
+                    rec["status"] = "overflow"  # bytes are in Drive: replay_overflow retries it
+                    rec["failure"] = "upload_absent_after_check"
+                else:
+                    rec["status"] = "regeneration_needed"
+                    rec["failure"] = "upload_absent_no_backup"
+                rec["releasedAt"] = (now or utc_now()).isoformat()
+                rec.pop("publishAt", None)
+                print(f"Released unconfirmed upload {key}: not on the channel after a full check")
+            elif rec.get("status") != "uncertain":
+                rec["status"] = "uncertain"
+            else:
+                continue
             dirty = True
     if dirty:
         ledger.save()
@@ -151,8 +175,8 @@ class DirectLane:
         self.lane = os.environ.get("KIRINUKI_LANE", "hiroyuki-official")
         self.ledger = GitHubLedger(self.lane)
         self.ledger.load()
-        self.youtube, self.actual, self.provider_slots = runtime()
-        reconcile(self.ledger, self.actual)
+        self.youtube, self.actual, self.provider_slots, listing_complete = runtime()
+        reconcile(self.ledger, self.actual, listing_complete=listing_complete)
         self.now = utc_now()
         self.max_uploads_per_24h = max(1, int(os.environ.get("KIRINUKI_UPLOADS_PER_24H", "6")))
         self.max_clips_per_run = max(1, min(12, int(os.environ.get("KIRINUKI_CLIPS_PER_RUN", "6"))))
@@ -365,7 +389,7 @@ class DirectLane:
                 import shutil
                 shutil.rmtree(directory)
             directory.mkdir(parents=True)
-        command([sys.executable, "download_video.py", source_id, "--output", str(video)], timeout=3300)
+        command([sys.executable, "download_video.py", source_id, "--output", str(video)], timeout=3900)
         command([sys.executable, "transcribe_rapidapi.py", source_id,
                  "--output", str(transcript)], timeout=1200)
         concept = os.environ.get("KIRINUKI_CONCEPT_FILE", "configs/video_concept_hiroyuki.md")
