@@ -62,12 +62,15 @@
         "sizeBytes": 51693579,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-03T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "2zED6c6zgx4",
       "start": 1117.36,
-      "status": "uploading",
-      "title": "1分の遅刻が15分になる電車の理屈"
+      "status": "verification_pending",
+      "title": "1分の遅刻が15分になる電車の理屈",
+      "uploadedAt": "2026-11-02T22:33:20.923177+00:00",
+      "videoId": "AoabnsnL3zg"
     },
     "e10edecbbc039080159758ac": {
       "attemptedAt": "2026-11-02T06:43:18.251489+00:00",
@@ -136,6 +139,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T22:33:13.247625+00:00",
+  "updatedAt": "2026-11-02T22:33:20.923224+00:00",
   "version": 1
 }
