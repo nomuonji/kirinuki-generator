@@ -164,12 +164,15 @@
         "sizeBytes": 35975558,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-06T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "2zED6c6zgx4",
       "start": 4230.6,
-      "status": "uploading",
-      "title": "お金を配っても物価が上がるだけ"
+      "status": "verification_pending",
+      "title": "お金を配っても物価が上がるだけ",
+      "uploadedAt": "2026-11-02T22:56:44.285036+00:00",
+      "videoId": "ik5u-CRFLm0"
     }
   },
   "lane": "hiroyuki-official",
@@ -208,6 +211,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T22:56:37.874156+00:00",
+  "updatedAt": "2026-11-02T22:56:44.285079+00:00",
   "version": 1
 }
