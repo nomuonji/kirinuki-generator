@@ -14,12 +14,12 @@
         "sizeBytes": 67511729,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-02T03:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "pUsi5NQQgrA",
       "start": 2295.32,
-      "status": "scheduled",
+      "status": "published",
       "title": "38歳のモテは顔より金",
       "uploadedAt": "2026-11-01T07:35:32.393260+00:00",
       "videoId": "XIVOpjkvDf8"
@@ -56,7 +56,7 @@
       "driveVideoId": "1dtPzve4CIupVKWYcmoavYfieRbhPIH7A",
       "editorialDigest": "744f995f0787bf64f19545c6100964fbbf5dc3b556cc1109e59ad24269c37010",
       "end": 4957.28,
-      "failure": "needs_provider_reconciliation",
+      "failure": "upload_absent_after_check",
       "fallbackAt": "2026-11-01T07:50:01.712255+00:00",
       "fingerprint": "e10edecbbc039080159758ac",
       "mediaAudit": {
@@ -67,11 +67,11 @@
         "width": 1080
       },
       "overflowSha256": "6b54432d730dd143e9f412a0d9ca7cfd52160c823d292610d5a61891f982e8ce",
-      "publishAt": "2026-11-03T03:00:00Z",
+      "releasedAt": "2026-11-02T06:42:10.811200+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "pUsi5NQQgrA",
       "start": 4844.6,
-      "status": "uncertain",
+      "status": "overflow",
       "title": "親のコネと二世の葛藤"
     }
   },
@@ -111,6 +111,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-01T18:11:20.026247+00:00",
+  "updatedAt": "2026-11-02T06:42:10.811236+00:00",
   "version": 1
 }
