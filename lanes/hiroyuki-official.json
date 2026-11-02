@@ -67,7 +67,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "2zED6c6zgx4",
       "start": 5095.04,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "牛丼店長は個人事業主？グレーな雇用の実態",
       "uploadedAt": "2026-11-02T23:10:43.976193+00:00",
       "videoId": "Grsb6JpgGGY"
@@ -235,6 +235,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T23:10:43.976235+00:00",
+  "updatedAt": "2026-11-02T23:10:45.398430+00:00",
   "version": 1
 }
