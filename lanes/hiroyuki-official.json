@@ -73,7 +73,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "pUsi5NQQgrA",
       "start": 4844.6,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "親のコネと二世の葛藤",
       "uploadedAt": "2026-11-02T06:43:22.520037+00:00",
       "videoId": "egn0pBTN9WM"
@@ -115,6 +115,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T06:43:22.520089+00:00",
+  "updatedAt": "2026-11-02T06:43:23.477921+00:00",
   "version": 1
 }
