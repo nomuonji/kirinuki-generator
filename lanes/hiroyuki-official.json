@@ -49,7 +49,7 @@
       "videoId": "5B9jk9dg_q4"
     },
     "e10edecbbc039080159758ac": {
-      "attemptedAt": "2026-11-01T07:49:54.950239+00:00",
+      "attemptedAt": "2026-11-02T06:43:18.251489+00:00",
       "confidence": 0.82,
       "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
       "driveMetadataId": "11-Dt8oEEeaiFdIkv_EFjQek8H50B0CIz",
@@ -67,11 +67,12 @@
         "width": 1080
       },
       "overflowSha256": "6b54432d730dd143e9f412a0d9ca7cfd52160c823d292610d5a61891f982e8ce",
+      "publishAt": "2026-11-02T11:00:00Z",
       "releasedAt": "2026-11-02T06:42:10.811200+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "pUsi5NQQgrA",
       "start": 4844.6,
-      "status": "overflow",
+      "status": "uploading",
       "title": "親のコネと二世の葛藤"
     }
   },
@@ -111,6 +112,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T06:42:10.811236+00:00",
+  "updatedAt": "2026-11-02T06:43:18.251499+00:00",
   "version": 1
 }
