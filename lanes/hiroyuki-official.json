@@ -48,6 +48,27 @@
       "uploadedAt": "2026-11-01T07:35:32.393260+00:00",
       "videoId": "XIVOpjkvDf8"
     },
+    "7c0c26cbf386c449b203e259": {
+      "attemptedAt": "2026-11-02T23:10:33.619909+00:00",
+      "confidence": 0.86,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "editorialDigest": "986696fa27e077e75ccc262784777fb6741692c35dcb162d05426d04de7b009a",
+      "end": 5213.36,
+      "fingerprint": "7c0c26cbf386c449b203e259",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 118.38,
+        "height": 1920,
+        "sizeBytes": 82627194,
+        "width": 1080
+      },
+      "publishAt": "2026-11-07T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "2zED6c6zgx4",
+      "start": 5095.04,
+      "status": "uploading",
+      "title": "牛丼店長は個人事業主？グレーな雇用の実態"
+    },
     "b4a4e1b8e4c5605b708caded": {
       "attemptedAt": "2026-11-01T07:21:47.258354+00:00",
       "confidence": 0.87,
@@ -211,6 +232,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T22:56:45.813783+00:00",
+  "updatedAt": "2026-11-02T23:10:33.619916+00:00",
   "version": 1
 }
