@@ -140,12 +140,15 @@
         "sizeBytes": 56776051,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-05T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "2zED6c6zgx4",
       "start": 3789.76,
-      "status": "uploading",
-      "title": "食の禁止は文化で決める"
+      "status": "verification_pending",
+      "title": "食の禁止は文化で決める",
+      "uploadedAt": "2026-11-02T22:49:59.267396+00:00",
+      "videoId": "qwBK1RuXoWw"
     }
   },
   "lane": "hiroyuki-official",
@@ -184,6 +187,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T22:49:50.856326+00:00",
+  "updatedAt": "2026-11-02T22:49:59.267440+00:00",
   "version": 1
 }
