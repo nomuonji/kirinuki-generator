@@ -1,5 +1,26 @@
 {
   "clips": {
+    "2877240566abb1cf27bcbc6c": {
+      "attemptedAt": "2026-11-02T22:40:27.908580+00:00",
+      "confidence": 0.87,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "editorialDigest": "986696fa27e077e75ccc262784777fb6741692c35dcb162d05426d04de7b009a",
+      "end": 2995.04,
+      "fingerprint": "2877240566abb1cf27bcbc6c",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 68.42,
+        "height": 1920,
+        "sizeBytes": 44835320,
+        "width": 1080
+      },
+      "publishAt": "2026-11-04T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "2zED6c6zgx4",
+      "start": 2926.68,
+      "status": "uploading",
+      "title": "陰謀論はなぜ単純化する？"
+    },
     "358357a4e6c4dbf6ceed6c4c": {
       "attemptedAt": "2026-11-01T07:35:26.554993+00:00",
       "confidence": 0.89,
@@ -139,6 +160,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T22:33:22.201805+00:00",
+  "updatedAt": "2026-11-02T22:40:27.908589+00:00",
   "version": 1
 }
