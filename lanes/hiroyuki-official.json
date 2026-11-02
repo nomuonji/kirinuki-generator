@@ -125,6 +125,27 @@
       "title": "親のコネと二世の葛藤",
       "uploadedAt": "2026-11-02T06:43:22.520037+00:00",
       "videoId": "egn0pBTN9WM"
+    },
+    "f0ebd320fccde5b65686c603": {
+      "attemptedAt": "2026-11-02T22:49:50.856316+00:00",
+      "confidence": 0.86,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "editorialDigest": "986696fa27e077e75ccc262784777fb6741692c35dcb162d05426d04de7b009a",
+      "end": 3879.64,
+      "fingerprint": "f0ebd320fccde5b65686c603",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 89.94,
+        "height": 1920,
+        "sizeBytes": 56776051,
+        "width": 1080
+      },
+      "publishAt": "2026-11-05T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "2zED6c6zgx4",
+      "start": 3789.76,
+      "status": "uploading",
+      "title": "食の禁止は文化で決める"
     }
   },
   "lane": "hiroyuki-official",
@@ -163,6 +184,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T22:40:35.521520+00:00",
+  "updatedAt": "2026-11-02T22:49:50.856326+00:00",
   "version": 1
 }
