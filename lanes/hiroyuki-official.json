@@ -249,9 +249,40 @@
   "sources": {
     "2zED6c6zgx4": {
       "attemptedAt": "2026-11-02T21:54:28.456357+00:00",
+      "completedAt": "2026-11-02T23:29:12.586826+00:00",
       "failure": "CalledProcessError",
       "failures": 1,
-      "status": "processing",
+      "outcomes": [
+        {
+          "key": "dc1c99ed4132a5f41ceae0b9",
+          "status": "scheduled"
+        },
+        {
+          "key": "2877240566abb1cf27bcbc6c",
+          "status": "scheduled"
+        },
+        {
+          "key": "f0ebd320fccde5b65686c603",
+          "status": "scheduled"
+        },
+        {
+          "key": "ffbfa1f83537146acff218b2",
+          "status": "scheduled"
+        },
+        {
+          "key": "7c0c26cbf386c449b203e259",
+          "status": "scheduled"
+        },
+        {
+          "key": "fba307f6fbc2a282476942b0",
+          "status": "overflow"
+        },
+        {
+          "key": "d9a0f7fed3f41152c7b3e640",
+          "status": "overflow"
+        }
+      ],
+      "status": "completed",
       "title": "「なぜ遅刻をするのに開始時間を設定してしまうのか？」Domaine De La Valliere Cidre"
     },
     "R9fFru7ST-o": {
@@ -281,6 +312,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T23:29:11.579897+00:00",
+  "updatedAt": "2026-11-02T23:29:12.586854+00:00",
   "version": 1
 }
