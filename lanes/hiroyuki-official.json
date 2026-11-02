@@ -149,6 +149,27 @@
       "title": "食の禁止は文化で決める",
       "uploadedAt": "2026-11-02T22:49:59.267396+00:00",
       "videoId": "qwBK1RuXoWw"
+    },
+    "ffbfa1f83537146acff218b2": {
+      "attemptedAt": "2026-11-02T22:56:37.874148+00:00",
+      "confidence": 0.9,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "editorialDigest": "986696fa27e077e75ccc262784777fb6741692c35dcb162d05426d04de7b009a",
+      "end": 4287.72,
+      "fingerprint": "ffbfa1f83537146acff218b2",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 57.17,
+        "height": 1920,
+        "sizeBytes": 35975558,
+        "width": 1080
+      },
+      "publishAt": "2026-11-06T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "2zED6c6zgx4",
+      "start": 4230.6,
+      "status": "uploading",
+      "title": "お金を配っても物価が上がるだけ"
     }
   },
   "lane": "hiroyuki-official",
@@ -187,6 +208,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-02T22:50:00.628016+00:00",
+  "updatedAt": "2026-11-02T22:56:37.874156+00:00",
   "version": 1
 }
