@@ -97,6 +97,7 @@
       "videoId": "5B9jk9dg_q4"
     },
     "d9a0f7fed3f41152c7b3e640": {
+      "attemptedAt": "2026-11-03T07:11:52.495793+00:00",
       "confidence": 0.87,
       "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
       "driveMetadataId": "1uOe6mXzaCcq0th-s6ou6G0rYeygaaCbf",
@@ -113,10 +114,11 @@
         "width": 1080
       },
       "overflowSha256": "2e67de37e4b1cae32b2e592e813cb804f047f08c130e928082faed926b437d9c",
+      "publishAt": "2026-11-03T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "2zED6c6zgx4",
       "start": 9069.56,
-      "status": "overflow",
+      "status": "uploading",
       "title": "日本人の子供を増やせば十分"
     },
     "dc1c99ed4132a5f41ceae0b9": {
@@ -312,6 +314,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-03T07:10:35.468437+00:00",
+  "updatedAt": "2026-11-03T07:11:52.495805+00:00",
   "version": 1
 }
