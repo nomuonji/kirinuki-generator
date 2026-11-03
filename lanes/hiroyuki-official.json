@@ -119,7 +119,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "2zED6c6zgx4",
       "start": 9069.56,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "日本人の子供を増やせば十分",
       "uploadedAt": "2026-11-03T07:11:59.088160+00:00",
       "videoId": "VdNiZQ6AK-4"
@@ -317,6 +317,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-03T07:11:59.088211+00:00",
+  "updatedAt": "2026-11-03T07:12:00.236807+00:00",
   "version": 1
 }
