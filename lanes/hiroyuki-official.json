@@ -91,7 +91,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 1962.32,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "介護が政治を志した原点",
       "uploadedAt": "2026-11-04T07:26:15.638158+00:00",
       "videoId": "rvx5vLj1SIw"
@@ -346,6 +346,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:26:15.638206+00:00",
+  "updatedAt": "2026-11-04T07:26:16.694235+00:00",
   "version": 1
 }
