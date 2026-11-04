@@ -72,6 +72,29 @@
       "uploadedAt": "2026-11-01T07:35:32.393260+00:00",
       "videoId": "XIVOpjkvDf8"
     },
+    "7462cf65249f041d21c55400": {
+      "confidence": 0.82,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "driveMetadataId": "1OHj-LUPWx6bEpIjaRoA_N_V2bUCIhV7K",
+      "driveVideoId": "1ntZmNzEByFEKSiHqYTtOluuh9w5m1x6d",
+      "editorialDigest": "565dd72d1a1e374234fb271efbd423091aba6488889c274b8cb97e235d423d1b",
+      "end": 6628.410000000001,
+      "fallbackAt": "2026-11-04T08:06:15.574382+00:00",
+      "fingerprint": "7462cf65249f041d21c55400",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 49.79,
+        "height": 1920,
+        "sizeBytes": 32125976,
+        "width": 1080
+      },
+      "overflowSha256": "b2c0bf464702abc4c55b316e37b28be042e47064bfefb9ce118a0e31e25e6868",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "R9fFru7ST-o",
+      "start": 6578.68,
+      "status": "overflow",
+      "title": "1000万円の根拠を説明"
+    },
     "7c0c26cbf386c449b203e259": {
       "attemptedAt": "2026-11-02T23:10:33.619909+00:00",
       "confidence": 0.86,
@@ -465,6 +488,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:59:47.603433+00:00",
+  "updatedAt": "2026-11-04T08:06:15.574407+00:00",
   "version": 1
 }
