@@ -32,6 +32,10 @@ python run_all.py <YouTubeのビデオID> --reaction
 
 ---
 
+## エージェント向け: 外部素材と音の確認（任意）
+
+効果音・BGM・画像を足したいときは **Openverse**（キー不要で CC / パブリックドメインの画像・音声を横断検索。商用可・改変可のフィルタ必須）、仕上がった動画の音量・音の位置・聞き取りを確かめたいときは **earshot**（エージェントが聴けない音を測定・比較するツール。GitHub からタグ固定で導入。`pip install earshot` は別物）が使える。どちらも必須ではない。切り抜き元の動画音声の権利は別問題で、これらで解決しない。手順と注意は [asset-sources.md](https://github.com/nomuonji/animation-factory/blob/main/docs/asset-sources.md)。
+
 ## セットアップ (Setup)
 
 1.  **必要ツールの準備**
