@@ -86,12 +86,15 @@
         "sizeBytes": 60855839,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-05T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 1962.32,
-      "status": "uploading",
-      "title": "介護が政治を志した原点"
+      "status": "verification_pending",
+      "title": "介護が政治を志した原点",
+      "uploadedAt": "2026-11-04T07:26:15.638158+00:00",
+      "videoId": "rvx5vLj1SIw"
     },
     "b4a4e1b8e4c5605b708caded": {
       "attemptedAt": "2026-11-01T07:21:47.258354+00:00",
@@ -343,6 +346,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:26:06.484499+00:00",
+  "updatedAt": "2026-11-04T07:26:15.638206+00:00",
   "version": 1
 }
