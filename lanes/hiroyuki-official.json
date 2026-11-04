@@ -296,9 +296,9 @@
       "title": "「なぜ遅刻をするのに開始時間を設定してしまうのか？」Domaine De La Valliere Cidre"
     },
     "R9fFru7ST-o": {
-      "attemptedAt": "2026-10-31T22:44:22.195670+00:00",
+      "attemptedAt": "2026-11-04T06:56:33.415628+00:00",
       "failures": 1,
-      "status": "failed",
+      "status": "processing",
       "title": "「ひろゆき＆いずみ新党（仮）」 キックオフ LIVE 説明会"
     },
     "pUsi5NQQgrA": {
@@ -322,6 +322,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T06:56:28.487896+00:00",
+  "updatedAt": "2026-11-04T06:56:33.415640+00:00",
   "version": 1
 }
