@@ -134,12 +134,15 @@
         "sizeBytes": 38934312,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-08T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 3076.08,
-      "status": "uploading",
-      "title": "赤い服の理由は「エビの赤」"
+      "status": "verification_pending",
+      "title": "赤い服の理由は「エビの赤」",
+      "uploadedAt": "2026-11-04T07:45:17.710234+00:00",
+      "videoId": "Bsj158RChQQ"
     },
     "b4a4e1b8e4c5605b708caded": {
       "attemptedAt": "2026-11-01T07:21:47.258354+00:00",
@@ -415,6 +418,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:45:12.635819+00:00",
+  "updatedAt": "2026-11-04T07:45:17.710276+00:00",
   "version": 1
 }
