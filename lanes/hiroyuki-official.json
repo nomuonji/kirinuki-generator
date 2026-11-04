@@ -386,12 +386,12 @@
         "width": 1080
       },
       "overflowSha256": "03bc07cb0f1c123882abe71fe06267cff84d7f19fa6f43c0733be47941dd2ed0",
-      "privacyStatus": "private",
-      "publishAt": "2026-11-04T11:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "2zED6c6zgx4",
       "start": 7610.24,
-      "status": "scheduled",
+      "status": "published",
       "title": "首を切れない日本企業の構造",
       "uploadedAt": "2026-11-04T06:56:27.515815+00:00",
       "videoId": "DGf-2VYGm14"
@@ -519,6 +519,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T08:06:17.281769+00:00",
+  "updatedAt": "2026-11-04T19:58:56.563807+00:00",
   "version": 1
 }
