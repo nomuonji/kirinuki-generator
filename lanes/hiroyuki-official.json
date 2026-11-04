@@ -14,12 +14,12 @@
         "sizeBytes": 44835320,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-04T03:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "2zED6c6zgx4",
       "start": 2926.68,
-      "status": "scheduled",
+      "status": "published",
       "title": "陰謀論はなぜ単純化する？",
       "uploadedAt": "2026-11-02T22:40:34.481118+00:00",
       "videoId": "ysmzuyOqetg"
@@ -317,6 +317,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-03T19:44:47.130359+00:00",
+  "updatedAt": "2026-11-04T06:55:15.452891+00:00",
   "version": 1
 }
