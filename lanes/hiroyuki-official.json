@@ -19,7 +19,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 4184.92,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "花粉症ゼロは無理?",
       "uploadedAt": "2026-11-04T07:54:00.171255+00:00",
       "videoId": "XYZEvIaCzsk"
@@ -442,6 +442,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:54:00.171298+00:00",
+  "updatedAt": "2026-11-04T07:54:01.254140+00:00",
   "version": 1
 }
