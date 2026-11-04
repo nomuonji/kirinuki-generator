@@ -96,6 +96,27 @@
       "uploadedAt": "2026-11-04T07:26:15.638158+00:00",
       "videoId": "rvx5vLj1SIw"
     },
+    "a74faa8a9b22e9652388467a": {
+      "attemptedAt": "2026-11-04T07:31:24.467957+00:00",
+      "confidence": 0.82,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "editorialDigest": "565dd72d1a1e374234fb271efbd423091aba6488889c274b8cb97e235d423d1b",
+      "end": 2302.33,
+      "fingerprint": "a74faa8a9b22e9652388467a",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 40.64,
+        "height": 1920,
+        "sizeBytes": 34026679,
+        "width": 1080
+      },
+      "publishAt": "2026-11-06T11:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "R9fFru7ST-o",
+      "start": 2261.76,
+      "status": "uploading",
+      "title": "子ども保険料0円へ"
+    },
     "b4a4e1b8e4c5605b708caded": {
       "attemptedAt": "2026-11-01T07:21:47.258354+00:00",
       "confidence": 0.87,
@@ -346,6 +367,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:26:16.694235+00:00",
+  "updatedAt": "2026-11-04T07:31:24.467968+00:00",
   "version": 1
 }
