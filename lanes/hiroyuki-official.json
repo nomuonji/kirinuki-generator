@@ -203,6 +203,7 @@
       "videoId": "qwBK1RuXoWw"
     },
     "fba307f6fbc2a282476942b0": {
+      "attemptedAt": "2026-11-04T06:56:21.458844+00:00",
       "confidence": 0.86,
       "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
       "driveMetadataId": "1Jn1nGK-80lWn7q0N6r4DyMhb5mDbfjkC",
@@ -219,10 +220,11 @@
         "width": 1080
       },
       "overflowSha256": "03bc07cb0f1c123882abe71fe06267cff84d7f19fa6f43c0733be47941dd2ed0",
+      "publishAt": "2026-11-04T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "2zED6c6zgx4",
       "start": 7610.24,
-      "status": "overflow",
+      "status": "uploading",
       "title": "首を切れない日本企業の構造"
     },
     "ffbfa1f83537146acff218b2": {
@@ -317,6 +319,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T06:55:15.452891+00:00",
+  "updatedAt": "2026-11-04T06:56:21.458854+00:00",
   "version": 1
 }
