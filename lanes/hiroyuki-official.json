@@ -120,6 +120,27 @@
       "uploadedAt": "2026-11-04T07:31:29.464267+00:00",
       "videoId": "9GenV1wXENg"
     },
+    "ab91d2d3b5dce2b1b0f5125b": {
+      "attemptedAt": "2026-11-04T07:45:12.635810+00:00",
+      "confidence": 0.82,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "editorialDigest": "565dd72d1a1e374234fb271efbd423091aba6488889c274b8cb97e235d423d1b",
+      "end": 3138.21,
+      "fingerprint": "ab91d2d3b5dce2b1b0f5125b",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 62.19,
+        "height": 1920,
+        "sizeBytes": 38934312,
+        "width": 1080
+      },
+      "publishAt": "2026-11-08T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "R9fFru7ST-o",
+      "start": 3076.08,
+      "status": "uploading",
+      "title": "赤い服の理由は「エビの赤」"
+    },
     "b4a4e1b8e4c5605b708caded": {
       "attemptedAt": "2026-11-01T07:21:47.258354+00:00",
       "confidence": 0.87,
@@ -394,6 +415,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:36:51.633538+00:00",
+  "updatedAt": "2026-11-04T07:45:12.635819+00:00",
   "version": 1
 }
