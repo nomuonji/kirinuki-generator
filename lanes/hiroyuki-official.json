@@ -463,8 +463,39 @@
     },
     "R9fFru7ST-o": {
       "attemptedAt": "2026-11-04T06:56:33.415628+00:00",
+      "completedAt": "2026-11-04T08:06:17.281729+00:00",
       "failures": 1,
-      "status": "processing",
+      "outcomes": [
+        {
+          "key": "961352b644af6f79b872943a",
+          "status": "scheduled"
+        },
+        {
+          "key": "a74faa8a9b22e9652388467a",
+          "status": "scheduled"
+        },
+        {
+          "key": "fb054f79117866c55cdb3c27",
+          "status": "scheduled"
+        },
+        {
+          "key": "ab91d2d3b5dce2b1b0f5125b",
+          "status": "scheduled"
+        },
+        {
+          "key": "285c6f658e8cfc40b56d3b8b",
+          "status": "scheduled"
+        },
+        {
+          "key": "c915b52f1923fa20880d649c",
+          "status": "overflow"
+        },
+        {
+          "key": "7462cf65249f041d21c55400",
+          "status": "overflow"
+        }
+      ],
+      "status": "completed",
       "title": "「ひろゆき＆いずみ新党（仮）」 キックオフ LIVE 説明会"
     },
     "pUsi5NQQgrA": {
@@ -488,6 +519,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T08:06:15.574407+00:00",
+  "updatedAt": "2026-11-04T08:06:17.281769+00:00",
   "version": 1
 }
