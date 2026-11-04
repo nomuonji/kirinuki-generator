@@ -192,6 +192,29 @@
       "uploadedAt": "2026-11-01T07:21:52.806060+00:00",
       "videoId": "5B9jk9dg_q4"
     },
+    "c915b52f1923fa20880d649c": {
+      "confidence": 0.85,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "driveMetadataId": "1o2Xu6EeMxMJDgWtrkyP8h7DQBDXXI6Iy",
+      "driveVideoId": "1ZX6dk4-sLj7ErB-DkTcuS3mmMFdT9oFM",
+      "editorialDigest": "565dd72d1a1e374234fb271efbd423091aba6488889c274b8cb97e235d423d1b",
+      "end": 4631.610000000001,
+      "fallbackAt": "2026-11-04T07:59:47.603403+00:00",
+      "fingerprint": "c915b52f1923fa20880d649c",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 43.65,
+        "height": 1920,
+        "sizeBytes": 29814311,
+        "width": 1080
+      },
+      "overflowSha256": "0efa693faa7438572d03fad38ba81e3bc22aad145fe53b93815da1b1b286d640",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "R9fFru7ST-o",
+      "start": 4588.0,
+      "status": "overflow",
+      "title": "保育園お迎え30分の差"
+    },
     "d9a0f7fed3f41152c7b3e640": {
       "attemptedAt": "2026-11-03T07:11:52.495793+00:00",
       "confidence": 0.87,
@@ -442,6 +465,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:54:01.254140+00:00",
+  "updatedAt": "2026-11-04T07:59:47.603433+00:00",
   "version": 1
 }
