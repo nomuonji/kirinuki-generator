@@ -139,7 +139,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 3076.08,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "赤い服の理由は「エビの赤」",
       "uploadedAt": "2026-11-04T07:45:17.710234+00:00",
       "videoId": "Bsj158RChQQ"
@@ -418,6 +418,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:45:17.710276+00:00",
+  "updatedAt": "2026-11-04T07:45:18.786496+00:00",
   "version": 1
 }
