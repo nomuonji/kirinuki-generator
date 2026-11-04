@@ -115,7 +115,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 2261.76,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "子ども保険料0円へ",
       "uploadedAt": "2026-11-04T07:31:29.464267+00:00",
       "videoId": "9GenV1wXENg"
@@ -370,6 +370,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:31:29.464313+00:00",
+  "updatedAt": "2026-11-04T07:31:30.480586+00:00",
   "version": 1
 }
