@@ -1,5 +1,26 @@
 {
   "clips": {
+    "285c6f658e8cfc40b56d3b8b": {
+      "attemptedAt": "2026-11-04T07:53:52.665049+00:00",
+      "confidence": 0.88,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "editorialDigest": "565dd72d1a1e374234fb271efbd423091aba6488889c274b8cb97e235d423d1b",
+      "end": 4252.17,
+      "fingerprint": "285c6f658e8cfc40b56d3b8b",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 67.33,
+        "height": 1920,
+        "sizeBytes": 43765813,
+        "width": 1080
+      },
+      "publishAt": "2026-11-09T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "R9fFru7ST-o",
+      "start": 4184.92,
+      "status": "uploading",
+      "title": "花粉症ゼロは無理?"
+    },
     "2877240566abb1cf27bcbc6c": {
       "attemptedAt": "2026-11-02T22:40:27.908580+00:00",
       "confidence": 0.87,
@@ -418,6 +439,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-04T07:45:18.786496+00:00",
+  "updatedAt": "2026-11-04T07:53:52.665057+00:00",
   "version": 1
 }
