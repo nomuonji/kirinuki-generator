@@ -507,7 +507,22 @@
   "sources": {
     "0YyAgmv5_Yc": {
       "attemptedAt": "2026-11-05T20:14:41.856036+00:00",
-      "status": "processing",
+      "completedAt": "2026-11-05T21:10:18.631490+00:00",
+      "outcomes": [
+        {
+          "key": "131d6d927004d16923f88111",
+          "status": "scheduled"
+        },
+        {
+          "key": "95eb1b86aa007a4f66829ff9",
+          "status": "scheduled"
+        },
+        {
+          "key": "00ae8670a5bb42b16b4e2804",
+          "status": "scheduled"
+        }
+      ],
+      "status": "completed",
       "title": "「政治家の不祥事で総理はどこまで責任を取るか？」"
     },
     "2zED6c6zgx4": {
@@ -606,6 +621,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-05T21:10:17.561995+00:00",
+  "updatedAt": "2026-11-05T21:10:18.631519+00:00",
   "version": 1
 }
