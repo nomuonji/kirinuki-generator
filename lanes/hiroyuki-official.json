@@ -19,7 +19,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0YyAgmv5_Yc",
       "start": 1601.16,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "15万円の席は高い?",
       "uploadedAt": "2026-11-05T20:49:56.648093+00:00",
       "videoId": "OX46RDDxj9Q"
@@ -558,6 +558,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-05T20:49:56.648136+00:00",
+  "updatedAt": "2026-11-05T20:49:58.462827+00:00",
   "version": 1
 }
