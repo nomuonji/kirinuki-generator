@@ -238,12 +238,15 @@
         "width": 1080
       },
       "overflowSha256": "0efa693faa7438572d03fad38ba81e3bc22aad145fe53b93815da1b1b286d640",
+      "privacyStatus": "private",
       "publishAt": "2026-11-11T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 4588.0,
-      "status": "uploading",
-      "title": "保育園お迎え30分の差"
+      "status": "verification_pending",
+      "title": "保育園お迎え30分の差",
+      "uploadedAt": "2026-11-05T20:14:35.106867+00:00",
+      "videoId": "nZLnh1Eo43I"
     },
     "d9a0f7fed3f41152c7b3e640": {
       "attemptedAt": "2026-11-03T07:11:52.495793+00:00",
@@ -526,6 +529,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-05T20:14:31.571662+00:00",
+  "updatedAt": "2026-11-05T20:14:35.106920+00:00",
   "version": 1
 }
