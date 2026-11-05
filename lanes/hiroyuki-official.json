@@ -14,12 +14,15 @@
         "sizeBytes": 62399020,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-08T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0YyAgmv5_Yc",
       "start": 1601.16,
-      "status": "uploading",
-      "title": "15万円の席は高い?"
+      "status": "verification_pending",
+      "title": "15万円の席は高い?",
+      "uploadedAt": "2026-11-05T20:49:56.648093+00:00",
+      "videoId": "OX46RDDxj9Q"
     },
     "285c6f658e8cfc40b56d3b8b": {
       "attemptedAt": "2026-11-04T07:53:52.665049+00:00",
@@ -555,6 +558,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-05T20:49:48.639900+00:00",
+  "updatedAt": "2026-11-05T20:49:56.648136+00:00",
   "version": 1
 }
