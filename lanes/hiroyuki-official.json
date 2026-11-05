@@ -19,7 +19,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0YyAgmv5_Yc",
       "start": 7367.56,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "男性は金が8割",
       "uploadedAt": "2026-11-05T21:10:16.280573+00:00",
       "videoId": "Us0fQYl9rn4"
@@ -606,6 +606,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-05T21:10:16.280622+00:00",
+  "updatedAt": "2026-11-05T21:10:17.561995+00:00",
   "version": 1
 }
