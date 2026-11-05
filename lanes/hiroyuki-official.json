@@ -14,12 +14,15 @@
         "sizeBytes": 47333900,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-10T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0YyAgmv5_Yc",
       "start": 7367.56,
-      "status": "uploading",
-      "title": "男性は金が8割"
+      "status": "verification_pending",
+      "title": "男性は金が8割",
+      "uploadedAt": "2026-11-05T21:10:16.280573+00:00",
+      "videoId": "Us0fQYl9rn4"
     },
     "131d6d927004d16923f88111": {
       "attemptedAt": "2026-11-05T20:49:48.639885+00:00",
@@ -603,6 +606,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-05T21:10:12.246492+00:00",
+  "updatedAt": "2026-11-05T21:10:16.280622+00:00",
   "version": 1
 }
