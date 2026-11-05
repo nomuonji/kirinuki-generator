@@ -243,7 +243,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 4588.0,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "保育園お迎え30分の差",
       "uploadedAt": "2026-11-05T20:14:35.106867+00:00",
       "videoId": "nZLnh1Eo43I"
@@ -529,6 +529,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-05T20:14:35.106920+00:00",
+  "updatedAt": "2026-11-05T20:14:36.239685+00:00",
   "version": 1
 }
