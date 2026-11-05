@@ -1,5 +1,26 @@
 {
   "clips": {
+    "00ae8670a5bb42b16b4e2804": {
+      "attemptedAt": "2026-11-05T21:10:12.246483+00:00",
+      "confidence": 0.88,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "editorialDigest": "f9c2542ed606fc1e1a16f7401cd48ce5d13a612f44cf07a60fb195854ad82263",
+      "end": 7449.4,
+      "fingerprint": "00ae8670a5bb42b16b4e2804",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 81.9,
+        "height": 1920,
+        "sizeBytes": 47333900,
+        "width": 1080
+      },
+      "publishAt": "2026-11-10T11:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "0YyAgmv5_Yc",
+      "start": 7367.56,
+      "status": "uploading",
+      "title": "男性は金が8割"
+    },
     "131d6d927004d16923f88111": {
       "attemptedAt": "2026-11-05T20:49:48.639885+00:00",
       "confidence": 0.87,
@@ -582,6 +603,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-05T21:00:29.632798+00:00",
+  "updatedAt": "2026-11-05T21:10:12.246492+00:00",
   "version": 1
 }
