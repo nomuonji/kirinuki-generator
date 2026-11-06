@@ -601,10 +601,10 @@
       "title": "「ひろゆき＆いずみ新党（仮）」 キックオフ LIVE 説明会"
     },
     "Sq1YChd0RqQ": {
-      "attemptedAt": "2026-11-06T08:20:18.065526+00:00",
+      "attemptedAt": "2026-11-06T19:39:30.774098+00:00",
       "failure": "TimeoutExpired",
       "failures": 1,
-      "status": "failed",
+      "status": "processing",
       "title": "『日本の“少子化“が大問題！子どもが減る国で一体何が起きるのか！？』【ひろゆきと語る夜】"
     },
     "pUsi5NQQgrA": {
@@ -628,6 +628,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-06T19:38:38.551198+00:00",
+  "updatedAt": "2026-11-06T19:39:30.774111+00:00",
   "version": 1
 }
