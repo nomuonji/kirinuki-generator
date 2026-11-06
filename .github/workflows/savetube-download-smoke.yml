@@ -15,10 +15,10 @@ on:
 jobs:
   savetube-primary:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 50
     env:
       SAVETUBE_QUALITY: '720'
-      SAVETUBE_TIMEOUT_SECONDS: '420'
+      SAVETUBE_TIMEOUT_SECONDS: '2820'
     steps:
       - uses: actions/checkout@v4
 

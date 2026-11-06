@@ -181,5 +181,62 @@ class DirectUploadContractTests(unittest.TestCase):
         self.assertEqual(lane.ledger.clip("a" * 24)["status"], "uncertain")
 
 
+class UncertainReleaseTests(unittest.TestCase):
+    """An upload with an unknown outcome is retried only once it is provably absent."""
+
+    NOW = datetime(2026, 11, 2, 0, 0, tzinfo=timezone.utc)
+
+    def journal(self, attempted="2026-11-01T07:49:54+00:00", drive=True):
+        journal = FakeJournal()
+        journal.saved = 0
+        journal.save = lambda: setattr(journal, "saved", journal.saved + 1)
+        record = {"status": "uncertain", "attemptedAt": attempted,
+                  "publishAt": "2026-11-03T03:00:00Z", "sourceVideoId": "pUsi5NQQgrA"}
+        if drive:
+            record["driveVideoId"] = "drive-id"
+        journal.data["clips"]["e" * 24] = record
+        return journal
+
+    def run_reconcile(self, journal, actual=(), complete=True):
+        import sys
+        import types
+        from unittest.mock import patch
+        fake = types.ModuleType("packages.youtube_direct")
+        fake.fingerprint_of = lambda v: v.get("fp")
+        with patch.dict(sys.modules, {"packages.youtube_direct": fake}):
+            from scripts.autonomous_direct import reconcile
+            reconcile(journal, list(actual), listing_complete=complete, now=self.NOW)
+        return journal.data["clips"]["e" * 24]
+
+    def test_absent_after_full_check_goes_back_to_drive_replay(self):
+        rec = self.run_reconcile(self.journal())
+        self.assertEqual(rec["status"], "overflow")
+        self.assertNotIn("publishAt", rec)
+        self.assertEqual(rec["failure"], "upload_absent_after_check")
+
+    def test_partial_listing_never_releases(self):
+        rec = self.run_reconcile(self.journal(), complete=False)
+        self.assertEqual(rec["status"], "uncertain")
+
+    def test_recent_attempt_waits(self):
+        rec = self.run_reconcile(self.journal(attempted="2026-11-01T22:30:00+00:00"))
+        self.assertEqual(rec["status"], "uncertain")
+
+    def test_found_on_channel_is_adopted_not_retried(self):
+        remote = {"fp": "e" * 24, "id": "vid123",
+                  "status": {"privacyStatus": "private", "publishAt": "2026-11-03T03:00:00Z"}}
+        rec = self.run_reconcile(self.journal(), actual=[remote])
+        self.assertEqual((rec["status"], rec["videoId"]), ("scheduled", "vid123"))
+
+    def test_without_drive_backup_it_needs_regeneration(self):
+        rec = self.run_reconcile(self.journal(drive=False))
+        self.assertEqual(rec["status"], "regeneration_needed")
+
+    def test_unchanged_uncertain_does_not_rewrite_the_journal(self):
+        journal = self.journal(attempted="2026-11-01T22:30:00+00:00")
+        self.run_reconcile(journal)
+        self.assertEqual(journal.saved, 0)
+
+
 if __name__ == "__main__":
     unittest.main()
