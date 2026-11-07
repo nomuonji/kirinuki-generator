@@ -190,12 +190,15 @@
         "sizeBytes": 23169430,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-13T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 2666.44,
-      "status": "uploading",
-      "title": "フランスは連帯、日本は自分だけ？"
+      "status": "verification_pending",
+      "title": "フランスは連帯、日本は自分だけ？",
+      "uploadedAt": "2026-11-07T18:46:43.744796+00:00",
+      "videoId": "qC2clDMXWl4"
     },
     "95eb1b86aa007a4f66829ff9": {
       "attemptedAt": "2026-11-05T21:00:24.429970+00:00",
@@ -716,6 +719,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T18:46:40.898767+00:00",
+  "updatedAt": "2026-11-07T18:46:43.744853+00:00",
   "version": 1
 }
