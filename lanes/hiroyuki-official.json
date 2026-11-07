@@ -535,7 +535,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 7710.88,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "メタ認知の原点は宇宙人？",
       "uploadedAt": "2026-11-07T19:09:30.872320+00:00",
       "videoId": "moUAF-EH48w"
@@ -833,6 +833,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T19:09:30.872370+00:00",
+  "updatedAt": "2026-11-07T19:09:32.203056+00:00",
   "version": 1
 }
