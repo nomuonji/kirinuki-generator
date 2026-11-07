@@ -138,12 +138,15 @@
         "sizeBytes": 27714375,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-14T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 5970.88,
-      "status": "uploading",
-      "title": "3%の子には体罰が必要?"
+      "status": "verification_pending",
+      "title": "3%の子には体罰が必要?",
+      "uploadedAt": "2026-11-07T19:00:56.197524+00:00",
+      "videoId": "YuHU0l3ePJ8"
     },
     "7462cf65249f041d21c55400": {
       "attemptedAt": "2026-11-05T07:17:43.115433+00:00",
@@ -774,6 +777,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T19:00:52.990423+00:00",
+  "updatedAt": "2026-11-07T19:00:56.197598+00:00",
   "version": 1
 }
