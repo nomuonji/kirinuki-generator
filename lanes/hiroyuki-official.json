@@ -496,6 +496,7 @@
       },
       "editorialDigest": "310128950f87a88cdb1bc188d3bca02f5c96be4b29956345c1b347ff05109845",
       "end": 3852.13,
+      "failure": "unknown_upload_result",
       "fingerprint": "e3a13d343fa96dd912ee7840",
       "mediaAudit": {
         "audioChannels": 2,
@@ -508,7 +509,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 3738.4,
-      "status": "uploading",
+      "status": "uncertain",
       "title": "お金を稼いでも意味はある？死を意識する年齢"
     },
     "f0ebd320fccde5b65686c603": {
@@ -744,6 +745,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T18:52:56.391046+00:00",
+  "updatedAt": "2026-11-07T18:52:59.128996+00:00",
   "version": 1
 }
