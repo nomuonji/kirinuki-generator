@@ -512,6 +512,31 @@
       "uploadedAt": "2026-11-07T18:34:45.561524+00:00",
       "videoId": "K5MiS4-OgBA"
     },
+    "e0ff64ceea31073457216f03": {
+      "attemptedAt": "2026-11-07T19:09:26.509542+00:00",
+      "confidence": 0.86,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "design": {
+        "template": "pop",
+        "variant": 1
+      },
+      "editorialDigest": "310128950f87a88cdb1bc188d3bca02f5c96be4b29956345c1b347ff05109845",
+      "end": 7813.490000000001,
+      "fingerprint": "e0ff64ceea31073457216f03",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 102.66,
+        "height": 1920,
+        "sizeBytes": 27471176,
+        "width": 1080
+      },
+      "publishAt": "2026-11-16T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "EXUXJaPlKmE",
+      "start": 7710.88,
+      "status": "uploading",
+      "title": "メタ認知の原点は宇宙人？"
+    },
     "e10edecbbc039080159758ac": {
       "attemptedAt": "2026-11-02T06:43:18.251489+00:00",
       "confidence": 0.82,
@@ -805,6 +830,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T19:03:46.652954+00:00",
+  "updatedAt": "2026-11-07T19:09:26.509553+00:00",
   "version": 1
 }
