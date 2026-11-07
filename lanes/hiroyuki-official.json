@@ -494,9 +494,12 @@
         "template": "note",
         "variant": 0
       },
+      "driveMetadataId": "19ZvrnJ4er7kqFH8R7LqipCcnbwPNu44B",
+      "driveVideoId": "1R-O2ll5cm_I8PKWbxsmuw71PJ83UipL-",
       "editorialDigest": "310128950f87a88cdb1bc188d3bca02f5c96be4b29956345c1b347ff05109845",
       "end": 3852.13,
       "failure": "unknown_upload_result",
+      "fallbackAt": "2026-11-07T18:53:02.870850+00:00",
       "fingerprint": "e3a13d343fa96dd912ee7840",
       "mediaAudit": {
         "audioChannels": 2,
@@ -505,11 +508,12 @@
         "sizeBytes": 23964784,
         "width": 1080
       },
+      "overflowSha256": "d12e3c55fede265988f93b218416d8adffabb94ac27c91f9eee9b76a2d4af0f4",
       "publishAt": "2026-11-14T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 3738.4,
-      "status": "uncertain",
+      "status": "overflow",
       "title": "お金を稼いでも意味はある？死を意識する年齢"
     },
     "f0ebd320fccde5b65686c603": {
@@ -745,6 +749,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T18:52:59.128996+00:00",
+  "updatedAt": "2026-11-07T18:53:02.870881+00:00",
   "version": 1
 }
