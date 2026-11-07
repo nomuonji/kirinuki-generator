@@ -530,12 +530,15 @@
         "sizeBytes": 27471176,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-16T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 7710.88,
-      "status": "uploading",
-      "title": "メタ認知の原点は宇宙人？"
+      "status": "verification_pending",
+      "title": "メタ認知の原点は宇宙人？",
+      "uploadedAt": "2026-11-07T19:09:30.872320+00:00",
+      "videoId": "moUAF-EH48w"
     },
     "e10edecbbc039080159758ac": {
       "attemptedAt": "2026-11-02T06:43:18.251489+00:00",
@@ -830,6 +833,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T19:09:26.509553+00:00",
+  "updatedAt": "2026-11-07T19:09:30.872370+00:00",
   "version": 1
 }
