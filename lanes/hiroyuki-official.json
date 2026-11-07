@@ -291,7 +291,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 2213.48,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "有罪確定前の長期勾留",
       "uploadedAt": "2026-11-07T18:41:06.003227+00:00",
       "videoId": "nuFBEu79rTc"
@@ -691,6 +691,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T18:41:06.003272+00:00",
+  "updatedAt": "2026-11-07T18:41:07.061482+00:00",
   "version": 1
 }
