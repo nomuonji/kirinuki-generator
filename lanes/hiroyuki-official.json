@@ -395,7 +395,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 289.92,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "大人がアニメだけ語るのはダメなのか",
       "uploadedAt": "2026-11-07T18:34:45.561524+00:00",
       "videoId": "K5MiS4-OgBA"
@@ -663,6 +663,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T18:34:45.561595+00:00",
+  "updatedAt": "2026-11-07T18:34:46.585673+00:00",
   "version": 1
 }
