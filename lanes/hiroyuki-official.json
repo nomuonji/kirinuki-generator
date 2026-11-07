@@ -390,12 +390,15 @@
         "sizeBytes": 18794824,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-11T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 289.92,
-      "status": "uploading",
-      "title": "大人がアニメだけ語るのはダメなのか"
+      "status": "verification_pending",
+      "title": "大人がアニメだけ語るのはダメなのか",
+      "uploadedAt": "2026-11-07T18:34:45.561524+00:00",
+      "videoId": "K5MiS4-OgBA"
     },
     "e10edecbbc039080159758ac": {
       "attemptedAt": "2026-11-02T06:43:18.251489+00:00",
@@ -660,6 +663,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T18:34:41.871089+00:00",
+  "updatedAt": "2026-11-07T18:34:45.561595+00:00",
   "version": 1
 }
