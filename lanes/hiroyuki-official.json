@@ -440,12 +440,12 @@
         "sizeBytes": 25776833,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-07T11:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 2733.36,
-      "status": "scheduled",
+      "status": "published",
       "title": "1000万円で公約を守らせる",
       "uploadedAt": "2026-11-04T07:36:50.513247+00:00",
       "videoId": "6GoYzskj82A"
@@ -635,6 +635,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T06:45:05.831875+00:00",
+  "updatedAt": "2026-11-07T17:50:14.310165+00:00",
   "version": 1
 }
