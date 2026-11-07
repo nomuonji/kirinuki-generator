@@ -763,9 +763,40 @@
     },
     "EXUXJaPlKmE": {
       "attemptedAt": "2026-11-07T17:51:15.299639+00:00",
+      "completedAt": "2026-11-07T19:09:33.322222+00:00",
       "failure": "CalledProcessError",
       "failures": 1,
-      "status": "processing",
+      "outcomes": [
+        {
+          "key": "e01a102e85ff788635f69d09",
+          "status": "scheduled"
+        },
+        {
+          "key": "b24a9b358bc5c5bf959d2a2d",
+          "status": "scheduled"
+        },
+        {
+          "key": "94f6ec9e8d5b32de728ee971",
+          "status": "scheduled"
+        },
+        {
+          "key": "e3a13d343fa96dd912ee7840",
+          "status": "uncertain"
+        },
+        {
+          "key": "4e554921fa0b117f30cdbb47",
+          "status": "scheduled"
+        },
+        {
+          "key": "0661af01e5a44ae44733a079",
+          "status": "scheduled"
+        },
+        {
+          "key": "e0ff64ceea31073457216f03",
+          "status": "scheduled"
+        }
+      ],
+      "status": "completed",
       "title": "「コンパクトシティは幻想」自家製ワイン呑みながら"
     },
     "R9fFru7ST-o": {
@@ -833,6 +864,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T19:09:32.203056+00:00",
+  "updatedAt": "2026-11-07T19:09:33.322244+00:00",
   "version": 1
 }
