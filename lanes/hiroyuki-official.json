@@ -563,6 +563,11 @@
       "status": "completed",
       "title": "「なぜ遅刻をするのに開始時間を設定してしまうのか？」Domaine De La Valliere Cidre"
     },
+    "EXUXJaPlKmE": {
+      "attemptedAt": "2026-11-07T06:30:35.014733+00:00",
+      "status": "processing",
+      "title": "「コンパクトシティは幻想」自家製ワイン呑みながら"
+    },
     "R9fFru7ST-o": {
       "attemptedAt": "2026-11-04T06:56:33.415628+00:00",
       "completedAt": "2026-11-04T08:06:17.281729+00:00",
@@ -628,6 +633,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T06:29:38.471168+00:00",
+  "updatedAt": "2026-11-07T06:30:35.014745+00:00",
   "version": 1
 }
