@@ -342,12 +342,12 @@
         "sizeBytes": 38934312,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-08T03:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "R9fFru7ST-o",
       "start": 3076.08,
-      "status": "scheduled",
+      "status": "published",
       "title": "赤い服の理由は「エビの赤」",
       "uploadedAt": "2026-11-04T07:45:17.710234+00:00",
       "videoId": "Bsj158RChQQ"
@@ -582,7 +582,7 @@
       "driveVideoId": "1R-O2ll5cm_I8PKWbxsmuw71PJ83UipL-",
       "editorialDigest": "310128950f87a88cdb1bc188d3bca02f5c96be4b29956345c1b347ff05109845",
       "end": 3852.13,
-      "failure": "needs_provider_reconciliation",
+      "failure": "upload_absent_after_check",
       "fallbackAt": "2026-11-07T18:53:02.870850+00:00",
       "fingerprint": "e3a13d343fa96dd912ee7840",
       "mediaAudit": {
@@ -593,11 +593,11 @@
         "width": 1080
       },
       "overflowSha256": "d12e3c55fede265988f93b218416d8adffabb94ac27c91f9eee9b76a2d4af0f4",
-      "publishAt": "2026-11-14T03:00:00Z",
+      "releasedAt": "2026-11-08T06:36:29.484671+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 3738.4,
-      "status": "uncertain",
+      "status": "overflow",
       "title": "お金を稼いでも意味はある？死を意識する年齢"
     },
     "f0ebd320fccde5b65686c603": {
@@ -864,6 +864,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-07T19:09:33.322244+00:00",
+  "updatedAt": "2026-11-08T06:36:29.484711+00:00",
   "version": 1
 }
