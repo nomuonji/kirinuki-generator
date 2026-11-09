@@ -678,12 +678,15 @@
         "sizeBytes": 12396427,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-15T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 4106.6,
-      "status": "uploading",
-      "title": "AIで人類は自滅する"
+      "status": "verification_pending",
+      "title": "AIで人類は自滅する",
+      "uploadedAt": "2026-11-09T23:28:58.034314+00:00",
+      "videoId": "Nv7Gwq5lM7M"
     },
     "ed964aaaecac61edd7028a8f": {
       "attemptedAt": "2026-11-09T23:10:34.730199+00:00",
@@ -1014,6 +1017,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:28:54.682878+00:00",
+  "updatedAt": "2026-11-09T23:28:58.034388+00:00",
   "version": 1
 }
