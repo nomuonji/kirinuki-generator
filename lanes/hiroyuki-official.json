@@ -255,7 +255,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 2141.84,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "美人が性格良いのは周りが優しいから",
       "uploadedAt": "2026-11-09T23:22:59.713596+00:00",
       "videoId": "TOEZ4KPPkRE"
@@ -961,6 +961,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:22:59.713645+00:00",
+  "updatedAt": "2026-11-09T23:23:00.675955+00:00",
   "version": 1
 }
