@@ -593,13 +593,16 @@
         "width": 1080
       },
       "overflowSha256": "d12e3c55fede265988f93b218416d8adffabb94ac27c91f9eee9b76a2d4af0f4",
+      "privacyStatus": "private",
       "publishAt": "2026-11-17T03:00:00Z",
       "releasedAt": "2026-11-08T06:36:29.484671+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 3738.4,
-      "status": "uploading",
-      "title": "お金を稼いでも意味はある？死を意識する年齢"
+      "status": "verification_pending",
+      "title": "お金を稼いでも意味はある？死を意識する年齢",
+      "uploadedAt": "2026-11-09T07:05:46.211340+00:00",
+      "videoId": "2KRYuzI2Rpk"
     },
     "f0ebd320fccde5b65686c603": {
       "attemptedAt": "2026-11-02T22:49:50.856316+00:00",
@@ -865,6 +868,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T07:05:40.691756+00:00",
+  "updatedAt": "2026-11-09T07:05:46.211392+00:00",
   "version": 1
 }
