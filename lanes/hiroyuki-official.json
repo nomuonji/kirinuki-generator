@@ -176,6 +176,31 @@
       "uploadedAt": "2026-11-07T19:00:56.197524+00:00",
       "videoId": "YuHU0l3ePJ8"
     },
+    "532068870c8d77a3d119766c": {
+      "attemptedAt": "2026-11-09T23:16:51.377230+00:00",
+      "confidence": 0.85,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "design": {
+        "template": "cinema",
+        "variant": 1
+      },
+      "editorialDigest": "1d6e492269ec431323a5b9ad8e08de3e628263780952108803666cc7efacf4dc",
+      "end": 1655.64,
+      "fingerprint": "532068870c8d77a3d119766c",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 91.18,
+        "height": 1920,
+        "sizeBytes": 19129299,
+        "width": 1080
+      },
+      "publishAt": "2026-11-12T11:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "0ojMhUyiHB4",
+      "start": 1564.52,
+      "status": "uploading",
+      "title": "中道が失った信用の代償"
+    },
     "7462cf65249f041d21c55400": {
       "attemptedAt": "2026-11-05T07:17:43.115433+00:00",
       "confidence": 0.82,
@@ -905,6 +930,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:10:43.389691+00:00",
+  "updatedAt": "2026-11-09T23:16:51.377240+00:00",
   "version": 1
 }
