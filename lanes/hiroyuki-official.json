@@ -789,7 +789,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 3540.88,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "バレエは趣味かビジネスか",
       "uploadedAt": "2026-11-09T23:25:19.515966+00:00",
       "videoId": "uJl1IsVMypQ"
@@ -989,6 +989,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:25:19.516012+00:00",
+  "updatedAt": "2026-11-09T23:25:20.417922+00:00",
   "version": 1
 }
