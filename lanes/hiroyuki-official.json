@@ -898,9 +898,36 @@
     },
     "0ojMhUyiHB4": {
       "attemptedAt": "2026-11-09T22:40:04.009427+00:00",
+      "completedAt": "2026-11-09T23:33:15.133802+00:00",
       "failure": "CalledProcessError",
       "failures": 1,
-      "status": "processing",
+      "outcomes": [
+        {
+          "key": "ed964aaaecac61edd7028a8f",
+          "status": "uncertain"
+        },
+        {
+          "key": "532068870c8d77a3d119766c",
+          "status": "scheduled"
+        },
+        {
+          "key": "7bd2df2628d7f9f824731958",
+          "status": "scheduled"
+        },
+        {
+          "key": "fc8beabe8a6c7ef1174ac80e",
+          "status": "scheduled"
+        },
+        {
+          "key": "ec8c3da6aaf371bb2abe70b0",
+          "status": "scheduled"
+        },
+        {
+          "key": "ca46dbcdfe0f59a2d5e2b64a",
+          "status": "overflow"
+        }
+      ],
+      "status": "completed",
       "title": "「イケメンが女を殴る理由。」Tripel Karmelietを呑みながら"
     },
     "2zED6c6zgx4": {
@@ -1044,6 +1071,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:33:13.108756+00:00",
+  "updatedAt": "2026-11-09T23:33:15.133821+00:00",
   "version": 1
 }
