@@ -199,7 +199,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 1564.52,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "中道が失った信用の代償",
       "uploadedAt": "2026-11-09T23:16:57.075064+00:00",
       "videoId": "Cjhq2zuy7a4"
@@ -933,6 +933,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:16:57.075111+00:00",
+  "updatedAt": "2026-11-09T23:16:58.372008+00:00",
   "version": 1
 }
