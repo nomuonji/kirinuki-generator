@@ -660,6 +660,31 @@
       "uploadedAt": "2026-11-09T07:05:46.211340+00:00",
       "videoId": "2KRYuzI2Rpk"
     },
+    "ec8c3da6aaf371bb2abe70b0": {
+      "attemptedAt": "2026-11-09T23:28:54.682866+00:00",
+      "confidence": 0.86,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "design": {
+        "template": "note",
+        "variant": 1
+      },
+      "editorialDigest": "1d6e492269ec431323a5b9ad8e08de3e628263780952108803666cc7efacf4dc",
+      "end": 4172.85,
+      "fingerprint": "ec8c3da6aaf371bb2abe70b0",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 66.33,
+        "height": 1920,
+        "sizeBytes": 12396427,
+        "width": 1080
+      },
+      "publishAt": "2026-11-15T11:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "0ojMhUyiHB4",
+      "start": 4106.6,
+      "status": "uploading",
+      "title": "AIで人類は自滅する"
+    },
     "ed964aaaecac61edd7028a8f": {
       "attemptedAt": "2026-11-09T23:10:34.730199+00:00",
       "confidence": 0.83,
@@ -989,6 +1014,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:25:20.417922+00:00",
+  "updatedAt": "2026-11-09T23:28:54.682878+00:00",
   "version": 1
 }
