@@ -614,6 +614,7 @@
       },
       "editorialDigest": "1d6e492269ec431323a5b9ad8e08de3e628263780952108803666cc7efacf4dc",
       "end": 1295.72,
+      "failure": "unknown_upload_result",
       "fingerprint": "ed964aaaecac61edd7028a8f",
       "mediaAudit": {
         "audioChannels": 2,
@@ -626,7 +627,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 1219.24,
-      "status": "uploading",
+      "status": "uncertain",
       "title": "カフェで仕事する人への本音"
     },
     "f0ebd320fccde5b65686c603": {
@@ -900,6 +901,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:10:34.730208+00:00",
+  "updatedAt": "2026-11-09T23:10:37.808915+00:00",
   "version": 1
 }
