@@ -599,7 +599,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 3738.4,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "お金を稼いでも意味はある？死を意識する年齢",
       "uploadedAt": "2026-11-09T07:05:46.211340+00:00",
       "videoId": "2KRYuzI2Rpk"
@@ -868,6 +868,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T07:05:46.211392+00:00",
+  "updatedAt": "2026-11-09T07:05:47.315154+00:00",
   "version": 1
 }
