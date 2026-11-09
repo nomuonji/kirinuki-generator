@@ -488,6 +488,33 @@
       "uploadedAt": "2026-11-05T20:14:35.106867+00:00",
       "videoId": "nZLnh1Eo43I"
     },
+    "ca46dbcdfe0f59a2d5e2b64a": {
+      "confidence": 0.88,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "design": {
+        "template": "gougai",
+        "variant": 0
+      },
+      "driveMetadataId": "1ThSv35_lgzkv2WuJLLPONsII3xMvvNUd",
+      "driveVideoId": "1FzBTAv_sfM9qX5Xj6B3cPQpPS5W8ifWf",
+      "editorialDigest": "1d6e492269ec431323a5b9ad8e08de3e628263780952108803666cc7efacf4dc",
+      "end": 5698.68,
+      "fallbackAt": "2026-11-09T23:33:13.108731+00:00",
+      "fingerprint": "ca46dbcdfe0f59a2d5e2b64a",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 75.88,
+        "height": 1920,
+        "sizeBytes": 17105668,
+        "width": 1080
+      },
+      "overflowSha256": "96fd1036f1631c7de16129b070629608965f4ce9104ff9a98d02a32c276a0600",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "0ojMhUyiHB4",
+      "start": 5622.84,
+      "status": "overflow",
+      "title": "内心はB2Bみたいで嫌"
+    },
     "d9a0f7fed3f41152c7b3e640": {
       "attemptedAt": "2026-11-03T07:11:52.495793+00:00",
       "confidence": 0.87,
@@ -1017,6 +1044,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:28:59.900458+00:00",
+  "updatedAt": "2026-11-09T23:33:13.108756+00:00",
   "version": 1
 }
