@@ -728,10 +728,10 @@
       "title": "「政治家の不祥事で総理はどこまで責任を取るか？」"
     },
     "0ojMhUyiHB4": {
-      "attemptedAt": "2026-11-09T07:17:26.951801+00:00",
+      "attemptedAt": "2026-11-09T22:40:04.009427+00:00",
       "failure": "CalledProcessError",
       "failures": 1,
-      "status": "failed",
+      "status": "processing",
       "title": "「イケメンが女を殴る理由。」Tripel Karmelietを呑みながら"
     },
     "2zED6c6zgx4": {
@@ -875,6 +875,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T22:39:10.326640+00:00",
+  "updatedAt": "2026-11-09T22:40:04.009442+00:00",
   "version": 1
 }
