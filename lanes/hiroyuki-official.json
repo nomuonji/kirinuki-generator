@@ -194,12 +194,15 @@
         "sizeBytes": 19129299,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-12T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 1564.52,
-      "status": "uploading",
-      "title": "中道が失った信用の代償"
+      "status": "verification_pending",
+      "title": "中道が失った信用の代償",
+      "uploadedAt": "2026-11-09T23:16:57.075064+00:00",
+      "videoId": "Cjhq2zuy7a4"
     },
     "7462cf65249f041d21c55400": {
       "attemptedAt": "2026-11-05T07:17:43.115433+00:00",
@@ -930,6 +933,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:16:51.377240+00:00",
+  "updatedAt": "2026-11-09T23:16:57.075111+00:00",
   "version": 1
 }
