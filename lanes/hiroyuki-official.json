@@ -784,12 +784,15 @@
         "sizeBytes": 9474503,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-14T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 3540.88,
-      "status": "uploading",
-      "title": "バレエは趣味かビジネスか"
+      "status": "verification_pending",
+      "title": "バレエは趣味かビジネスか",
+      "uploadedAt": "2026-11-09T23:25:19.515966+00:00",
+      "videoId": "uJl1IsVMypQ"
     },
     "ffbfa1f83537146acff218b2": {
       "attemptedAt": "2026-11-02T22:56:37.874148+00:00",
@@ -986,6 +989,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T23:25:16.749805+00:00",
+  "updatedAt": "2026-11-09T23:25:19.516012+00:00",
   "version": 1
 }
