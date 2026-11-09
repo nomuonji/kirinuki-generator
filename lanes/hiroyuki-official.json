@@ -270,12 +270,12 @@
         "sizeBytes": 48183229,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-09T11:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0YyAgmv5_Yc",
       "start": 3420.32,
-      "status": "scheduled",
+      "status": "published",
       "title": "詰める話し方は自分で気づけない",
       "uploadedAt": "2026-11-05T21:00:28.221802+00:00",
       "videoId": "0a2SlqycTis"
@@ -875,6 +875,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-09T07:17:26.951827+00:00",
+  "updatedAt": "2026-11-09T22:39:10.326640+00:00",
   "version": 1
 }
