@@ -749,7 +749,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 1219.24,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "カフェで仕事する人への本音",
       "uploadedAt": "2026-11-10T19:58:32.438878+00:00",
       "videoId": "JoZ8S5W52NE"
@@ -1080,6 +1080,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-10T19:58:32.438931+00:00",
+  "updatedAt": "2026-11-10T19:58:34.005285+00:00",
   "version": 1
 }
