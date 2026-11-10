@@ -489,6 +489,7 @@
       "videoId": "nZLnh1Eo43I"
     },
     "ca46dbcdfe0f59a2d5e2b64a": {
+      "attemptedAt": "2026-11-10T07:41:26.573263+00:00",
       "confidence": 0.88,
       "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
       "design": {
@@ -509,10 +510,11 @@
         "width": 1080
       },
       "overflowSha256": "96fd1036f1631c7de16129b070629608965f4ce9104ff9a98d02a32c276a0600",
+      "publishAt": "2026-11-16T11:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 5622.84,
-      "status": "overflow",
+      "status": "uploading",
       "title": "内心はB2Bみたいで嫌"
     },
     "d9a0f7fed3f41152c7b3e640": {
@@ -1071,6 +1073,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-10T07:40:27.516001+00:00",
+  "updatedAt": "2026-11-10T07:41:26.573274+00:00",
   "version": 1
 }
