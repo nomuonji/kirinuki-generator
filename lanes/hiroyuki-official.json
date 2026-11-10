@@ -515,7 +515,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 5622.84,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "内心はB2Bみたいで嫌",
       "uploadedAt": "2026-11-10T07:41:30.001669+00:00",
       "videoId": "Goxsrx3_YU4"
@@ -1076,6 +1076,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-10T07:41:30.001719+00:00",
+  "updatedAt": "2026-11-10T07:41:31.025888+00:00",
   "version": 1
 }
