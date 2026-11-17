@@ -1,0 +1,42 @@
+name: Read-only Channel Download Probes
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/probe_channel_download.py'
+      - '.github/workflows/channel-download-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [primary, secondary, tertiary]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install media inspector
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Inspect channel and download up to two candidates
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          PROBE_LANE: ${{ matrix.lane }}
+        run: python scripts/probe_channel_download.py "$PROBE_LANE"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: download-probe-${{ matrix.lane }}
+          path: probe-${{ matrix.lane }}.json
+          retention-days: 7

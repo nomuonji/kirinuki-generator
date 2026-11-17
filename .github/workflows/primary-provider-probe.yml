@@ -1,0 +1,57 @@
+name: JP-only Source SaveTube Probe
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/primary-provider-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Measure provider availability for actual JP-only source
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from probe_channel_download import api, duration, CHANNELS
+          channel = api('channels', part='contentDetails', id=CHANNELS['primary'])['items'][0]
+          playlist = channel['contentDetails']['relatedPlaylists']['uploads']
+          uploads = api('playlistItems', part='contentDetails', playlistId=playlist, maxResults=50)
+          ids = ','.join(item['contentDetails']['videoId'] for item in uploads.get('items', []))
+          videos = api('videos', part='snippet,contentDetails', id=ids)['items']
+          video = next(v for v in videos if 360 <= duration(v['contentDetails'].get('duration')) <= 21600 and v['snippet'].get('liveBroadcastContent') not in {'live', 'upcoming'})
+          print(json.dumps({'videoId':video['id'], 'title':video['snippet']['title'], 'regionRestriction':video['contentDetails'].get('regionRestriction'), 'backendCountry':'unknown; separate from Actions country'}, ensure_ascii=False), flush=True)
+          output = Path('provider-sample.mp4')
+          try:
+              result = subprocess.run(['node', 'scripts/savetube_download.mjs', video['id'], str(output), '720'], timeout=360)
+              if result.returncode:
+                  print(json.dumps({'providerAvailable':False, 'exitCode':result.returncode}), flush=True)
+                  raise SystemExit(1)
+              media = json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(output)], timeout=30))
+              kinds = {s['codec_type'] for s in media['streams']}
+              actual = float(media['format']['duration'])
+              expected = duration(video['contentDetails']['duration'])
+              assert {'video','audio'} <= kinds and abs(actual-expected) <= max(5,expected*.02)
+              subprocess.run(['ffmpeg','-v','error','-xerror','-i',str(output),'-t','10','-map','0:v:0','-map','0:a:0','-f','null','-'], check=True, timeout=60)
+              print(json.dumps({'providerAvailable':True,'bytes':output.stat().st_size,'durationSeconds':actual,'streams':sorted(kinds)}), flush=True)
+          finally:
+              output.unlink(missing_ok=True)
+          PY
