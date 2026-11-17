@@ -20,7 +20,6 @@ env:
   MAX_SEARCH_VIDEOS: '30'
   SAVETUBE_QUALITY: '720'
   SOURCE_FETCH_COUNTRY: 'US'
-  KIRINUKI_DESIGN_TEMPLATE: 'telop:1'
   TIMEOUT_TRANSCRIBE: '1800'
   PYTHONUNBUFFERED: '1'
 
@@ -101,11 +100,20 @@ jobs:
             ~/.remotion
           key: ${{ runner.os }}-remotion-browser-${{ hashFiles('apps/remotion/package-lock.json') }}
 
-      - name: Install ffmpeg and Bilibili source adapter
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Prepare optional approved Bilibili source adapter
+        env:
+          KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg
-          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
-          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+          if [ -z "$KYOUSUKI_APPROVALS_JSON" ]; then
+            echo "No approved Bilibili source grants; keep existing YouTube path."
+          elif dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3; then
+            echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+          else
+            echo "::warning::BBDown unavailable; existing YouTube path may continue."
+          fi
 
       - name: Install Python dependencies
         run: |
