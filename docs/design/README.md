@@ -1,5 +1,27 @@
 # Shorts design templates
 
+## Default: `telop` (standard clip-Shorts layout)
+
+![telop variants](telop.jpg)
+
+Since 2026-11-18 every new clip uses `telop`, modelled on the layout shared by most outlier clip
+Shorts in YouTube Studio's research tab (ショート動画 › 自分のジャンルのブレイク動画):
+
+- black canvas, no decoration;
+- a two-tone headline in heavy rounded gothic (M PLUS Rounded 1c 900), thick outline, lines
+  alternating between two inks, emphasised words in a third, hugging the top of the clip;
+- the source title as a small kicker line above the headline;
+- the clip edge to edge, cropped to 4:3 (`zoom`) so faces are bigger, or full frame (`wide`);
+- the spoken line burned in over the bottom edge of the clip (white, black outline);
+- reactions as a tilted outlined cut-in on the clip;
+- the punchline as a second outlined line under the clip.
+
+Three variants rotate (pink glow / zoom, red-white / wide, lavender / zoom). The five themed
+templates below stay available: `KIRINUKI_DESIGN_POOL=all` (or a comma list such as
+`pop,cinema`) brings back the old rotation, and `KIRINUKI_DESIGN_TEMPLATE` still pins one.
+
+## Themed templates (previous default)
+
 ![The five templates](templates.jpg)
 
 Every clip is rendered with one of five templates so that consecutive uploads don't share a

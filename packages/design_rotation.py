@@ -23,8 +23,25 @@ TEMPLATE_VARIANTS: dict[str, int] = {
     "pop": 3,
     "cinema": 2,
     "note": 2,
+    "telop": 3,
 }
 TEMPLATES = tuple(TEMPLATE_VARIANTS)
+
+# Templates new clips are drawn from. "telop" is the standard clip-Shorts layout (black canvas,
+# two-tone outlined headline, enlarged clip, burned-in line) that most outlier clip Shorts use;
+# it replaced the five-template rotation as the default on 2026-11-18. Only its colour/framing
+# variants rotate. KIRINUKI_DESIGN_POOL=all (or a comma list of ids) restores the old rotation.
+DEFAULT_POOL: tuple[str, ...] = ("telop",)
+
+
+def design_pool(env=os.environ) -> tuple[str, ...]:
+    raw = (env.get("KIRINUKI_DESIGN_POOL") or "").strip()
+    if not raw:
+        return DEFAULT_POOL
+    if raw.lower() == "all":
+        return TEMPLATES
+    ids = tuple(t for t in (part.strip() for part in raw.split(",")) if t in TEMPLATE_VARIANTS)
+    return ids or DEFAULT_POOL
 
 
 def _tiebreak(seed: str, *parts: object) -> str:
@@ -49,21 +66,27 @@ def _clean_history(history: Iterable[object] | None) -> list[dict]:
     return out
 
 
-def pick_designs(history: Iterable[object] | None, count: int, seed: str = "") -> list[dict]:
+def pick_designs(history: Iterable[object] | None, count: int, seed: str = "",
+                 pool: Iterable[str] | None = None) -> list[dict]:
     """Return `count` picks continuing the rotation after `history`.
+
+    `pool` limits which templates are picked (default: design_pool()); history entries for
+    templates outside the pool are still read, so variants keep rotating across runs.
 
     Each pick is {"template", "variant", "designSeed"}; designSeed drives small per-clip
     differences inside a template (tilt direction, noise pattern).
     """
     timeline = _clean_history(history)
+    allowed = tuple(t for t in (pool if pool is not None else design_pool()) if t in TEMPLATE_VARIANTS) or DEFAULT_POOL
     picks: list[dict] = []
     for i in range(max(0, count)):
-        last_used = {t: -1 for t in TEMPLATES}
+        last_used = {t: -1 for t in allowed}
         for pos, entry in enumerate(timeline):
-            last_used[entry["template"]] = pos
+            if entry["template"] in last_used:
+                last_used[entry["template"]] = pos
         previous = timeline[-1]["template"] if timeline else None
-        cycle = sum(1 for e in timeline if e["template"] == TEMPLATES[0])
-        candidates = [t for t in TEMPLATES if t != previous] or list(TEMPLATES)
+        cycle = sum(1 for e in timeline if e["template"] == allowed[0])
+        candidates = [t for t in allowed if t != previous] or list(allowed)
         template = min(candidates, key=lambda t: (last_used[t], _tiebreak(seed, cycle, t)))
 
         variants = TEMPLATE_VARIANTS[template]
