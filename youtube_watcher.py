@@ -575,10 +575,12 @@ def main():
 
     playlist_id = get_uploads_playlist_id(youtube_api_key, channel_id)
     if not playlist_id:
-        print("Could not resolve uploads playlist.", file=sys.stderr)
-        sys.exit(1)
+        if channel_id != "UCzXVsEc1h2Elljge0fnQYRg":
+            print("Could not resolve uploads playlist.", file=sys.stderr)
+            sys.exit(1)
+        print("Official YouTube listing unavailable; checking approved alternatives.", file=sys.stderr)
 
-    videos = fetch_recent_videos(youtube_api_key, playlist_id, config.max_search_videos)
+    videos = fetch_recent_videos(youtube_api_key, playlist_id, config.max_search_videos) if playlist_id else []
     source_diagnostics: dict = {}
     ranked_candidates = build_ranked_candidates(
         videos,
@@ -589,7 +591,8 @@ def main():
     source_window = f"{config.max_source_age_days:g}d"
 
     if (
-        not ranked_candidates
+        playlist_id
+        and not ranked_candidates
         and preliminary_stock < config.reorder_stock_clips
         and config.fallback_max_source_age_days > config.max_source_age_days
     ):
@@ -671,14 +674,13 @@ def main():
         episode = candidate.get("episodeKey")
         if episode and episode in completed_episodes:
             continue
-        if candidate.get("sourcePlatform") == "bilibili":
+        if episode:
             # Consult remote state as well as processed_videos: an interrupted
             # job may have delivered clips without updating the ledger.
             from packages.kyousuki_sources import load_registry, approval_records
             related = approval_records(load_registry())
             ids = {f'bilibili_{r["bvid"]}_p{r["page"]}_auto' for r in related if r["episodeKey"] == episode}
-            if candidate.get("officialYoutubeVideoId"):
-                ids.add(candidate["officialYoutubeVideoId"])
+            ids.update(r["officialYoutubeVideoId"] for r in related if r["episodeKey"] == episode and r.get("officialYoutubeVideoId"))
             ids.discard(candidate["videoId"])
             unsafe = False
             for source_id in ids:
@@ -810,6 +812,7 @@ def main():
             if episode and (int(state_snapshot.get("uploadedClips") or 0) > 0 or any(x.get("uploaded") or x.get("driveVideoId") for x in (state_snapshot.get("clips") or {}).values())):
                 completed_episodes.add(episode)
             failure_reason = state_snapshot.get("failureReason") if state_snapshot else "pipeline"
+            partial_count = max(int(state_snapshot.get("uploadedClips") or 0), sum(bool(x.get("uploaded") or x.get("driveVideoId")) for x in (state_snapshot.get("clips") or {}).values()))
             processed_entries, processed_file_id = record_processed_entry(
                 drive_service,
                 folder_id,
@@ -819,7 +822,7 @@ def main():
                 title,
                 "failed",
                 failure_reason or "pipeline",
-                metadata=selection_metadata(candidate),
+                metadata={**selection_metadata(candidate), "uploadedClips": partial_count},
             )
             continue
 
@@ -833,6 +836,9 @@ def main():
             refreshed_status = "completed"
 
         if refreshed_status != "completed":
+            partial_count = max(int(refreshed_state.get("uploadedClips") or 0), sum(bool(x.get("uploaded") or x.get("driveVideoId")) for x in (refreshed_state.get("clips") or {}).values()))
+            if episode and partial_count:
+                completed_episodes.add(episode)
             reason = refreshed_state.get("failureReason") if refreshed_state else "pipeline"
             processed_entries, processed_file_id = record_processed_entry(
                 drive_service,
@@ -843,7 +849,7 @@ def main():
                 title,
                 refreshed_status or "failed",
                 reason or "pipeline",
-                metadata=selection_metadata(candidate),
+                metadata={**selection_metadata(candidate), "uploadedClips": partial_count},
             )
             continue
 
