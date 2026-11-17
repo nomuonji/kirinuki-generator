@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
 import re
 import urllib.parse
 import urllib.request
@@ -20,7 +21,17 @@ NUM=dict(zip("一二三四五六七八九十", range(1,11)))
 
 
 def load_registry():
-    return json.loads(REGISTRY.read_text(encoding="utf-8"))
+    config=json.loads(REGISTRY.read_text(encoding="utf-8"))
+    raw=os.environ.get("KYOUSUKI_APPROVALS_JSON","").strip()
+    if raw:
+        try:
+            entries=json.loads(raw)
+            if not isinstance(entries,list): raise ValueError("Expected a list")
+            config["approvedSources"]=entries
+        except (ValueError,TypeError):
+            config["approvedSources"]=[]
+            print("KYOUSUKI_APPROVALS_INVALID: production disabled")
+    return config
 
 
 def _clean(value):
@@ -139,7 +150,7 @@ def approved_candidates(discovery, processed_entries, folder, now=None, reg=None
         if byid.get(r.get("officialYoutubeVideoId"),{}).get("status")=="completed": continue
         related=[p for p in processed_entries if p.get("episodeKey")==r["episodeKey"] or
                  p.get("videoId") in {sid,r.get("officialYoutubeVideoId")}]
-        if any(p.get("status")=="completed" or int(p.get("uploadedClips") or 0)>0 for p in related): continue
+        if any(p.get("status")=="completed" or (p.get("videoId")!=sid and int(p.get("uploadedClips") or 0)>0) for p in related): continue
         prior=byid.get(sid,{})
         if int(prior.get("attempts") or 0)>=3: continue
         if prior.get("processedAt"):
