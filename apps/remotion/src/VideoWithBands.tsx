@@ -1,6 +1,6 @@
 import React from "react";
 import {AbsoluteFill, staticFile, useVideoConfig} from "remotion";
-import {TEMPLATES, TEMPLATE_IDS, TemplateId} from "./design/registry";
+import {TEMPLATES, TemplateId} from "./design/registry";
 import {ReactionEntry, SubtitleEntry, hashString, normalizeRich} from "./design/shared";
 
 type VideoWithBandsProps = {
@@ -24,7 +24,7 @@ type VideoWithBandsProps = {
 /**
  * Entry composition (the id stays "VideoWithBands" so existing render commands keep working).
  * The look is delegated to one of several templates so consecutive uploads don't share a
- * single visual identity; props without a template fall back to a stable hash of the clip.
+ * single visual identity; props without a template get the standard "telop" layout.
  */
 export const VideoWithBands: React.FC<VideoWithBandsProps> = (props) => {
   const {fps} = useVideoConfig();
@@ -34,7 +34,7 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = (props) => {
   const seed = props.designSeed ?? hashString(`${safePath}|${title}`);
 
   const requested = props.template as TemplateId | undefined;
-  const id: TemplateId = requested && requested in TEMPLATES ? requested : TEMPLATE_IDS[seed % TEMPLATE_IDS.length];
+  const id: TemplateId = requested && requested in TEMPLATES ? requested : "telop";
   const {component: Template, variants} = TEMPLATES[id];
   const variant = Math.abs(props.variant ?? Math.floor(seed / 7)) % variants;
 
