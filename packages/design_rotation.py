@@ -24,6 +24,7 @@ TEMPLATE_VARIANTS: dict[str, int] = {
     "cinema": 2,
     "note": 2,
     "telop": 3,
+    "ronpa": 3,
 }
 TEMPLATES = tuple(TEMPLATE_VARIANTS)
 
@@ -31,6 +32,8 @@ TEMPLATES = tuple(TEMPLATE_VARIANTS)
 # two-tone outlined headline, enlarged clip, burned-in line) that most outlier clip Shorts use;
 # it replaced the five-template rotation as the default on 2026-11-18. Only its colour/framing
 # variants rotate. KIRINUKI_DESIGN_POOL=all (or a comma list of ids) restores the old rotation.
+# Lanes override the pool per niche: the ひろゆき lane uses "ronpa" (news/debate caption style
+# researched on the Hiroyuki clip channel), set in .github/workflows/direct-tertiary.yml.
 DEFAULT_POOL: tuple[str, ...] = ("telop",)
 
 

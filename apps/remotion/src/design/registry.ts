@@ -4,6 +4,7 @@ import {Cinema, CINEMA_VARIANTS} from "./templates/Cinema";
 import {Gougai, GOUGAI_VARIANTS} from "./templates/Gougai";
 import {Note, NOTE_VARIANTS} from "./templates/Note";
 import {Pop, POP_VARIANTS} from "./templates/Pop";
+import {Ronpa, RONPA_VARIANTS} from "./templates/Ronpa";
 import {Telop, TELOP_VARIANTS} from "./templates/Telop";
 import {Terminal, TERMINAL_VARIANTS} from "./templates/Terminal";
 
@@ -19,6 +20,7 @@ export const TEMPLATES = {
   cinema: {component: Cinema, variants: CINEMA_VARIANTS},
   note: {component: Note, variants: NOTE_VARIANTS},
   telop: {component: Telop, variants: TELOP_VARIANTS},
+  ronpa: {component: Ronpa, variants: RONPA_VARIANTS},
 } satisfies Record<string, {component: React.FC<DesignProps>; variants: number}>;
 
 export type TemplateId = keyof typeof TEMPLATES;

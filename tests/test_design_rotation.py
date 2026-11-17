@@ -65,6 +65,12 @@ class DesignRotationTests(unittest.TestCase):
         self.assertEqual(design_pool({"KIRINUKI_DESIGN_POOL": "all"}), TEMPLATES)
         self.assertEqual(design_pool({"KIRINUKI_DESIGN_POOL": "pop, nope ,note"}), ("pop", "note"))
         self.assertEqual(design_pool({"KIRINUKI_DESIGN_POOL": "nope"}), DEFAULT_POOL)
+        self.assertEqual(design_pool({"KIRINUKI_DESIGN_POOL": "ronpa"}), ("ronpa",))
+
+    def test_hiroyuki_lane_uses_ronpa(self):
+        workflow = (ROOT / ".github" / "workflows" / "direct-tertiary.yml").read_text(encoding="utf-8")
+        self.assertIn("KIRINUKI_DESIGN_POOL: ronpa", workflow)
+        self.assertIn("video_concept_hiroyuki.md", workflow)
         # Old ledger entries (other templates) don't stop telop, and its variants rotate.
         history = [{"template": "pop", "variant": 1}, {"template": "telop", "variant": 0}]
         picks = pick_designs(history, 3, seed="s", pool=DEFAULT_POOL)
