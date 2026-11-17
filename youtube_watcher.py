@@ -420,6 +420,9 @@ def selection_metadata(candidate: dict, uploaded_clips: int | None = None) -> di
         "viewsPerHourAtSelection": round(float(candidate.get("viewsPerHour") or 0.0), 3),
         "selectionScore": round(float(candidate.get("selectionScore") or 0.0), 5),
     }
+    for key in ("sourcePlatform", "bvid", "episodeKey", "officialYoutubeVideoId"):
+        if candidate.get(key) is not None:
+            metadata[key] = candidate[key]
     if uploaded_clips is not None:
         metadata["uploadedClips"] = max(0, int(uploaded_clips))
         metadata["completedAt"] = _now_iso()
@@ -615,7 +618,34 @@ def main():
             f"{config.fallback_max_search_videos}-upload-fallback"
         )
 
+    # Only the primary Kyousuki lane uses this source pool. Keep all other
+    # lanes unchanged, and never confuse a discovered mirror with approval.
+    pool_report = None
+    if channel_id == "UCzXVsEc1h2Elljge0fnQYRg":
+        from packages.kyousuki_sources import discover, load_registry, approved_candidates, approval_records
+        registry = load_registry()
+        pool_report = discover(registry)
+        print("KYOUSUKI_DISCOVERY", json.dumps({"status":pool_report["status"], "candidateCount":pool_report["candidateCount"],
+            "diagnostics":pool_report["diagnostics"]}, ensure_ascii=False))
+        grants = approval_records(registry)
+        # A finished / partially uploaded mirror also suppresses its official
+        # counterpart; do not start another copy of the same episode.
+        blocked_episodes = set()
+        for e in processed_entries:
+            if e.get("episodeKey") and (e.get("status") == "completed" or int(e.get("uploadedClips") or 0) > 0):
+                blocked_episodes.add(e["episodeKey"])
+        alias_map = {g["officialYoutubeVideoId"]:g["episodeKey"] for g in grants if g.get("officialYoutubeVideoId")}
+        for candidate in ranked_candidates:
+            if candidate["videoId"] in alias_map:
+                candidate["episodeKey"] = alias_map[candidate["videoId"]]
+        ranked_candidates = [c for c in ranked_candidates if c.get("episodeKey") not in blocked_episodes]
+        alternatives = approved_candidates(pool_report, processed_entries, folder_id, reg=registry,
+            max_age_days=config.fallback_max_source_age_days)
+        ranked_candidates.extend(alternatives)
+        pool_report["eligibleApprovedCandidates"] = len(alternatives)
     plan = make_plan(preliminary_stock, ranked_candidates, config)
+    if pool_report is not None:
+        plan["bilibiliSourcePool"] = pool_report
     plan["stockSource"] = stock_source
     plan["sourceWindow"] = source_window
     plan["sourceDiagnostics"] = source_diagnostics
@@ -636,7 +666,30 @@ def main():
 
     attempts = 0
     completed_sources = 0
+    completed_episodes = set()
     for candidate in ranked_candidates:
+        episode = candidate.get("episodeKey")
+        if episode and episode in completed_episodes:
+            continue
+        if candidate.get("sourcePlatform") == "bilibili":
+            # Consult remote state as well as processed_videos: an interrupted
+            # job may have delivered clips without updating the ledger.
+            from packages.kyousuki_sources import load_registry, approval_records
+            related = approval_records(load_registry())
+            ids = {f'bilibili_{r["bvid"]}_p{r["page"]}_auto' for r in related if r["episodeKey"] == episode}
+            if candidate.get("officialYoutubeVideoId"):
+                ids.add(candidate["officialYoutubeVideoId"])
+            ids.discard(candidate["videoId"])
+            unsafe = False
+            for source_id in ids:
+                prior, _ = load_state_from_drive(drive_service, folder_id, source_id)
+                if prior.get("status") == "completed" or int(prior.get("uploadedClips") or 0)>0 or any(
+                    x.get("uploaded") or x.get("driveVideoId") for x in (prior.get("clips") or {}).values()):
+                    unsafe = True
+                    break
+            if unsafe:
+                print("Skipping alternate source: related source has completed or partially delivered stock.")
+                continue
         if completed_sources >= config.max_videos_per_run:
             print(f"Reached MAX_VIDEOS_PER_RUN={config.max_videos_per_run} successful source(s).")
             break
@@ -691,6 +744,8 @@ def main():
                 metadata=selection_metadata(candidate, uploaded_count),
             )
             processed_ids.add(video_id)
+            if episode:
+                completed_episodes.add(episode)
             if cached_file_id:
                 delete_file(drive_service, cached_file_id)
             continue
@@ -735,6 +790,11 @@ def main():
         }
         concept_file = os.environ.get("KIRINUKI_CONCEPT_FILE") or channel_concepts.get(channel_id)
         command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
+        if candidate.get("sourcePlatform") == "bilibili":
+            command = [sys.executable, "run_all.py", candidate["bvid"], "--source-platform", "bilibili",
+                       "--bilibili-page", str(candidate["page"]), "--bilibili-subtitle-lang", "auto",
+                       "--source-rights-confirmed", "--bilibili-approved-stock", "--subs"]
+            concept_file = "configs/video_concept_kyousuki.md"
         if concept_file:
             command.extend(["--concept-file", concept_file])
         if resume_flag:
@@ -747,6 +807,8 @@ def main():
             timeout=max(60.0, deadline.remaining()),
         ):
             state_snapshot, _ = load_state_from_drive(drive_service, folder_id, video_id)
+            if episode and (int(state_snapshot.get("uploadedClips") or 0) > 0 or any(x.get("uploaded") or x.get("driveVideoId") for x in (state_snapshot.get("clips") or {}).values())):
+                completed_episodes.add(episode)
             failure_reason = state_snapshot.get("failureReason") if state_snapshot else "pipeline"
             processed_entries, processed_file_id = record_processed_entry(
                 drive_service,
@@ -804,6 +866,8 @@ def main():
         )
         processed_ids.add(video_id)
         completed_sources += 1
+        if episode:
+            completed_episodes.add(episode)
 
         # processed_videos.json is the durable operational ledger. Once the completion
         # receipt has been copied into it, the per-video state file is no longer needed.
