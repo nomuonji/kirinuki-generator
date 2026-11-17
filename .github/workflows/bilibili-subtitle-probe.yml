@@ -1,4 +1,4 @@
-name: Bilibili BBDown candidate availability
+name: Bilibili subtitle file verification
 on:
   pull_request:
     branches: [main]
@@ -9,9 +9,9 @@ jobs:
   inspect:
     if: github.head_ref == 'probe/bilibili-subtitles-20261118' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
-      - name: Install tools
+      - name: Install known versions
         run: |
           if ! command -v ffmpeg; then
             sudo apt-get update -qq
@@ -19,14 +19,33 @@ jobs:
           fi
           dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
           echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
-      - name: Resolve public format metadata only (no media payload)
+      - name: Check subtitle-only extraction from explicitly licensed samples
         shell: bash
         run: |
-          for id in BV1Fb4111732 BV1PwjzzVELc BV1yPJG6oEEN; do
-            echo "METADATA_PROBE $id"
-            timeout 30 BBDown "https://www.bilibili.com/video/$id/" --only-show-info > "$RUNNER_TEMP/$id.log" 2>&1
+          set -u
+          # CC BY 3.0: BV1Pgna6EEiV; CC BY-SA 3.0 (including subtitles): BV1J8e1zFE5L
+          # CC BY-NC-SA 4.0: BV1wg4tzeEAV (noncommercial diagnostic only)
+          BBDown --help | grep -E 'skip-ai|sub-only|select-page' || true
+          for id in BV1Pgna6EEiV BV1J8e1zFE5L BV1wg4tzeEAV; do
+            echo "SUBTITLE_PROBE $id"
+            mkdir -p "$RUNNER_TEMP/$id"
+            cd "$RUNNER_TEMP/$id"
+            timeout 35 BBDown "https://www.bilibili.com/video/$id/" --sub-only --skip-ai false --select-page 1 > "$RUNNER_TEMP/$id.log" 2>&1
             code=$?
-            # Print only public title and format descriptions; no resolved media URL.
-            grep -E '视频标题|视频流|音频流|分辨率|时长|HTTP|异常|失败|\[[0-9]+\].*(AVC|HEVC|AV1|AAC|[0-9]p)' "$RUNNER_TEMP/$id.log" | head -n 35 || true
-            echo "METADATA_EXIT $id $code"
+            grep -Ei '视频标题|字幕|subtitle|error|异常|失败' "$RUNNER_TEMP/$id.log" | grep -Ev 'https?://' | head -n 20 || true
+            echo "SUBTITLE_EXIT $id $code"
           done
+      - name: Validate SRT format without printing transcript content
+        shell: python
+        run: |
+          import json, re, pathlib, os
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          good = 0
+          for id in ["BV1Pgna6EEiV", "BV1J8e1zFE5L", "BV1wg4tzeEAV"]:
+              for p in (root/id).rglob("*.srt"):
+                  s = p.read_text(encoding="utf-8-sig")
+                  count = len(re.findall(r"\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,.]\d{3}",s))
+                  print(json.dumps({"id":id,"bytes":p.stat().st_size,"cues":count}))
+                  good += count > 0
+          print("VALID_SUBTITLE_FILES",good)
+          assert good > 0, "No actual subtitle file obtained"
