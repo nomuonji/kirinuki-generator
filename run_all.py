@@ -595,6 +595,7 @@ def run_remotion_render(
     remotion_app_dir: Path,
     reuse_existing_bundle: bool = False,
     on_clip_rendered=None,
+    high_quality: bool = False,
 ):
     """
     Finds all prop JSON files and renders a video for each one using Remotion CLI.
@@ -661,6 +662,8 @@ def run_remotion_render(
             relative_props_path,
         ]
 
+        if high_quality:
+            cmd.extend(["--codec", "h264", "--crf", "16", "--image-format", "png", "--concurrency", "2"])
         try:
             run_command(cmd, f"Rendering {absolute_output_file.name}", cwd=remotion_app_dir, quiet=True,
                         timeout=STAGE_TIMEOUTS["render"])
@@ -1196,6 +1199,8 @@ def main():
 
         state["driveFolderId"] = drive_parent_id
         sanitized_title = sanitize_filename((state.get("sourceTitle") or args.video_id)[:20])
+        if source_provenance:
+            sanitized_title = sanitize_filename(f"{sanitized_title}_{args.video_id}")
         persist_state()
 
         for batch_idx, batch in enumerate(clip_batches, start=1):
@@ -1248,6 +1253,13 @@ def main():
             if not any(props_dir.glob("clip_*.json")):
                 raise RuntimeError(f"Prop files (clip_*.json) were not generated for {batch_desc}. Cannot proceed with rendering.")
 
+            if source_provenance:
+                for prop in props_dir.glob("clip_*.json"):
+                    data = json.loads(prop.read_text(encoding="utf-8"))
+                    data.update(template="telop", variant=1)
+                    if source_provenance.get("subtitleProvenance") == "zh_backtranslation_unverified_audio":
+                        data["bottomRichText"] = "参考翻訳字幕"
+                    prop.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
             reuse_bundle = batch_idx > 1
             run_remotion_render(
                 props_dir,
@@ -1255,6 +1267,7 @@ def main():
                 remotion_app_dir,
                 reuse_existing_bundle=reuse_bundle,
                 on_clip_rendered=handle_rendered_clip,
+                high_quality=bool(source_provenance),
             )
 
             # Update completion markers after batch uploads
