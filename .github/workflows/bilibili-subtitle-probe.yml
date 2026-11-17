@@ -8,16 +8,26 @@ permissions:
 jobs:
   compare:
     if: github.head_ref == 'probe/bilibili-subtitles-20261118' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
     strategy:
       fail-fast: false
       matrix:
-        method: [yutto, bbdown, direct-control]
+        method: [yutto, bbdown, direct-control, international]
     steps:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Ensure ffmpeg and ffprobe
+        run: |
+          if ! command -v ffmpeg || ! command -v ffprobe; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffmpeg -version | head -n 1
+      - name: Install yt-dlp
+        if: matrix.method == 'international'
+        run: python -m pip install yt-dlp==2026.10.26
       - name: Install yutto
         if: matrix.method == 'yutto'
         run: python -m pip install yutto==2.3.1
@@ -39,7 +49,8 @@ jobs:
           case "$METHOD" in
             yutto) timeout 75 yutto "$URL" --no-danmaku --no-subtitle -q 32 -d media ;;
             bbdown) cd media; timeout 75 BBDown "$URL"; cd .. ;;
-            direct-control) curl --fail --location --max-time 90 --output media/control.mp4 'https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4' ;;
+            international) timeout 100 python -m yt_dlp --ignore-config --no-playlist --socket-timeout 15 --retries 0 --extractor-retries 0 -f 'bv*[height<=480]+ba/b[height<=480]' --merge-output-format mp4 -o 'media/sample.%(ext)s' 'https://www.bilibili.tv/en/video/4800783876102656' ;;
+            direct-control) curl --fail --location --max-time 90 --output media/control.mp4 'https://raw.githubusercontent.com/bower-media-samples/big-buck-bunny-480p-30s/master/video.mp4' ;;
           esac
       - name: Verify actual media
         shell: python
