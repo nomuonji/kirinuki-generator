@@ -1,0 +1,40 @@
+name: Kyousuki multi-source integration check
+on:
+  pull_request:
+    paths:
+      - 'packages/kyousuki_sources.py'
+      - 'configs/kyousuki_sources.json'
+      - 'youtube_watcher.py'
+      - 'run_all.py'
+      - 'bilibili_source.py'
+      - '.github/workflows/main.yml'
+      - 'tests/test_kyousuki_sources.py'
+      - '.github/workflows/kyousuki-source-pool-check.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate rights, fallback, identity and duplicate handling
+        run: |
+          python -m py_compile packages/kyousuki_sources.py youtube_watcher.py run_all.py bilibili_source.py
+          python -m unittest discover -s tests -p test_kyousuki_sources.py -v
+      - name: Probe public search metadata (never download or publish)
+        run: |
+          python -m packages.kyousuki_sources --output /tmp/kyousuki-public-plan.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("/tmp/kyousuki-public-plan.json").read_text())
+          assert len(p["accounts"])==3
+          assert not p["autoAcquisitionAuthorized"]
+          print("POOL_LIVE_STATUS",p["status"],p["candidateCount"],p["diagnostics"])
+          PY
