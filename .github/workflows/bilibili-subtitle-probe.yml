@@ -1,4 +1,4 @@
-name: Bilibili video acquisition comparison
+name: Bilibili BBDown candidate availability
 on:
   pull_request:
     branches: [main]
@@ -6,61 +6,27 @@ on:
 permissions:
   contents: read
 jobs:
-  compare:
+  inspect:
     if: github.head_ref == 'probe/bilibili-subtitles-20261118' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 6
-    strategy:
-      fail-fast: false
-      matrix:
-        method: [yutto, bbdown, direct-control, international]
+    timeout-minutes: 5
     steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Ensure ffmpeg and ffprobe
+      - name: Install tools
         run: |
-          if ! command -v ffmpeg || ! command -v ffprobe; then
+          if ! command -v ffmpeg; then
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
-          ffmpeg -version | head -n 1
-      - name: Install yt-dlp
-        if: matrix.method == 'international'
-        run: python -m pip install yt-dlp==2026.10.26
-      - name: Install yutto
-        if: matrix.method == 'yutto'
-        run: python -m pip install yutto==2.3.1
-      - name: Install BBDown
-        if: matrix.method == 'bbdown'
-        run: |
           dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
           echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
-      - name: Fetch licensed comparison media
-        env:
-          METHOD: ${{ matrix.method }}
+      - name: Resolve public format metadata only (no media payload)
         shell: bash
         run: |
-          set -eu
-          mkdir -p media
-          # (c) copyright 2008 Blender Foundation / www.bigbuckbunny.org; CC BY 3.0.
-          # Only normal public access. No credential, proxy, or evasion configuration.
-          URL='https://www.bilibili.com/video/BV1Fb4111732/'
-          case "$METHOD" in
-            yutto) timeout 75 yutto "$URL" --no-danmaku --no-subtitle -q 32 -d media ;;
-            bbdown) cd media; timeout 75 BBDown "$URL"; cd .. ;;
-            international) timeout 100 python -m yt_dlp --ignore-config --no-playlist --socket-timeout 15 --retries 0 --extractor-retries 0 -f 'bv*[height<=480]+ba/b[height<=480]' --merge-output-format mp4 -o 'media/sample.%(ext)s' 'https://www.bilibili.tv/en/video/4800783876102656' ;;
-            direct-control) curl --fail --location --max-time 90 --output media/control.mp4 'https://raw.githubusercontent.com/bower-media-samples/big-buck-bunny-480p-30s/master/video.mp4' ;;
-          esac
-      - name: Verify actual media
-        shell: python
-        run: |
-          import json, pathlib, subprocess
-          files = list(pathlib.Path("media").rglob("*.mp4"))
-          assert files, "No MP4 produced"
-          for p in files:
-              result = json.loads(subprocess.check_output(["ffprobe","-v","error","-show_streams","-show_format","-of","json",str(p)]))
-              streams = {s["codec_type"] for s in result["streams"]}
-              duration = float(result["format"]["duration"])
-              print("MEDIA_PROBE", p.stat().st_size, sorted(streams), duration)
-              assert {"video","audio"} <= streams and duration > 0
+          for id in BV1Fb4111732 BV1PwjzzVELc BV1yPJG6oEEN; do
+            echo "METADATA_PROBE $id"
+            timeout 30 BBDown "https://www.bilibili.com/video/$id/" --only-show-info > "$RUNNER_TEMP/$id.log" 2>&1
+            code=$?
+            # Print only public title and format descriptions; no resolved media URL.
+            grep -E '视频标题|视频流|音频流|分辨率|时长|HTTP|异常|失败|\[[0-9]+\].*(AVC|HEVC|AV1|AAC|[0-9]p)' "$RUNNER_TEMP/$id.log" | head -n 35 || true
+            echo "METADATA_EXIT $id $code"
+          done
