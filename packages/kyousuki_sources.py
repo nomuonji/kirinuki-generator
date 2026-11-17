@@ -4,7 +4,6 @@ import argparse
 import html
 import json
 import re
-import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -81,6 +80,84 @@ def normalize(row, account, now):
             "episodeKey":episode_key(title),"approvalStatus":"metadata_only"}
 
 
+def approval_records(reg=None):
+    """Explicit per-source permission records, never a discovery-name allowlist."""
+    reg=reg or load_registry()
+    accepted=[]
+    for record in reg.get("approvedSources",[]):
+        if not isinstance(record,dict): continue
+        bvid=str(record.get("bvid",""))
+        if not BVID.fullmatch(bvid): continue
+        if type(record.get("page")) is not int or record["page"] < 1: continue
+        if not str(record.get("mid","")).isdigit(): continue
+        if not any(a["name"]==record.get("author") and
+                   (a.get("mid") is None or str(a["mid"])==str(record["mid"]))
+                   for a in reg["accounts"]): continue
+        if str(record.get("officialYoutubeVideoId","")) and not re.fullmatch(r"[A-Za-z0-9_-]{11}",record["officialYoutubeVideoId"]): continue
+        if not re.fullmatch(r"20[2-3]\d:[^:\r\n]{1,32}:[1-9]\d?",str(record.get("episodeKey",""))): continue
+        if not re.fullmatch(r"https://abema\.tv/video/episode/[A-Za-z0-9_-]+",str(record.get("officialEpisodeUrl",""))): continue
+        if not isinstance(record.get("rightsEvidence"),str) or not record["rightsEvidence"].strip(): continue
+        if record.get("processingAuthorized") is not True or record.get("publicationAuthorized") is not True: continue
+        if not isinstance(record.get("stockFolderId"),str) or not record["stockFolderId"]: continue
+        accepted.append(record)
+    return accepted
+
+
+def approved_source(bvid,page,folder,reg=None):
+    rows=[r for r in approval_records(reg) if r["bvid"]==bvid and r["page"]==page and r["stockFolderId"]==folder]
+    if len(rows)!=1:
+        raise ValueError("No unambiguous, documented Bilibili source and posting-stock authorization")
+    return rows[0]
+
+
+def approved_candidates(discovery, processed_entries, folder, now=None, reg=None, max_age_days=90):
+    """Choose one approved provider per episode. No rollover after partial stock creation.
+
+    Failures use provider-specific state keys. Completed episodes / completed official
+    source aliases suppress every mirror. Source grants, not untrusted metadata, own
+    canonical episode identity and date. If live discovery fails, known explicitly
+    approved rows remain eligible; a newly discovered unapproved row never is.
+    """
+    now=now or datetime.now(timezone.utc)
+    known={c["bvid"]:c for g in discovery.get("episodeGroups",{}).values() for c in g}
+    records=approval_records(reg)
+    groups={}
+    for r in records:
+        if r["stockFolderId"]!=folder:
+            continue
+        try:
+            aired=datetime.fromisoformat(r["officialPublishedAt"].replace("Z","+00:00"))
+            age=(now-aired).total_seconds()/86400
+            dur=int(r["durationSeconds"])
+        except (ValueError,TypeError,KeyError): continue
+        if not 0<=age<=max_age_days or not 1080<=dur<=9000: continue
+        if not isinstance(r.get("title"),str) or not r["title"].strip(): continue
+        live=known.get(r["bvid"])
+        if live and (live["mid"]!=str(r["mid"]) or live["author"]!=r["author"]): continue
+        sid=f'bilibili_{r["bvid"]}_p{r["page"]}_auto'
+        byid={p.get("videoId"):p for p in processed_entries}
+        if byid.get(r.get("officialYoutubeVideoId"),{}).get("status")=="completed": continue
+        related=[p for p in processed_entries if p.get("episodeKey")==r["episodeKey"] or
+                 p.get("videoId") in {sid,r.get("officialYoutubeVideoId")}]
+        if any(p.get("status")=="completed" or int(p.get("uploadedClips") or 0)>0 for p in related): continue
+        prior=byid.get(sid,{})
+        if int(prior.get("attempts") or 0)>=3: continue
+        if prior.get("processedAt"):
+            try:
+                elapsed=(now-datetime.fromisoformat(prior["processedAt"].replace("Z","+00:00"))).total_seconds()
+                if elapsed<21600: continue
+            except ValueError: continue
+        priority=next(a["priority"] for a in (reg or load_registry())["accounts"] if a["name"]==r["author"])
+        groups.setdefault(r["episodeKey"],[]).append({"videoId":sid,"sourcePlatform":"bilibili","bvid":r["bvid"],"page":r["page"],
+            "episodeKey":r["episodeKey"],"officialYoutubeVideoId":r.get("officialYoutubeVideoId"),"title":r["title"],
+            "publishedAt":aired.isoformat(),"ageHours":age*24,"durationSeconds":dur,
+            "selectionScore":0.82 if age<=1 else 0.65,"viewsPerHour":0.0,"views":0,"likes":0,"comments":0,"priority":priority})
+    # Newer episodes first; alternate providers in priority order. Caller must
+    # recheck durable state/partial uploads before attempting another provider.
+    return sorted((c for g in groups.values() for c in g),
+                  key=lambda c:(-datetime.fromisoformat(c["publishedAt"]).timestamp(),c["priority"],c["videoId"]))
+
+
 def search(keyword, timeout=12):
     # Public metadata search only. No cookie harvesting, WBI spoofing, proxy, or retry on denial.
     url="https://api.bilibili.com/x/web-interface/search/type?"+urllib.parse.urlencode({
@@ -127,7 +204,7 @@ def discover(reg=None, fetch=search, now=None):
     return {"checkedAt":now.isoformat(),"status":"ok" if diagnostics and all(d["status"]=="ok" for d in diagnostics) else "degraded",
             "accounts":reg["accounts"],"diagnostics":diagnostics,"episodeGroups":groups,
             "candidateCount":len(candidates),"approvedSourceCount":len(reg["approvedSources"]),
-            "autoAcquisitionAuthorized":False,"reason":"discovery metadata is not source or publication authorization"}
+            "autoAcquisitionAuthorized":bool(approval_records(reg)),"reason":"Only explicit approved-source records can be used for production; discovery itself grants no rights"}
 
 
 def main():
