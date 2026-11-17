@@ -20,6 +20,8 @@ env:
   MAX_SEARCH_VIDEOS: '30'
   SAVETUBE_QUALITY: '720'
   SOURCE_FETCH_COUNTRY: 'US'
+  KIRINUKI_DESIGN_TEMPLATE: 'telop:1'
+  TIMEOUT_TRANSCRIBE: '1800'
   PYTHONUNBUFFERED: '1'
 
 jobs:
@@ -43,6 +45,7 @@ jobs:
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+          KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
           GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
         run: |
@@ -50,6 +53,15 @@ jobs:
           echo "should_process=$(python -c 'import json; print(str(json.load(open("plan.json"))["shouldProcess"]).lower())')" >> "$GITHUB_OUTPUT"
           echo "stock=$(python -c 'import json; print(json.load(open("plan.json"))["effectiveStockClips"])')" >> "$GITHUB_OUTPUT"
           echo "reason=$(python -c 'import json; print(json.load(open("plan.json"))["reason"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Retain source discovery and stock diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kyousuki-source-plan
+          path: plan.json
+          if-no-files-found: ignore
+          retention-days: 7
 
   build-and-upload:
     needs: plan
@@ -89,8 +101,11 @@ jobs:
             ~/.remotion
           key: ${{ runner.os }}-remotion-browser-${{ hashFiles('apps/remotion/package-lock.json') }}
 
-      - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install ffmpeg and Bilibili source adapter
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
 
       - name: Install Python dependencies
         run: |
@@ -117,6 +132,7 @@ jobs:
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+          KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
           RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
           OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
           GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
