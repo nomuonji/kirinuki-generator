@@ -1,0 +1,35 @@
+{
+  "programme": "kyousuki",
+  "officialChannelId": "UCzXVsEc1h2Elljge0fnQYRg",
+  "officialSchedule": "https://abema.tv/lp/kyousuki-official/",
+  "accounts": [
+    {
+      "name": "黑田凖一",
+      "priority": 1,
+      "mid": null,
+      "referenceBvid": "BV1yPJG6oEEN",
+      "status": "weekly_current"
+    },
+    {
+      "name": "乄灬涟漪为谁丶",
+      "priority": 2,
+      "mid": null,
+      "referenceBvid": "BV1PwjzzVELc",
+      "status": "media_tested_historical"
+    },
+    {
+      "name": "Jeanne_d_Arc",
+      "priority": 3,
+      "mid": null,
+      "referenceBvid": "BV1L9edzWENw",
+      "status": "historical_unverified"
+    }
+  ],
+  "searchKeywords": [
+    "今天喜欢上你了",
+    "今喜",
+    "今日好き"
+  ],
+  "approvedSources": [],
+  "approvalNote": "Accounts are discovery hints only. Each approvedSources record must identify an exact BV ID, verified uploader MID, exact official episode URL and canonical episode key, and documented redistribution/processing rights. Never infer permission from search results. See docs/kyousuki-source-pool.md."
+}
