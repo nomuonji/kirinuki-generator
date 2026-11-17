@@ -1,4 +1,4 @@
-name: Bilibili video bytes control probe
+name: Bilibili video acquisition comparison
 on:
   pull_request:
     branches: [main]
@@ -6,32 +6,50 @@ on:
 permissions:
   contents: read
 jobs:
-  probe:
+  compare:
     if: github.head_ref == 'probe/bilibili-subtitles-20261118' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        method: [yutto, bbdown, direct-control]
     steps:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install yt-dlp==2026.10.26
-      - name: Acquire openly licensed video and verify bytes and audio/video streams
+      - name: Install yutto
+        if: matrix.method == 'yutto'
+        run: python -m pip install yutto==2.3.1
+      - name: Install BBDown
+        if: matrix.method == 'bbdown'
+        run: |
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+      - name: Fetch licensed comparison media
+        env:
+          METHOD: ${{ matrix.method }}
         shell: bash
         run: |
-          set -u
-          # Big Buck Bunny (c) copyright 2008, Blender Foundation / www.bigbuckbunny.org,
-          # CC BY 3.0, https://peach.blender.org/about/
-          # No credentials, no proxy, no retry on access denial.
-          if timeout 100 python -m yt_dlp --ignore-config --no-playlist --socket-timeout 15 --retries 0 --extractor-retries 0 -f 'bv*[height<=480]+ba/b[height<=480]' --merge-output-format mp4 -o 'sample.%(ext)s' 'https://www.bilibili.com/video/BV1Fb4111732/'; then
-            python - <<'PY'
-          import json, subprocess, pathlib
-          p = pathlib.Path("sample.mp4")
-          data = json.loads(subprocess.check_output(["ffprobe","-v","error","-show_streams","-show_format","-of","json",str(p)]))
-          kinds = {s["codec_type"] for s in data["streams"]}
-          print("BILIBILI_MEDIA_BYTES",p.stat().st_size,"STREAMS",sorted(kinds),"DURATION",data["format"].get("duration"))
-          assert {"video","audio"} <= kinds and float(data["format"]["duration"]) > 0
-          PY
-          else
-            echo 'BILIBILI_MEDIA_FAILED'
-            exit 1
-          fi
+          set -eu
+          mkdir -p media
+          # (c) copyright 2008 Blender Foundation / www.bigbuckbunny.org; CC BY 3.0.
+          # Only normal public access. No credential, proxy, or evasion configuration.
+          URL='https://www.bilibili.com/video/BV1Fb4111732/'
+          case "$METHOD" in
+            yutto) timeout 75 yutto "$URL" --no-danmaku --no-subtitle -q 32 -d media ;;
+            bbdown) cd media; timeout 75 BBDown "$URL"; cd .. ;;
+            direct-control) curl --fail --location --max-time 90 --output media/control.mp4 'https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4' ;;
+          esac
+      - name: Verify actual media
+        shell: python
+        run: |
+          import json, pathlib, subprocess
+          files = list(pathlib.Path("media").rglob("*.mp4"))
+          assert files, "No MP4 produced"
+          for p in files:
+              result = json.loads(subprocess.check_output(["ffprobe","-v","error","-show_streams","-show_format","-of","json",str(p)]))
+              streams = {s["codec_type"] for s in result["streams"]}
+              duration = float(result["format"]["duration"])
+              print("MEDIA_PROBE", p.stat().st_size, sorted(streams), duration)
+              assert {"video","audio"} <= streams and duration > 0
