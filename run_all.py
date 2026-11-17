@@ -595,6 +595,7 @@ def run_remotion_render(
     remotion_app_dir: Path,
     reuse_existing_bundle: bool = False,
     on_clip_rendered=None,
+    high_quality: bool = False,
 ):
     """
     Finds all prop JSON files and renders a video for each one using Remotion CLI.
@@ -661,6 +662,8 @@ def run_remotion_render(
             relative_props_path,
         ]
 
+        if high_quality:
+            cmd.extend(["--codec", "h264", "--crf", "16", "--image-format", "png", "--concurrency", "2"])
         try:
             run_command(cmd, f"Rendering {absolute_output_file.name}", cwd=remotion_app_dir, quiet=True,
                         timeout=STAGE_TIMEOUTS["render"])
@@ -683,7 +686,8 @@ def main():
     parser.add_argument("video_id", help="YouTube video ID or Bilibili BV ID.")
     parser.add_argument("--source-platform", choices=["youtube", "bilibili"], default="youtube")
     parser.add_argument("--bilibili-page", type=int, default=1)
-    parser.add_argument("--bilibili-subtitle-lang", choices=["ja", "zh", "en"], default="ja")
+    parser.add_argument("--bilibili-subtitle-lang", choices=["ja", "zh", "en", "auto"], default="ja")
+    parser.add_argument("--bilibili-approved-stock", action="store_true", help="Use only an explicitly granted source in the production stock folder.")
     parser.add_argument("--source-rights-confirmed", action="store_true", help="Confirm permission to acquire and process this Bilibili source and its subtitles.")
     parser.add_argument("--subs", action="store_true", help="Burn subtitles into the generated clips.")
     parser.add_argument("--soft-subs", action="store_true", help="Export subtitle files without burning them.")
@@ -719,13 +723,22 @@ def main():
         parser.error("--subs and --soft-subs cannot be used together.")
 
     source_provenance = None
+    approved_stock_source = None
     source_content_id = args.video_id
     if args.source_platform == "bilibili":
         from bilibili_source import source_url
         if not args.source_rights_confirmed:
             parser.error("Bilibili needs explicit source and subtitle authorization")
         review_folder = os.environ.get("BILIBILI_REVIEW_FOLDER_ID")
-        if not review_folder or os.environ.get("GDRIVE_PARENT_FOLDER_ID") != review_folder:
+        if args.bilibili_approved_stock:
+            from packages.kyousuki_sources import approved_source
+            try:
+                approved_stock_source = approved_source(source_content_id, args.bilibili_page, os.environ.get("GDRIVE_PARENT_FOLDER_ID"))
+            except ValueError as exc:
+                parser.error(str(exc))
+            if args.bilibili_subtitle_lang != "auto":
+                parser.error("Approved stock requires the validated automatic caption policy")
+        elif not review_folder or os.environ.get("GDRIVE_PARENT_FOLDER_ID") != review_folder:
             parser.error("Bilibili requires a separate, matching BILIBILI_REVIEW_FOLDER_ID and GDRIVE_PARENT_FOLDER_ID")
         try:
             url = source_url(source_content_id, args.bilibili_page)
@@ -737,6 +750,12 @@ def main():
             "sourceVideoUrl": url, "sourceChannelId": "",
             "sourcePage": args.bilibili_page, "subtitleLanguage": args.bilibili_subtitle_lang,
         }
+        if approved_stock_source:
+            source_provenance.update(sourceUploaderMid=str(approved_stock_source["mid"]),
+                episodeKey=approved_stock_source["episodeKey"],
+                officialEpisodeUrl=approved_stock_source["officialEpisodeUrl"])
+        # Preserve the existing audit publication gate. A source grant is not
+        # a per-clip transformative-use or final publication receipt.
 
     # --- 1. Path Definitions ---
     tmp_dir = Path("tmp")
@@ -745,6 +764,8 @@ def main():
     if args.source_platform == "bilibili":
         common = [source_content_id, "--page", str(args.bilibili_page), "--rights-confirmed"]
         download_cmd = [sys.executable, "bilibili_source.py", "video", *common, "--output", str(video_path)]
+        if approved_stock_source:
+            download_cmd.extend(["--expected-mid", str(approved_stock_source["mid"])])
         transcribe_cmd = [sys.executable, "bilibili_source.py", "transcript", *common,
                           "--language", args.bilibili_subtitle_lang, "--video", str(video_path),
                           "--output", str(transcript_path)]
@@ -986,6 +1007,19 @@ def main():
                     persist_state()
                     return
 
+        # Preserve explicit provenance for a back-translation. It is not a
+        # verified verbatim Japanese quote, so it must be labeled in the render.
+        if source_provenance and args.bilibili_subtitle_lang == "auto":
+            caption_provenance = json.loads(transcript_path.with_suffix(".provenance.json").read_text(encoding="utf-8"))
+            if caption_provenance.get("bvid") != source_content_id or caption_provenance.get("page") != args.bilibili_page:
+                raise RuntimeError("Subtitle provenance mismatch")
+            source_provenance["subtitleProvenance"] = caption_provenance["mode"]
+            state["subtitleProvenance"] = caption_provenance["mode"]
+            if caption_provenance["mode"] == "zh_backtranslation_unverified_audio":
+                source_title = os.environ.get("SOURCE_VIDEO_TITLE") or state.get("sourceTitle") or source_content_id
+                os.environ["SOURCE_VIDEO_TITLE"] = source_title + "｜参考翻訳字幕"
+            persist_state()
+
         # --- 5. Generate Clips ---
         if clips_stage.get("done") and not clips_dir.exists():
             if clips_manifest_info:
@@ -1165,6 +1199,8 @@ def main():
 
         state["driveFolderId"] = drive_parent_id
         sanitized_title = sanitize_filename((state.get("sourceTitle") or args.video_id)[:20])
+        if source_provenance:
+            sanitized_title = sanitize_filename(f"{sanitized_title}_{args.video_id}")
         persist_state()
 
         for batch_idx, batch in enumerate(clip_batches, start=1):
@@ -1209,12 +1245,21 @@ def main():
             cmd_prepare = [sys.executable, "-m", "apps.cli.render_clips", "--input-dir", str(clips_dir)]
             include_arg = ",".join(str(clip) for clip in pending_in_batch)
             cmd_prepare.extend(["--include-clips", include_arg])
+            if source_provenance:
+                cmd_prepare.append("--skip-optimization")
             run_command(cmd_prepare, f"Preparing for Remotion Rendering ({batch_desc})", quiet=True,
                         timeout=STAGE_TIMEOUTS["props"])
 
             if not any(props_dir.glob("clip_*.json")):
                 raise RuntimeError(f"Prop files (clip_*.json) were not generated for {batch_desc}. Cannot proceed with rendering.")
 
+            if source_provenance:
+                for prop in props_dir.glob("clip_*.json"):
+                    data = json.loads(prop.read_text(encoding="utf-8"))
+                    data.update(template="telop", variant=1)
+                    if source_provenance.get("subtitleProvenance") == "zh_backtranslation_unverified_audio":
+                        data["bottomRichText"] = "参考翻訳字幕"
+                    prop.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
             reuse_bundle = batch_idx > 1
             run_remotion_render(
                 props_dir,
@@ -1222,6 +1267,7 @@ def main():
                 remotion_app_dir,
                 reuse_existing_bundle=reuse_bundle,
                 on_clip_rendered=handle_rendered_clip,
+                high_quality=bool(source_provenance),
             )
 
             # Update completion markers after batch uploads
