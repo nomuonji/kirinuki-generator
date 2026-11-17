@@ -1,4 +1,4 @@
-name: Bilibili subtitle availability probe
+name: Bilibili video bytes control probe
 on:
   pull_request:
     branches: [main]
@@ -9,38 +9,29 @@ jobs:
   probe:
     if: github.head_ref == 'probe/bilibili-subtitles-20261118' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 5
     steps:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check normal public video metadata APIs
-        shell: python
+      - run: python -m pip install yt-dlp==2026.10.26
+      - name: Acquire openly licensed video and verify bytes and audio/video streams
+        shell: bash
         run: |
-          import json, urllib.request, urllib.parse, urllib.error
-          ids = ["BV1xqveBfEpz", "BV1jL41167ZG"]
-          def get(path, **query):
-              url = "https://api.bilibili.com/" + path + "?" + urllib.parse.urlencode(query)
-              try:
-                  with urllib.request.urlopen(url, timeout=15) as r:
-                      data = json.load(r)
-                      print(path, "HTTP", r.status, "API code", data.get("code"), flush=True)
-                      return data.get("data") or {} if data.get("code") == 0 else {}
-              except urllib.error.HTTPError as e:
-                  print(path, "HTTP", e.code, flush=True)
-              except (OSError, ValueError) as e:
-                  print(path, type(e).__name__, flush=True)
-              return {}
-          found = 0
-          for bvid in ids:
-              info = get("x/web-interface/view", bvid=bvid)
-              cid = info.get("cid")
-              print(bvid, "duration", info.get("duration"), "cid_present", bool(cid), flush=True)
-              if not cid:
-                  continue
-              player = get("x/player/wbi/v2", bvid=bvid, cid=cid)
-              tracks = (player.get("subtitle") or {}).get("subtitles") or []
-              print(bvid, "caption_languages", [s.get("lan") for s in tracks], flush=True)
-              found += bool(tracks)
-          print("caption_metadata_available:", found, "of", len(ids), flush=True)
-          raise SystemExit(0 if found else 1)
+          set -u
+          # Big Buck Bunny (c) copyright 2008, Blender Foundation / www.bigbuckbunny.org,
+          # CC BY 3.0, https://peach.blender.org/about/
+          # No credentials, no proxy, no retry on access denial.
+          if timeout 100 python -m yt_dlp --ignore-config --no-playlist --socket-timeout 15 --retries 0 --extractor-retries 0 -f 'bv*[height<=480]+ba/b[height<=480]' --merge-output-format mp4 -o 'sample.%(ext)s' 'https://www.bilibili.com/video/BV1Fb4111732/'; then
+            python - <<'PY'
+          import json, subprocess, pathlib
+          p = pathlib.Path("sample.mp4")
+          data = json.loads(subprocess.check_output(["ffprobe","-v","error","-show_streams","-show_format","-of","json",str(p)]))
+          kinds = {s["codec_type"] for s in data["streams"]}
+          print("BILIBILI_MEDIA_BYTES",p.stat().st_size,"STREAMS",sorted(kinds),"DURATION",data["format"].get("duration"))
+          assert {"video","audio"} <= kinds and float(data["format"]["duration"]) > 0
+          PY
+          else
+            echo 'BILIBILI_MEDIA_FAILED'
+            exit 1
+          fi
