@@ -1,4 +1,4 @@
-name: Bilibili private short render test
+name: Kyousuki watermark and short preview diagnostic
 on:
   pull_request:
     branches: [main]
@@ -9,18 +9,7 @@ jobs:
   preview:
     if: github.head_ref == 'test/bilibili-short-render-20261118' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    env:
-      PYTHONUNBUFFERED: '1'
-      OPENCODE_GO_PROPOSAL_CHUNK_CHARS: '12000'
-      OPENCODE_GO_MAX_TIMEOUT_SECONDS: '120'
-      OPENCODE_GO_REASONING_EFFORT: low
-      OPENCODE_GO_MODEL: deepseek-v4.1-flash
-      HOOK_MODEL: deepseek-v4.1-flash
-      KIRINUKI_REVIEW_MODEL: deepseek-v4.1-flash
-      REACTION_MODEL: deepseek-v4.1-flash
-      SOURCE_VIDEO_TITLE: 'CS50x 2025 Section — private technical test'
-      SOURCE_VIDEO_ID: bilibili_BV1wg4tzeEAV_p1
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,11 +17,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: apps/remotion/package-lock.json
       - name: Install tools
         run: |
           sudo apt-get update -qq
@@ -40,81 +24,69 @@ jobs:
           dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
           echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
           python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Acquire same-part MP4 and English CC
-        run: |
-          # CS50x 2025 Section, CC BY-NC-SA 4.0; noncommercial technical test.
-          # https://cs50.harvard.edu/x/2025/license/
-          python bilibili_source.py video BV1wg4tzeEAV --page 1 --rights-confirmed --output tmp/video.mp4
-          python bilibili_source.py transcript BV1wg4tzeEAV --page 1 --language en --rights-confirmed --video tmp/video.mp4 --output tmp/transcript.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          src = json.loads(Path("tmp/transcript.json").read_text())
-          # Bound the AI test; retain actual timestamp offsets in source video.
-          subset = [x for x in src if x["start"] >= 60 and x["end"] <= 360]
-          assert len(subset) >= 20
-          Path("tmp/window.json").write_text(json.dumps(subset, ensure_ascii=False), encoding="utf-8")
-          print("ACTUAL_TRANSCRIPT_WINDOW_CUES", len(subset))
-          PY
-      - name: Install existing Remotion renderer
-        working-directory: apps/remotion
-        run: |
-          npm ci
-          npx remotion browser ensure --log=warn || npx remotion browser ensure
-      - name: Generate and independently review one real clip
-        env:
-          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+      - name: Inspect ordinary public playback source (temporary media; no posting)
+        shell: bash
         run: |
           set -eu
-          mkdir -p private-report
-          printf '%s\n' 'Create a self-contained short about a concrete programming concept with a clear explanation and payoff. The source captions are English. Titles can be Japanese; do not invent quotes or translate the audio claim into a different meaning. This is a noncommercial private technical test.' > tmp/concept.md
-          # Raw model logs contain caption text: retain only in ephemeral runner.
-          if timeout 420 python -m apps.cli.generate_clips --video tmp/video.mp4 --transcript tmp/window.json --out apps/remotion/public/out_clips --subs --concept-file tmp/concept.md --max-clips 1 --min-sec 30 --max-sec 45 > "$RUNNER_TEMP/clipgen.log" 2>&1; then
-            python - <<'PY'
+          mkdir -p tmp/source tmp/private-review
+          cd tmp/source
+          # Inspect the publicly listed raw-audio episode with normal guest access.
+          # This diagnostic does not assert production or redistribution rights.
+          timeout 240 BBDown 'https://www.bilibili.com/video/BV1PwjzzVELc/?p=1' --select-page 1 --skip-subtitle --skip-cover --dfn-priority '480P 清晰,720P 高清,360P 流畅' --encoding-priority avc,hevc,av1 > "$RUNNER_TEMP/bbdown.log" 2>&1
+          cd ../..
+          python - <<'PY'
           import json
           from pathlib import Path
-          from packages.quality_gate import validated_receipt
-          d=Path("apps/remotion/public/out_clips")
-          assert validated_receipt(d)
-          clips=list(d.glob("clip_*.mp4"))
-          candidates=json.loads((d/"clip_candidates.json").read_text())
-          assert len(clips)==len(candidates)==1
-          c=candidates[0]
-          print("AI_SELECTION_AND_REVIEW_PASS", c["start"],c["end"])
+          from bilibili_source import video_duration
+          import subprocess
+          files=list(Path("tmp/source").rglob("*.mp4"))
+          assert len(files)==1, "expected exactly one source MP4"
+          media=Path("tmp/source.mp4")
+          files[0].replace(media)
+          duration=video_duration(media)
+          print("ACTUAL_EPISODE_MEDIA",media.stat().st_size,duration)
+          # Preserve the full original frame, including corners. No watermark removal.
+          stamps=[min(duration-1,t) for t in [30,120,300,duration/2,duration*.8,duration-15]]
+          for i,t in enumerate(stamps):
+              subprocess.run(["ffmpeg","-hide_banner","-loglevel","error","-ss",str(t),"-i",str(media),"-frames:v","1","-vf","scale=640:-2","-y",f"tmp/private-review/frame-{i+1}.jpg"],check=True,timeout=35)
+          # fixed 30-second segment to check raw frame and audio, not AI-selected
+          start=min(300,max(0,duration-35))
+          subprocess.run(["ffmpeg","-hide_banner","-loglevel","error","-ss",str(start),"-i",str(media),"-t","30","-map","0:v:0","-map","0:a:0","-vf","scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:black,setsar=1","-c:v","libx264","-preset","veryfast","-crf","22","-c:a","aac","-movflags","+faststart","-y","tmp/private-review/vertical-check.mp4"],check=True,timeout=100)
+          from packages.quality_gate import verify_rendered_media
+          qa=verify_rendered_media(Path("tmp/private-review/vertical-check.mp4"))
+          print("WATERMARK_PREVIEW_MEDIA",json.dumps(qa))
+          # Check actual timed subtitle availability separately, never fabricate dialogue.
+          import subprocess,sys
+          available={}
+          for lang in ("ja","zh"):
+              p=subprocess.run([sys.executable,"-c","from bilibili_source import download_transcript; from pathlib import Path; download_transcript('BV1PwjzzVELc',1,Path('tmp/source.mp4'),Path('tmp/captions-"+lang+".json'),'"+lang+"')"],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=210)
+              path=Path("tmp/captions-"+lang+".json")
+              available[lang]=len(json.loads(path.read_text())) if p.returncode==0 and path.exists() else 0
+          report={"source":"BV1PwjzzVELc","sourceTitle":"今日好き マクタン編1話","sourceDuration":duration,"frameTimestamps":stamps,"previewStart":start,"previewMedia":qa,"subtitleCueCounts":available,"watermarkConclusion":"Visual inspection required; no removal performed","publicationAttempted":False}
+          Path("tmp/private-review/report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+          print("CAPTION_COUNTS",json.dumps(available))
           PY
-          else
-            # Report stage only, not private transcript or secrets.
-            grep -E '^(Static quality gate:|Independent editorial gate:|Traceback|RuntimeError:|TimeoutError:|[A-Za-z]+Error:)' "$RUNNER_TEMP/clipgen.log" | cut -c1-180 | tail -n 5 || true
-            exit 1
-          fi
-      - name: Prepare and render using production renderer
+      - name: Save small diagnostic preview to owner-only isolated Drive folder
+        env:
+          GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
         run: |
-          python -m apps.cli.render_clips --input-dir apps/remotion/public/out_clips
           python - <<'PY'
           from pathlib import Path
-          from run_all import run_remotion_render
-          from packages.quality_gate import verify_rendered_media
-          import json, subprocess
-          props=Path("apps/remotion/public/props")
-          p=list(props.glob("clip_*.json"))
-          assert len(p)==1
-          data=json.loads(p[0].read_text())
-          assert data.get("subtitleTimeline"), "No rendered subtitle timeline"
-          out=Path("private-rendered")
-          run_remotion_render(props,out,Path("apps/remotion"))
-          files=list(out.glob("*.mp4"))
-          assert len(files)==1
-          qa=verify_rendered_media(files[0])
-          subprocess.run(["ffmpeg","-v","error","-xerror","-i",str(files[0]),"-map","0:v:0","-map","0:a:0","-f","null","-"],check=True,timeout=120)
-          report={"result":"PASS","source":"BV1wg4tzeEAV","sourceLicense":"CC BY-NC-SA 4.0, private noncommercial diagnostic","sourceLanguage":"en","subtitleCues":len(data["subtitleTimeline"]),"aiSelection":True,"editorialReview":True,"media":qa,"fullDecode":True,"publicationAttempted":False}
-          Path("private-report/report.json").write_text(json.dumps(report,indent=2), encoding="utf-8")
-          print("BILIBILI_SHORT_REPORT",json.dumps(report))
+          from googleapiclient.http import MediaFileUpload
+          from packages.shared.gdrive import get_drive_service
+          service=get_drive_service()
+          folder=service.files().create(body={"name":"Kirinuki Watermark Review BV1PwjzzVELc 20261118","mimeType":"application/vnd.google-apps.folder"},fields="id,shared,permissions(type,role)").execute()
+          if folder.get("shared") is not False or not folder.get("permissions") or any(p.get("type")!="user" or p.get("role")!="owner" for p in folder["permissions"]):
+              raise RuntimeError("Review folder is not confirmed owner-only; refusing upload")
+          for file in sorted(Path("tmp/private-review").iterdir()):
+              media=MediaFileUpload(str(file),resumable=file.stat().st_size>5*1024*1024)
+              res=service.files().create(body={"name":file.name,"parents":[folder["id"]]},media_body=media,fields="id,shared,permissions(type,role)").execute()
+              if res.get("shared") is not False or not res.get("permissions") or any(p.get("type")!="user" or p.get("role")!="owner" for p in res["permissions"]):
+                  service.files().delete(fileId=res["id"]).execute()
+                  raise RuntimeError("Uploaded diagnostic file is not owner-only")
+              print("PRIVATE_REVIEW_SAVED",file.name)
           PY
-      - name: Save redacted test report only
+      - name: Remove downloaded media
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bilibili-private-short-report
-          path: private-report/report.json
-          if-no-files-found: ignore
-          retention-days: 7
+        run: rm -rf tmp/source tmp/source.mp4 tmp/private-review tmp/captions-ja.json tmp/captions-zh.json
