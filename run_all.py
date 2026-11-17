@@ -318,6 +318,7 @@ def upload_clip_and_props(
     clips_state: dict,
     batch_idx: int,
     persist_state_fn,
+    source_provenance: dict | None = None,
 ):
     # Never expose an MP4 as ready stock before its editorial and media
     # receipts have been verified and durably stored as a sidecar.
@@ -343,6 +344,8 @@ def upload_clip_and_props(
         "transformativeUseVerified": False,
         "publicPublishingAuthorized": False,
     }
+    if source_provenance:
+        props_metadata["kirinukiAudit"].update(source_provenance)
     props_payload = json.dumps(props_metadata, ensure_ascii=False, indent=2).encode("utf-8")
     remote_base = build_safe_filename(sanitized_title, f"_clip_{clip_key}")
     props_remote_name = f"{remote_base}.json"
@@ -673,11 +676,15 @@ def run_remotion_render(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run the full kirinuki generation pipeline from a YouTube video ID.",
+        description="Run the kirinuki pipeline for a YouTube ID or an authorized Bilibili BV ID.",
         formatter_class=argparse.RawTextHelpFormatter
     )
     # ... (rest of the argument parser setup is unchanged)
-    parser.add_argument("video_id", help="The YouTube video ID.")
+    parser.add_argument("video_id", help="YouTube video ID or Bilibili BV ID.")
+    parser.add_argument("--source-platform", choices=["youtube", "bilibili"], default="youtube")
+    parser.add_argument("--bilibili-page", type=int, default=1)
+    parser.add_argument("--bilibili-subtitle-lang", choices=["ja", "zh", "en"], default="ja")
+    parser.add_argument("--source-rights-confirmed", action="store_true", help="Confirm permission to acquire and process this Bilibili source and its subtitles.")
     parser.add_argument("--subs", action="store_true", help="Burn subtitles into the generated clips.")
     parser.add_argument("--soft-subs", action="store_true", help="Export subtitle files without burning them.")
     parser.add_argument("--subs-format", choices=["srt", "ass"], default="ass", help="Subtitle format to use when subtitles are generated.")
@@ -711,10 +718,39 @@ def main():
     if args.subs and args.soft_subs:
         parser.error("--subs and --soft-subs cannot be used together.")
 
+    source_provenance = None
+    source_content_id = args.video_id
+    if args.source_platform == "bilibili":
+        from bilibili_source import source_url
+        if not args.source_rights_confirmed:
+            parser.error("Bilibili needs explicit source and subtitle authorization")
+        review_folder = os.environ.get("BILIBILI_REVIEW_FOLDER_ID")
+        if not review_folder or os.environ.get("GDRIVE_PARENT_FOLDER_ID") != review_folder:
+            parser.error("Bilibili requires a separate, matching BILIBILI_REVIEW_FOLDER_ID and GDRIVE_PARENT_FOLDER_ID")
+        try:
+            url = source_url(source_content_id, args.bilibili_page)
+        except ValueError as exc:
+            parser.error(str(exc))
+        args.video_id = f"bilibili_{source_content_id}_p{args.bilibili_page}_{args.bilibili_subtitle_lang}"
+        source_provenance = {
+            "sourcePlatform": "bilibili", "sourceContentId": source_content_id,
+            "sourceVideoUrl": url, "sourceChannelId": "",
+            "sourcePage": args.bilibili_page, "subtitleLanguage": args.bilibili_subtitle_lang,
+        }
+
     # --- 1. Path Definitions ---
     tmp_dir = Path("tmp")
     video_path = tmp_dir / "video.mp4"
     transcript_path = tmp_dir / "transcript.json"
+    if args.source_platform == "bilibili":
+        common = [source_content_id, "--page", str(args.bilibili_page), "--rights-confirmed"]
+        download_cmd = [sys.executable, "bilibili_source.py", "video", *common, "--output", str(video_path)]
+        transcribe_cmd = [sys.executable, "bilibili_source.py", "transcript", *common,
+                          "--language", args.bilibili_subtitle_lang, "--video", str(video_path),
+                          "--output", str(transcript_path)]
+    else:
+        download_cmd = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
+        transcribe_cmd = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
     
     remotion_app_dir = Path("apps/remotion")
     remotion_public_dir = remotion_app_dir / "public"
@@ -769,6 +805,10 @@ def main():
         state_file_id = save_state_to_drive(drive_service, drive_parent_id, state_file_name, state, state_file_id)
         state["driveStateFileId"] = state_file_id
     persist_state()
+
+    if source_provenance:
+        state.update(source_provenance)
+        persist_state()
 
     stages = state.setdefault("stages", {})
     artifacts = state.setdefault("artifacts", {})
@@ -839,9 +879,9 @@ def main():
         need_download = not download_stage.get("done") or not video_path.exists()
         if need_download:
             # --- 3. Download Video ---
-            cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
+            cmd_download = download_cmd
             try:
-                run_command(cmd_download, "Downloading YouTube Video", timeout=STAGE_TIMEOUTS["download"])
+                run_command(cmd_download, "Downloading Source Video", timeout=STAGE_TIMEOUTS["download"])
             except subprocess.CalledProcessError as exc:
                 state["status"] = "failed"
                 if exc.returncode == 3:
@@ -866,9 +906,9 @@ def main():
             print("Download stage already marked complete; reusing existing video if present.")
             if not video_path.exists():
                 print("Local video missing; re-downloading to ensure availability.")
-                cmd_download = [sys.executable, "download_video.py", args.video_id, "--output", str(video_path)]
+                cmd_download = download_cmd
                 try:
-                    run_command(cmd_download, "Re-downloading YouTube Video", timeout=STAGE_TIMEOUTS["download"])
+                    run_command(cmd_download, "Re-downloading Source Video", timeout=STAGE_TIMEOUTS["download"])
                 except subprocess.CalledProcessError as exc:
                     state["status"] = "failed"
                     if exc.returncode == 3:
@@ -913,7 +953,7 @@ def main():
         transcript_failed = False
         if need_transcribe:
             # --- 4. Transcribe Video ---
-            cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
+            cmd_transcribe = transcribe_cmd
             try:
                 run_command(cmd_transcribe, "Transcribing Video", timeout=STAGE_TIMEOUTS["transcribe"])
             except subprocess.CalledProcessError:
@@ -932,7 +972,7 @@ def main():
             print("Transcription stage already completed; reusing existing transcript.")
             if not transcript_path.exists():
                 print("Transcript missing locally; regenerating to ensure availability.")
-                cmd_transcribe = [sys.executable, "transcribe_rapidapi.py", args.video_id, "--output", str(transcript_path)]
+                cmd_transcribe = transcribe_cmd
                 try:
                     run_command(cmd_transcribe, "Re-transcribing Video", timeout=STAGE_TIMEOUTS["transcribe"])
                 except subprocess.CalledProcessError:
@@ -1154,6 +1194,7 @@ def main():
                     clips_state,
                     batch_idx,
                     persist_state,
+                    source_provenance=source_provenance,
                 )
                 pending_keys.discard(clip_key)
 

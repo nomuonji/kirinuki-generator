@@ -1,0 +1,68 @@
+name: Bilibili source adapter smoke
+on:
+  pull_request:
+    paths:
+      - 'bilibili_source.py'
+      - '.github/workflows/bilibili-source-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+      - name: Syntax and input contract
+        run: |
+          python -m py_compile bilibili_source.py run_all.py
+          python - <<'PY'
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+          from bilibili_source import parse_srt, source_url
+          with TemporaryDirectory() as d:
+              p = Path(d) / "zero.ja.srt"
+              p.write_text("1\n00:00:00,000 --> 00:00:02,500\n最初の行\n続き\n", encoding="utf-8")
+              v = parse_srt(p, 5.0)
+              assert v == [{"start":0.0,"end":2.5,"duration":2.5,"text":"最初の行 続き"}]
+              try:
+                  parse_srt(p, 0.1)
+              except ValueError:
+                  pass
+              else:
+                  raise AssertionError("out-of-range subtitles accepted")
+          try:
+              source_url("https://example.com/", 1)
+          except ValueError:
+              pass
+          else:
+              raise AssertionError("unexpected non-BV input accepted")
+          PY
+      - name: Fetch matching licensed media and subtitle files (no publishing)
+        run: |
+          # CS50x 2025 Section, CC BY-NC-SA 4.0; noncommercial diagnostics only.
+          # https://cs50.harvard.edu/x/2025/license/
+          python bilibili_source.py video BV1wg4tzeEAV --page 1 --rights-confirmed --output tmp/video.mp4
+          python bilibili_source.py transcript BV1wg4tzeEAV --page 1 --language zh --rights-confirmed --video tmp/video.mp4 --output tmp/transcript.json
+          python - <<'PY'
+          from pathlib import Path
+          from packages.shared.io_utils import load_transcript
+          from bilibili_source import video_duration
+          duration = video_duration(Path("tmp/video.mp4"))
+          items = load_transcript("tmp/transcript.json")
+          assert len(items) > 10
+          assert all(0 <= x["start"] < x["end"] <= duration and x["text"] for x in items)
+          print("BILIBILI_INPUT_CONTRACT_PASS", len(items), duration)
+          PY
+      # Do not upload or retain copyrighted test media or subtitle payloads.

@@ -1,0 +1,91 @@
+name: Manual authorized Bilibili clip generation
+on:
+  workflow_dispatch:
+    inputs:
+      bvid:
+        description: 'Bilibili BV ID (authorized source)'
+        required: true
+        type: string
+      page:
+        description: 'Part number'
+        type: string
+        default: '1'
+      subtitle_language:
+        description: 'Required source subtitle language (no automatic translation)'
+        type: choice
+        options: [ja, zh, en]
+        default: ja
+      max_clips:
+        description: 'Maximum clips'
+        type: string
+        default: '3'
+      rights_confirmed:
+        description: 'I have authorized access and permission to process the source video and subtitles'
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: kirinuki-bilibili-review
+  cancel-in-progress: false
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    env:
+      PYTHONUNBUFFERED: '1'
+      BILIBILI_REVIEW_FOLDER_ID: ${{ secrets.BILIBILI_REVIEW_FOLDER_ID }}
+      GDRIVE_PARENT_FOLDER_ID: ${{ secrets.BILIBILI_REVIEW_FOLDER_ID }}
+      KIRINUKI_TARGET_CLIPS: ${{ inputs.max_clips }}
+      SOURCE_FETCH_COUNTRY: 'US'
+    steps:
+      - name: Validate explicit authorization and separate review folder
+        env:
+          RIGHTS: ${{ inputs.rights_confirmed }}
+          BVID: ${{ inputs.bvid }}
+          PAGE: ${{ inputs.page }}
+          PRIMARY_FOLDER: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+        run: |
+          set -eu
+          if [ "$RIGHTS" != true ] || [ -z "$BILIBILI_REVIEW_FOLDER_ID" ] || [ "$BILIBILI_REVIEW_FOLDER_ID" = "$PRIMARY_FOLDER" ]; then
+            echo "Authorized source and a separate BILIBILI_REVIEW_FOLDER_ID secret are required." >&2
+            exit 1
+          fi
+          [[ "$BVID" =~ ^BV[A-Za-z0-9]{10}$ ]] && [[ "$PAGE" =~ ^[1-9][0-9]*$ ]] && [[ "$KIRINUKI_TARGET_CLIPS" =~ ^[1-9][0-9]*$ ]]
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/remotion/package-lock.json
+      - name: Install verified source tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+          python -m pip install -r requirements.txt
+      - name: Prepare Remotion
+        working-directory: apps/remotion
+        run: |
+          npm ci
+          npx remotion browser ensure --log=warn || npx remotion browser ensure
+      - name: Run existing generation pipeline (review stock only)
+        env:
+          BVID: ${{ inputs.bvid }}
+          PAGE: ${{ inputs.page }}
+          SUB_LANGUAGE: ${{ inputs.subtitle_language }}
+          GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        shell: bash
+        run: |
+          # Non-Japanese tracks are for scene analysis only unless an explicit
+          # translation stage is added. Never burn Chinese as Japanese dialogue.
+          options=()
+          if [ "$SUB_LANGUAGE" = ja ]; then options+=(--subs); fi
+          python run_all.py "$BVID" --source-platform bilibili --bilibili-page "$PAGE" --bilibili-subtitle-lang "$SUB_LANGUAGE" --source-rights-confirmed "${options[@]}" --reaction
