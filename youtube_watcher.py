@@ -626,7 +626,7 @@ def main():
     # lanes unchanged, and never confuse a discovered mirror with approval.
     pool_report = None
     if channel_id == "UCzXVsEc1h2Elljge0fnQYRg":
-        from packages.kyousuki_sources import discover, load_registry, approved_candidates, approval_records
+        from packages.kyousuki_sources import discover, load_registry, approved_candidates, approval_records, catalog_stock_candidates
         registry = load_registry()
         pool_report = discover(registry)
         print("KYOUSUKI_DISCOVERY", json.dumps({"status":pool_report["status"], "candidateCount":pool_report["candidateCount"],
@@ -645,7 +645,13 @@ def main():
         ranked_candidates = [c for c in ranked_candidates if c.get("episodeKey") not in blocked_episodes]
         alternatives = approved_candidates(pool_report, processed_entries, folder_id, reg=registry,
             max_age_days=config.fallback_max_source_age_days)
+        catalog = catalog_stock_candidates(pool_report, processed_entries, registry,
+            max_age_days=config.fallback_max_source_age_days)
+        # Explicit legacy records remain optional provenance, not a prerequisite.
+        used = {c["videoId"] for c in alternatives}
+        ranked_candidates.extend(c for c in catalog if c["videoId"] not in used)
         ranked_candidates.extend(alternatives)
+        pool_report["eligibleCatalogCandidates"] = len(catalog)
         pool_report["eligibleApprovedCandidates"] = len(alternatives)
     plan = make_plan(preliminary_stock, ranked_candidates, config)
     if pool_report is not None:
@@ -656,10 +662,8 @@ def main():
             blockers = ["no_eligible_source"]
             if pool_report["status"] != "ok":
                 blockers.append("bilibili_discovery_unavailable")
-            if not pool_report["autoAcquisitionAuthorized"]:
-                blockers.append("no_valid_bilibili_source_grants")
-            elif not pool_report["eligibleApprovedCandidates"]:
-                blockers.append("no_eligible_approved_bilibili_source")
+            if not (pool_report["eligibleCatalogCandidates"] or pool_report["eligibleApprovedCandidates"]):
+                blockers.append("no_eligible_bilibili_catalog_source")
             plan["blockingReasons"] = blockers
     plan["stockSource"] = stock_source
     plan["sourceWindow"] = source_window
@@ -696,6 +700,7 @@ def main():
             related = approval_records(load_registry())
             ids = {f'bilibili_{r["bvid"]}_p{r["page"]}_auto' for r in related if r["episodeKey"] == episode}
             ids.update(r["officialYoutubeVideoId"] for r in related if r["episodeKey"] == episode and r.get("officialYoutubeVideoId"))
+            ids.update(c["videoId"] for c in ranked_candidates if c.get("episodeKey")==episode)
             ids.discard(candidate["videoId"])
             unsafe = False
             for source_id in ids:
@@ -810,7 +815,11 @@ def main():
         if candidate.get("sourcePlatform") == "bilibili":
             command = [sys.executable, "run_all.py", candidate["bvid"], "--source-platform", "bilibili",
                        "--bilibili-page", str(candidate["page"]), "--bilibili-subtitle-lang", "auto",
-                       "--source-rights-confirmed", "--bilibili-approved-stock", "--subs"]
+                       "--subs"]
+            if candidate.get("selectionMode") == "catalog":
+                command.extend(["--bilibili-catalog-stock", "--bilibili-expected-mid", candidate["mid"]])
+            else:
+                command.extend(["--source-rights-confirmed", "--bilibili-approved-stock"])
             concept_file = "configs/video_concept_kyousuki.md"
         if concept_file:
             command.extend(["--concept-file", concept_file])

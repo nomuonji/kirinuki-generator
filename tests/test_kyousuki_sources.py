@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 import unittest
 from datetime import datetime, timezone, timedelta
-from packages.kyousuki_sources import discover,load_registry,approved_candidates,approved_source,episode_key,catalog_discovery
+from packages.kyousuki_sources import discover,load_registry,approved_candidates,approved_source,episode_key,catalog_discovery,catalog_stock_candidates,catalog_source_identity
 
 NOW=datetime(2026,11,18,0,0,tzinfo=timezone.utc)
 BASE={"accounts":[{"name":"黑田凖一","priority":1,"mid":"123"},{"name":"backup","priority":2,"mid":"456"}],"searchKeywords":["today"],"approvedSources":[]}
@@ -101,5 +101,23 @@ class SourcePoolTest(unittest.TestCase):
         self.assertEqual(report["status"],"degraded")
         self.assertEqual(report["candidateCount"],0)
         self.assertEqual(report["diagnostics"][-1]["httpStatus"],429)
+
+
+    def test_catalog_selection_does_not_require_manual_grant(self):
+        cfg=copy.deepcopy(BASE)
+        row={"bvid":A,"title":"今天喜欢上你了2026 韩国水原篇 #5","duration":3144,
+             "publish_time":int((NOW-timedelta(days=1)).timestamp()),"state":0,"is_ugc_pay":0}
+        report=catalog_discovery(cfg,NOW,fetch=lambda mid:([row],5))
+        result=catalog_stock_candidates(report,[],cfg,NOW)
+        self.assertEqual(len(result),1)
+        self.assertEqual(result[0]["mid"],"123")
+        self.assertEqual(result[0]["bvid"],A)
+        self.assertEqual(result[0]["selectionMode"],"catalog")
+        self.assertFalse(report["autoAcquisitionAuthorized"])
+        self.assertEqual(catalog_stock_candidates(report,[{"videoId":result[0]["videoId"],"status":"completed"}],cfg,NOW),[])
+        self.assertEqual(catalog_stock_candidates({**report,"status":"degraded"},[],cfg,NOW),[])
+        self.assertEqual(catalog_source_identity(A,"123",cfg),"123")
+        with self.assertRaises(ValueError):
+            catalog_source_identity(A,"999",cfg)
 
 if __name__=="__main__": unittest.main()

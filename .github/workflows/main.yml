@@ -21,6 +21,7 @@ env:
   SAVETUBE_QUALITY: '720'
   SOURCE_FETCH_COUNTRY: 'US'
   KYOUSUKI_INDEX_FILE: '.kyousuki-index/state/kyousuki-index.json'
+  KYOUSUKI_PUBLIC_CATALOG: '1'
   TIMEOUT_TRANSCRIBE: '1800'
   PYTHONUNBUFFERED: '1'
 
@@ -52,7 +53,6 @@ jobs:
       - name: Evaluate posting stock and source candidates
         id: plan
         env:
-          KYOUSUKI_PUBLIC_CATALOG: '1'
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
           KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
@@ -123,17 +123,10 @@ jobs:
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Prepare optional approved Bilibili source adapter
-        env:
-          KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
+      - name: Prepare Bilibili source adapter
         run: |
-          if [ -z "$KYOUSUKI_APPROVALS_JSON" ]; then
-            echo "No approved Bilibili source grants; keep existing YouTube path."
-          elif dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3; then
-            echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
-          else
-            echo "::warning::BBDown unavailable; existing YouTube path may continue."
-          fi
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
 
       - name: Install Python dependencies
         run: |
