@@ -517,6 +517,7 @@ def main():
     parser = argparse.ArgumentParser(description="Stock-aware Kirinuki source selector and runner.")
     parser.add_argument("--plan-only", action="store_true", help="Only evaluate stock and source candidates.")
     parser.add_argument("--plan-output", default="", help="Optional JSON file for the operations plan.")
+    parser.add_argument("--fail-on-blocked", action="store_true", help="Exit nonzero if the primary lane has no stock or eligible source.")
     args = parser.parse_args()
 
     load_dotenv()
@@ -665,7 +666,7 @@ def main():
     plan["sourceDiagnostics"] = source_diagnostics
     write_plan(plan, args.plan_output or None)
 
-    if plan.get("blockingReasons"):
+    if plan.get("blockingReasons") and (args.fail_on_blocked or not args.plan_only):
         raise SystemExit("Kyousuki stock exhausted: " + ", ".join(plan["blockingReasons"]))
 
     if args.plan_only:
