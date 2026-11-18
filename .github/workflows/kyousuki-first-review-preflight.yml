@@ -1,0 +1,48 @@
+name: Kyousuki private review live preflight
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/kyousuki-first-review-preflight.yml']
+permissions:
+  contents: read
+jobs:
+  preflight:
+    if: github.head_ref == 'feat/kyousuki-private-review' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      YOUTUBE_CHANNEL_ID: UCzXVsEc1h2Elljge0fnQYRg
+      CLIP_POSTS_PER_DAY: '2'
+      CLIP_STOCK_TARGET_DAYS: '7'
+      CLIP_STOCK_REORDER_DAYS: '3'
+      MAX_SEARCH_VIDEOS: '30'
+      KYOUSUKI_PUBLIC_CATALOG: '1'
+      SOURCE_FETCH_COUNTRY: US
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check python-dotenv google-api-python-client google-auth-httplib2 google-auth-oauthlib
+      - name: Verify live review selection and isolated destination
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+          GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+          KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
+        run: |
+          python youtube_watcher.py --plan-only --plan-output plan.json
+          python - <<'PY'
+          import json, os
+          from scripts.kyousuki_review import select_review, ensure_private_folder
+          from packages.shared.gdrive import get_drive_service
+          p=json.load(open("plan.json"))
+          c=select_review(p)
+          if not c:
+              raise SystemExit("No private review source selected")
+          folder=ensure_private_folder(get_drive_service(),os.environ["GDRIVE_PARENT_FOLDER_ID"])
+          print("FIRST_REVIEW_READY",json.dumps({"candidate":c["bvid"],"episode":c.get("episodeKey"),"candidateCount":p["bilibiliSourcePool"]["candidateCount"],"sourceGrants":p["bilibiliSourcePool"]["approvedSourceCount"],"separatePrivateFolder":bool(folder and folder!=os.environ["GDRIVE_PARENT_FOLDER_ID"]),"mediaDownloaded":False,"published":False},ensure_ascii=False))
+          PY

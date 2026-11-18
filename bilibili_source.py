@@ -207,8 +207,20 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--rights-confirmed", action="store_true",
                         help="Confirm authorization to acquire and process this specific source")
+    parser.add_argument("--catalog-review", action="store_true",
+                        help="Isolated private review preparation; does not assert license or allow publication")
     args = parser.parse_args()
-    if not args.rights_confirmed:
+    if args.catalog_review:
+        if args.rights_confirmed:
+            parser.error("Catalog review cannot assert source approval")
+        from scripts.kyousuki_review import validate_review_context
+        try:
+            candidate = validate_review_context(args.bvid, verify_folder=False)
+        except (ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
+        if args.page != 1 or args.expected_mid != candidate["mid"]:
+            parser.error("Catalog review identity mismatch")
+    elif not args.rights_confirmed:
         parser.error("Source and subtitle use must be authorized")
     if args.operation == "video":
         download_video(args.bvid, args.page, args.output, args.expected_mid)

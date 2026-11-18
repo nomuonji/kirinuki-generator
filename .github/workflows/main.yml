@@ -30,6 +30,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       should_process: ${{ steps.plan.outputs.should_process }}
+      should_review: ${{ steps.plan.outputs.should_review }}
       stock: ${{ steps.plan.outputs.stock }}
       reason: ${{ steps.plan.outputs.reason }}
     steps:
@@ -59,7 +60,17 @@ jobs:
           GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
         run: |
-          python youtube_watcher.py --plan-only --plan-output plan.json --fail-on-blocked
+          python youtube_watcher.py --plan-only --plan-output plan.json
+          echo "should_review=$(python -m scripts.kyousuki_review plan.json --check-only)" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import json
+          from scripts.kyousuki_review import select_review
+          p=json.load(open("plan.json"))
+          c=select_review(p)
+          print("PRIVATE_REVIEW_PLAN",json.dumps({"candidate":c,"postingStockBlocked":bool(p.get("blockingReasons"))},ensure_ascii=False))
+          if p.get("blockingReasons") and not c:
+              raise SystemExit(1)
+          PY
           echo "should_process=$(python -c 'import json; print(str(json.load(open("plan.json"))["shouldProcess"]).lower())')" >> "$GITHUB_OUTPUT"
           echo "stock=$(python -c 'import json; print(json.load(open("plan.json"))["effectiveStockClips"])')" >> "$GITHUB_OUTPUT"
           echo "reason=$(python -c 'import json; print(json.load(open("plan.json"))["reason"])')" >> "$GITHUB_OUTPUT"
@@ -166,3 +177,46 @@ jobs:
           GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
         run: python youtube_watcher.py
+
+  private-review:
+    needs: plan
+    if: needs.plan.outputs.should_review == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: kyousuki-source-plan
+          path: .kyousuki-review-plan
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/remotion/package-lock.json
+      - name: Install existing private generation dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+          python -m pip install -r requirements.txt
+      - name: Prepare Remotion
+        working-directory: apps/remotion
+        run: |
+          npm ci
+          npx remotion browser ensure --log=warn || npx remotion browser ensure
+      - name: Generate at most one isolated private review clip
+        env:
+          GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+          GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        run: python -m scripts.kyousuki_review .kyousuki-review-plan/plan.json
