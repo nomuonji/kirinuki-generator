@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Install existing pinned BBDown version
         run: |
+          command -v ffmpeg
+          ffmpeg -version | head -n 1
           dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
           echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
       - name: Check indexed exact video metadata (no media or subtitle download)
@@ -22,8 +24,9 @@ jobs:
           from pathlib import Path
           # Public Google index, returned by the existing Bright Data SERP integration.
           # The index suggests identity; it grants no processing/publication permissions.
-          bid = 'BV1zaJR6BEq2'
-          with tempfile.TemporaryDirectory(prefix='kyousuki-meta-') as tmp:
+          # Use the previously tested public CC BY control to distinguish environment failure.
+          for bid in ('BV1Fb4111732','BV1zaJR6BEq2'):
+            with tempfile.TemporaryDirectory(prefix='kyousuki-meta-') as tmp:
               result = subprocess.run(['BBDown', f'https://www.bilibili.com/video/{bid}/',
                 '--only-show-info'], cwd=tmp, capture_output=True, text=True, timeout=50)
               out = result.stdout + result.stderr
@@ -32,6 +35,8 @@ jobs:
               a = re.search(r'共计(\d+)条音频流',out)
               actual = title.group(1).strip() if title else ''
               match = bool(re.search(r'今天喜欢上你了2026\s*韩国水原篇\s*#\s*1(?:\D|$)',actual))
+              if bid == 'BV1Fb4111732':
+                  match = 'Big Buck Bunny' in actual
               report = {'bvid':bid,'exit':result.returncode,'titleMatches':match,
                 'videoFormats':int(v.group(1)) if v else 0,'audioFormats':int(a.group(1)) if a else 0,
                 'rightsVerified':False,'mediaDownloaded':False,
@@ -39,6 +44,9 @@ jobs:
                 'unexpectedMedia':any(p.suffix.lower() in ('.mp4','.m4s','.flv','.srt','.ass') for p in Path(tmp).rglob('*'))}
               report['publicMetadataVerified']=(result.returncode==0 and match and report['videoFormats']>0
                 and report['audioFormats']>0 and not report['accessDenied'] and not report['unexpectedMedia'])
+              # No URLs, tokens, or full third-party payloads in diagnostic logs.
+              patterns = {'http_status':r'\b(?:401|403|404|412|429|451|5\d\d)\b', 'not_found':r'not found|不存在|已删除|稿件不可见', 'ffmpeg':r'ffmpeg.{0,80}(?:not found|找不到|不存在)', 'network':r'timeout|timed out|connection|连接|超时|socket', 'auth':r'登录|unauthorized|forbidden|访问受限|风控|安全验证', 'parse':r'KeyNotFound|JsonException|JSON|sequence contains|格式错误', 'dotnet':r'framework|runtime|hostfxr'}
+              report['errorClasses']=[k for k,p in patterns.items() if re.search(p,out,re.I)] if result.returncode else []
               print('INDEXED_VIDEO_METADATA',json.dumps(report),flush=True)
               if not report['publicMetadataVerified']:
                   raise SystemExit(1)
