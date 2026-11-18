@@ -649,10 +649,24 @@ def main():
     plan = make_plan(preliminary_stock, ranked_candidates, config)
     if pool_report is not None:
         plan["bilibiliSourcePool"] = pool_report
+        # Zero stock with no selectable source is an incident, not a no-op.
+        # Keep the diagnostic artifact and distinguish it from healthy stock.
+        if plan["reason"] == "no_eligible_source" and plan["effectiveStockClips"] <= 0:
+            blockers = ["no_eligible_source"]
+            if pool_report["status"] != "ok":
+                blockers.append("bilibili_discovery_unavailable")
+            if not pool_report["autoAcquisitionAuthorized"]:
+                blockers.append("no_valid_bilibili_source_grants")
+            elif not pool_report["eligibleApprovedCandidates"]:
+                blockers.append("no_eligible_approved_bilibili_source")
+            plan["blockingReasons"] = blockers
     plan["stockSource"] = stock_source
     plan["sourceWindow"] = source_window
     plan["sourceDiagnostics"] = source_diagnostics
     write_plan(plan, args.plan_output or None)
+
+    if plan.get("blockingReasons"):
+        raise SystemExit("Kyousuki stock exhausted: " + ", ".join(plan["blockingReasons"]))
 
     if args.plan_only:
         return
