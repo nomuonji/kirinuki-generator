@@ -169,6 +169,72 @@ def approved_candidates(discovery, processed_entries, folder, now=None, reg=None
                   key=lambda c:(-datetime.fromisoformat(c["publishedAt"]).timestamp(),c["priority"],c["videoId"]))
 
 
+def catalog_stock_candidates(discovery, processed_entries, reg=None, now=None, max_age_days=90):
+    """Select account-bound catalog rows, independently of per-video registration.
+
+    This is an operational source selection rule, not a license determination.
+    The user remains responsible for lawful use. Never manufacture rights receipts.
+    """
+    if discovery.get("status") != "ok" or discovery.get("discoveryMode") != "public_catalog":
+        return []
+    reg = reg or load_registry()
+    now = now or datetime.now(timezone.utc)
+    byid = {p.get("videoId"): p for p in processed_entries}
+    rows = {}
+    for group in discovery.get("episodeGroups", {}).values():
+        for row in group:
+            if row.get("metadataProvider") != "uapipro" or row.get("identityStatus") != "catalog_account_binding":
+                continue
+            account = next((a for a in reg["accounts"] if a.get("mid") and str(a["mid"]) == row.get("mid") and a["name"] == row.get("author")), None)
+            if not account:
+                continue
+            try:
+                posted = datetime.fromisoformat(row["publishedAt"].replace("Z","+00:00"))
+                age = (now-posted).total_seconds()/86400
+                title = row["title"]
+                duration = row["durationSeconds"]
+                if not 0 <= age <= max_age_days or not FULL_EP.search(title) or EXTRAS.search(title):
+                    continue
+                if not re.search(r"今天喜欢上你了|今天喜欢你了|今喜|今日好き", title):
+                    continue
+                item = normalize({"bvid":row["bvid"],"author":account["name"],"mid":str(account["mid"]),
+                    "title":title,"duration":duration,"pubdate":int(posted.timestamp())},account,now)
+            except (KeyError,ValueError,TypeError,OverflowError):
+                continue
+            if not item:
+                continue
+            sid = f'bilibili_{item["bvid"]}_p1_auto'
+            ep = item["episodeKey"]
+            # Unknown season aliases still dedupe by exact BV; don't invent official EP identity.
+            related = [e for e in processed_entries if e.get("videoId")==sid or (ep and e.get("episodeKey")==ep)]
+            if any(e.get("status")=="completed" or (e.get("videoId")!=sid and int(e.get("uploadedClips") or 0)>0) for e in related):
+                continue
+            prior = byid.get(sid,{})
+            if int(prior.get("attempts") or 0)>=3:
+                continue
+            if prior.get("processedAt"):
+                try:
+                    if (now-datetime.fromisoformat(prior["processedAt"].replace("Z","+00:00"))).total_seconds()<21600:
+                        continue
+                except (ValueError,TypeError):
+                    continue
+            rows[sid] = {"videoId":sid,"sourcePlatform":"bilibili","bvid":item["bvid"],"page":1,
+                "mid":item["mid"],"author":item["author"],"episodeKey":ep,"title":title,
+                "publishedAt":item["publishedAt"],"ageHours":age*24,"durationSeconds":duration,
+                "selectionScore":0.82 if age<=1 else 0.65,"viewsPerHour":0.0,"views":0,"likes":0,"comments":0,
+                "priority":account["priority"],"selectionMode":"catalog"}
+    return sorted(rows.values(),key=lambda r:(-datetime.fromisoformat(r["publishedAt"]).timestamp(),r["priority"],r["videoId"]))
+
+def catalog_source_identity(bvid, mid, reg=None):
+    """Bind the selected BV to a configured numeric uploader; media adapter checks actual MID."""
+    reg = reg or load_registry()
+    if not isinstance(bvid,str) or not BVID.fullmatch(bvid) or not isinstance(mid,str) or not mid.isdigit():
+        raise ValueError("Invalid catalog source identity")
+    if not any(str(a.get("mid"))==mid for a in reg["accounts"] if a.get("mid")):
+        raise ValueError("Uploader outside the configured catalog accounts")
+    return mid
+
+
 def search(keyword, timeout=12):
     # Public metadata search only. No cookie harvesting, WBI spoofing, proxy, or retry on denial.
     url="https://api.bilibili.com/x/web-interface/search/type?"+urllib.parse.urlencode({
