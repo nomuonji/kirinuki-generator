@@ -52,6 +52,7 @@ jobs:
       - name: Evaluate posting stock and source candidates
         id: plan
         env:
+          KYOUSUKI_PUBLIC_CATALOG: '1'
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
           KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}

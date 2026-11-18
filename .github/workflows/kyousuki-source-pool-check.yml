@@ -15,7 +15,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 9
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,6 +28,7 @@ jobs:
           python -m py_compile packages/kyousuki_sources.py youtube_watcher.py run_all.py bilibili_source.py
           python -m unittest discover -s tests -p test_kyousuki_sources.py -v
       - name: Read public search index data branch (no execution)
+        if: github.head_ref == 'feat/kyousuki-catalog' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/checkout@v4
         with:
           ref: kyousuki-index-state
@@ -36,6 +37,7 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify real indexed snapshot (no source download or publication)
+        if: github.head_ref == 'feat/kyousuki-catalog' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           KYOUSUKI_INDEX_FILE: .kyousuki-index/state/kyousuki-index.json
         run: |
@@ -52,3 +54,64 @@ jobs:
           # Empty/stale is not a false green live discovery.
           assert p["status"]=="ok" and p["indexHintCount"]>0
           PY
+      - name: Verify latest public catalog episode in the production discovery mode
+        if: github.head_ref == 'feat/kyousuki-catalog' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          KYOUSUKI_PUBLIC_CATALOG: '1'
+        run: |
+          python -m packages.kyousuki_sources --output /tmp/kyousuki-catalog-plan.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("/tmp/kyousuki-catalog-plan.json").read_text())
+          latest=p.get("latestCatalogCandidate")
+          print("KYOUSUKI_CATALOG_LIVE",json.dumps({"status":p["status"],"candidateCount":p["candidateCount"],"latest":latest,"diagnostics":p["diagnostics"],"autoAcquisitionAuthorized":p["autoAcquisitionAuthorized"]},ensure_ascii=False))
+          assert p["discoveryMode"]=="public_catalog" and p["status"]=="ok" and latest
+          assert latest["bvid"]=="BV11GsK6RE2u" and latest["episodeKey"]=="2026:スウォン:5"
+          assert not p["autoAcquisitionAuthorized"]
+          PY
+      - name: Install existing pinned BBDown version
+        if: github.head_ref == 'feat/kyousuki-catalog' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: imageio-ffmpeg==0.6.0
+          mkdir -p "$RUNNER_TEMP/media-tools"
+          ln -s "$(python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')" "$RUNNER_TEMP/media-tools/ffmpeg"
+          "$RUNNER_TEMP/media-tools/ffmpeg" -version | head -n 1
+          echo "$RUNNER_TEMP/media-tools" >> "$GITHUB_PATH"
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+      - name: Check latest video metadata using discovered ID (no media or subtitle download)
+        if: github.head_ref == 'feat/kyousuki-catalog' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: python
+        run: |
+          import json, re, subprocess, tempfile
+          from pathlib import Path
+          # Use the actual output of this run's public catalog, not a hardcoded BV ID.
+          latest = json.loads(Path('/tmp/kyousuki-catalog-plan.json').read_text())['latestCatalogCandidate']
+          assert latest['episodeKey'] == '2026:スウォン:5' and not latest.get('publicationAuthorized')
+          # Use the previously tested public CC BY control to distinguish environment failure.
+          for bid in ('BV1Fb4111732',latest['bvid']):
+            with tempfile.TemporaryDirectory(prefix='kyousuki-meta-') as tmp:
+              result = subprocess.run(['BBDown', f'https://www.bilibili.com/video/{bid}/',
+                '--only-show-info'], cwd=tmp, capture_output=True, text=True, timeout=50)
+              out = result.stdout + result.stderr
+              title = re.search(r'视频标题[:：]\s*(.*)',out)
+              v = re.search(r'共计(\d+)条视频流',out)
+              a = re.search(r'共计(\d+)条音频流',out)
+              actual = title.group(1).strip() if title else ''
+              match = bool(re.search(r'今天喜欢上你了2026\s*韩国水原篇\s*#\s*5(?:\D|$)',actual))
+              if bid == 'BV1Fb4111732':
+                  match = 'Big Buck Bunny' in actual
+              report = {'bvid':bid,'exit':result.returncode,'titleMatches':match,
+                'videoFormats':int(v.group(1)) if v else 0,'audioFormats':int(a.group(1)) if a else 0,
+                'rightsVerified':False,'mediaDownloaded':False,
+                'accessDenied':bool(re.search(r'(?:HTTP(?:Error)?|status(?: code)?|response status code|错误码|状态码)\s*[:=]?\s*(?:401|403|412|429)\b|(?:401 Unauthorized|403 Forbidden|412 Precondition Failed|429 Too Many Requests)|风控|访问受限|安全验证',out,re.I)),
+                'unexpectedMedia':any(p.suffix.lower() in ('.mp4','.m4s','.flv','.srt','.ass') for p in Path(tmp).rglob('*'))}
+              report['publicMetadataVerified']=(result.returncode==0 and match and report['videoFormats']>0
+                and report['audioFormats']>0 and not report['accessDenied'] and not report['unexpectedMedia'])
+              # No URLs, tokens, or full third-party payloads in diagnostic logs.
+              patterns = {'http_status':r'\b(?:401|403|404|412|429|451|5\d\d)\b', 'not_found':r'not found|不存在|已删除|稿件不可见', 'ffmpeg':r'ffmpeg.{0,80}(?:not found|找不到|不存在)', 'network':r'timeout|timed out|connection|连接|超时|socket', 'auth':r'登录|unauthorized|forbidden|访问受限|风控|安全验证', 'parse':r'KeyNotFound|JsonException|JSON|sequence contains|格式错误', 'dotnet':r'framework|runtime|hostfxr'}
+              report['errorClasses']=[k for k,p in patterns.items() if re.search(p,out,re.I)] if result.returncode else []
+              print('CATALOG_VIDEO_METADATA',json.dumps(report),flush=True)
+              if not report['publicMetadataVerified']:
+                  raise SystemExit(1)

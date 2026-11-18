@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 import unittest
 from datetime import datetime, timezone, timedelta
-from packages.kyousuki_sources import discover,load_registry,approved_candidates,approved_source,episode_key
+from packages.kyousuki_sources import discover,load_registry,approved_candidates,approved_source,episode_key,catalog_discovery
 
 NOW=datetime(2026,11,18,0,0,tzinfo=timezone.utc)
 BASE={"accounts":[{"name":"黑田凖一","priority":1,"mid":"123"},{"name":"backup","priority":2,"mid":"456"}],"searchKeywords":["today"],"approvedSources":[]}
@@ -81,5 +81,25 @@ class SourcePoolTest(unittest.TestCase):
                 self.assertEqual(report["status"],"degraded")
                 self.assertEqual(report["indexHintCount"],0)
 
+
+
+    def test_catalog_real_schema_and_denial_stays_metadata_only(self):
+        from urllib.error import HTTPError
+        cfg=copy.deepcopy(BASE)
+        row={"bvid":A,"title":"今天喜欢上你了2026 韩国水原篇 #5",
+             "duration":3144,"publish_time":int((NOW-timedelta(days=1)).timestamp()),
+             "state":0,"is_ugc_pay":0}
+        report=catalog_discovery(cfg,NOW,fetch=lambda mid:([row,{**row,"bvid":B,"is_ugc_pay":1}],5))
+        self.assertEqual(report["status"],"ok")
+        self.assertEqual(report["candidateCount"],1)
+        self.assertEqual(report["latestCatalogCandidate"]["episodeKey"],"2026:スウォン:5")
+        self.assertEqual(approved_candidates(report,[],"test-only-folder",NOW,cfg),[])
+        cfg["approvedSources"]=[grant(A,"黑田凖一","123")]
+        self.assertEqual(len(approved_candidates(report,[],"test-only-folder",NOW,cfg)),1)
+        def denied(mid): raise HTTPError("https://uapis.cn",429,"quota",{},None)
+        report=catalog_discovery(cfg,NOW,fetch=denied)
+        self.assertEqual(report["status"],"degraded")
+        self.assertEqual(report["candidateCount"],0)
+        self.assertEqual(report["diagnostics"][-1]["httpStatus"],429)
 
 if __name__=="__main__": unittest.main()
