@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "provider": "brightdata",
+  "purpose": "public_metadata_only",
+  "writtenAt": "2026-11-18T17:51:17.060Z",
+  "rows": [
+    {
+      "url": "https://www.bilibili.com/video/BV1zaJR6BEq2/",
+      "bvid": "BV1zaJR6BEq2",
+      "title": "今天喜欢上你了2026 韩国水原篇#1",
+      "accountHint": "黑田凖一",
+      "fetchedAt": "2026-11-18T16:42:28.749Z",
+      "query": "\"黑田凖一\" \"韩国水原篇\" site:bilibili.com",
+      "position": 1
+    },
+    {
+      "url": "https://www.bilibili.com/video/BV1yPJG6oEEN/",
+      "bvid": "BV1yPJG6oEEN",
+      "title": "今喜2026 仁川篇#1：新一季！这或许就是喜欢的开始吧！",
+      "accountHint": "黑田凖一",
+      "fetchedAt": "2026-11-18T16:42:28.749Z",
+      "query": "\"黑田凖一\" \"韩国水原篇\" site:bilibili.com",
+      "position": 2
+    },
+    {
+      "url": "https://www.bilibili.com/video/BV1bAYy6REJi/",
+      "bvid": "BV1bAYy6REJi",
+      "title": "今天喜欢上你了2026 台湾省高雄篇#1：新一季！到底谁才配 ...",
+      "accountHint": "黑田凖一",
+      "fetchedAt": "2026-11-18T16:42:28.749Z",
+      "query": "\"黑田凖一\" \"韩国水原篇\" site:bilibili.com",
+      "position": 5
+    }
+  ],
+  "diagnostics": [
+    {
+      "query": "\"黑田凖一\" \"韩国水原篇\" site:bilibili.com",
+      "status": "ok",
+      "fetchedAt": "2026-11-18T16:42:28.749Z",
+      "rowCount": 3
+    }
+  ]
+}
