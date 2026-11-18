@@ -1,0 +1,66 @@
+name: Kyousuki official source inventory
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/kyousuki-official-inventory.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  official-inventory:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compare real official upload inventories without downloading
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json, re
+          from collections import Counter
+          from datetime import datetime, timezone, timedelta
+          from scripts.probe_channel_download import api, duration
+          now=datetime.now(timezone.utc)
+          for handle, pages in [("kyousuki_abema",10),("love_abema",4),("abema",4)]:
+              channels=api("channels",part="snippet,contentDetails",forHandle=handle).get("items",[])
+              if len(channels)!=1:
+                  print("CHANNEL_NOT_RESOLVED",handle); continue
+              ch=channels[0]
+              if handle=="kyousuki_abema" and ch["id"]!="UCzXVsEc1h2Elljge0fnQYRg":
+                  raise RuntimeError("Official primary channel mismatch")
+              pl=ch["contentDetails"]["relatedPlaylists"]["uploads"]
+              ids=[]; token=None
+              for _ in range(pages):
+                  args=dict(part="contentDetails",playlistId=pl,maxResults=50)
+                  if token: args["pageToken"]=token
+                  page=api("playlistItems",**args)
+                  ids.extend(x["contentDetails"]["videoId"] for x in page.get("items",[]))
+                  token=page.get("nextPageToken")
+                  if not token: break
+              counts=Counter(); samples=[]
+              for offset in range(0,len(ids),50):
+                  videos=api("videos",part="snippet,contentDetails,status",id=",".join(ids[offset:offset+50])).get("items",[])
+                  for v in videos:
+                      counts["scanned"]+=1
+                      s=v["snippet"]; d=v["contentDetails"]; status=v.get("status",{})
+                      if s.get("channelId")!=ch["id"]: continue
+                      if handle!="kyousuki_abema" and not re.search(r"今日[、, ]?好き|今日[、, ]?好きになりました",s.get("title","")): continue
+                      if s.get("liveBroadcastContent") in ("live","upcoming"): continue
+                      seconds=duration(d.get("duration"))
+                      age=(now-datetime.fromisoformat(s["publishedAt"].replace("Z","+00:00"))).total_seconds()/86400
+                      rr=d.get("regionRestriction") or {}
+                      us=("allowed" not in rr or "US" in rr["allowed"]) and "US" not in rr.get("blocked",[])
+                      band="under120" if seconds<120 else "120to359" if seconds<360 else "360plus"
+                      period="recent90d" if age<=90 else "older"
+                      counts[f"{period}_{band}_{'US_not_restricted' if us else 'US_blocked'}"]+=1
+                      if us and seconds>=120 and len(samples)<12:
+                          samples.append({"id":v["id"],"title":s["title"],"seconds":seconds,"publishedAt":s["publishedAt"],"license":status.get("license"),"regionRestriction":rr})
+              print("OFFICIAL_INVENTORY",json.dumps({"handle":handle,"channelId":ch["id"],"counts":counts,"examples":samples},ensure_ascii=False))
+          PY
