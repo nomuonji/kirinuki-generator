@@ -1,0 +1,55 @@
+name: Kyousuki public video context probe
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/kyousuki-related-metadata.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-context:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Inspect a known public video's ordinary related-video metadata
+        shell: python
+        run: |
+          import json, re, urllib.request, urllib.error
+          # Single ordinary public video-detail request for an already verified video.
+          # The directly denied search/account endpoints are not used. No login,
+          # signed-request emulation, proxy, retries, downloads or subtitle access.
+          bid="BV1zaJR6BEq2"
+          url="https://api.bilibili.com/x/web-interface/view/detail?bvid="+bid
+          try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers={"Accept":"application/json"}),timeout=15) as f:
+                  data=json.loads(f.read(2_000_000))
+          except urllib.error.HTTPError as e:
+              print("PUBLIC_CONTEXT_STOP",json.dumps({"httpStatus":e.code}))
+              raise SystemExit(1)
+          code=data.get("code")
+          if code!=0:
+              print("PUBLIC_CONTEXT_STOP",json.dumps({"apiCode":code}))
+              raise SystemExit(1)
+          payload=data.get("data") or {}
+          view=payload.get("View") or {}
+          owner=view.get("owner") or {}
+          if view.get("bvid")!=bid or owner.get("name")!="黑田凖一":
+              print("PUBLIC_CONTEXT_STOP",json.dumps({"identityMatch":False}))
+              raise SystemExit(1)
+          mid=str(owner.get("mid",""))
+          if not mid.isdigit(): raise SystemExit(1)
+          rows=[]
+          for item in (payload.get("Related") or [])[:50]:
+              author=item.get("owner") or {}
+              ident=str(item.get("bvid",""))
+              title=str(item.get("title",""))
+              if not re.fullmatch(r"BV[A-Za-z0-9]{10}",ident) or author.get("name")!=owner.get("name") or str(author.get("mid"))!=mid: continue
+              if not re.search(r"今天喜欢上你了|今喜|今日好き",title) or not re.search(r"(?:篇|編|编)\s*#\s*\d+",title):continue
+              rows.append({"bvid":ident,"title":title,"durationSeconds":item.get("duration"),"pubdate":item.get("pubdate"),"mid":mid})
+          latest=[r for r in rows if re.search(r"韩国水原篇\s*#\s*5(?!\d)",r["title"])]
+          print("PUBLIC_CONTEXT_RESULT",json.dumps({"seedMid":mid,"seedTitle":view.get("title"),"relatedCount":len(payload.get("Related") or []),"sameUploaderEpisodes":rows,"latestExactMatches":len(latest),"metadataOnly":True},ensure_ascii=False))
+          if not latest:raise SystemExit(1)
