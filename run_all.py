@@ -688,6 +688,7 @@ def main():
     parser.add_argument("--bilibili-page", type=int, default=1)
     parser.add_argument("--bilibili-subtitle-lang", choices=["ja", "zh", "en", "auto"], default="ja")
     parser.add_argument("--bilibili-approved-stock", action="store_true", help="Use only an explicitly granted source in the production stock folder.")
+    parser.add_argument("--bilibili-catalog-review", action="store_true", help="Prepare an isolated private review clip without per-video pre-registration.")
     parser.add_argument("--source-rights-confirmed", action="store_true", help="Confirm permission to acquire and process this Bilibili source and its subtitles.")
     parser.add_argument("--subs", action="store_true", help="Burn subtitles into the generated clips.")
     parser.add_argument("--soft-subs", action="store_true", help="Export subtitle files without burning them.")
@@ -724,13 +725,24 @@ def main():
 
     source_provenance = None
     approved_stock_source = None
+    catalog_review_source = None
     source_content_id = args.video_id
     if args.source_platform == "bilibili":
         from bilibili_source import source_url
-        if not args.source_rights_confirmed:
-            parser.error("Bilibili needs explicit source and subtitle authorization")
         review_folder = os.environ.get("BILIBILI_REVIEW_FOLDER_ID")
-        if args.bilibili_approved_stock:
+        if args.bilibili_catalog_review:
+            if args.bilibili_approved_stock or args.source_rights_confirmed:
+                parser.error("Private catalog review is separate from confirmed-rights posting stock")
+            if args.bilibili_page != 1 or args.bilibili_subtitle_lang != "auto":
+                parser.error("Private catalog review uses part one and the automatic caption policy")
+            from scripts.kyousuki_review import validate_review_context
+            try:
+                catalog_review_source = validate_review_context(source_content_id)
+            except (ValueError, RuntimeError) as exc:
+                parser.error(str(exc))
+        elif not args.source_rights_confirmed:
+            parser.error("Bilibili needs explicit source and subtitle authorization")
+        elif args.bilibili_approved_stock:
             from packages.kyousuki_sources import approved_source
             try:
                 approved_stock_source = approved_source(source_content_id, args.bilibili_page, os.environ.get("GDRIVE_PARENT_FOLDER_ID"))
@@ -754,6 +766,10 @@ def main():
             source_provenance.update(sourceUploaderMid=str(approved_stock_source["mid"]),
                 episodeKey=approved_stock_source["episodeKey"],
                 officialEpisodeUrl=approved_stock_source["officialEpisodeUrl"])
+        if catalog_review_source:
+            source_provenance.update(sourceUploaderMid=catalog_review_source["mid"],
+                episodeKey=catalog_review_source.get("episodeKey"),
+                reviewOnly=True, permissionVerified=False, publicPublishingAuthorized=False)
         # Preserve the existing audit publication gate. A source grant is not
         # a per-clip transformative-use or final publication receipt.
 
@@ -762,7 +778,11 @@ def main():
     video_path = tmp_dir / "video.mp4"
     transcript_path = tmp_dir / "transcript.json"
     if args.source_platform == "bilibili":
-        common = [source_content_id, "--page", str(args.bilibili_page), "--rights-confirmed"]
+        common = [source_content_id, "--page", str(args.bilibili_page)]
+        if catalog_review_source:
+            common.extend(["--catalog-review", "--expected-mid", catalog_review_source["mid"]])
+        else:
+            common.append("--rights-confirmed")
         download_cmd = [sys.executable, "bilibili_source.py", "video", *common, "--output", str(video_path)]
         if approved_stock_source:
             download_cmd.extend(["--expected-mid", str(approved_stock_source["mid"])])

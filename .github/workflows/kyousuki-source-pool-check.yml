@@ -9,6 +9,8 @@ on:
       - 'bilibili_source.py'
       - '.github/workflows/main.yml'
       - 'tests/test_kyousuki_sources.py'
+      - 'scripts/kyousuki_review.py'
+      - 'tests/test_kyousuki_review.py'
       - '.github/workflows/kyousuki-source-pool-check.yml'
 permissions:
   contents: read
@@ -26,7 +28,8 @@ jobs:
       - name: Validate rights, fallback, identity and duplicate handling
         run: |
           python -m py_compile packages/kyousuki_sources.py youtube_watcher.py run_all.py bilibili_source.py
-          python -m unittest discover -s tests -p test_kyousuki_sources.py -v
+          python -m py_compile scripts/kyousuki_review.py
+          python -m unittest discover -s tests -p 'test_kyousuki*.py' -v
       - name: Read public search index data branch (no execution)
         if: github.head_ref == 'feat/kyousuki-catalog' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/checkout@v4
