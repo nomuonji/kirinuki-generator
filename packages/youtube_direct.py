@@ -65,7 +65,7 @@ def owned_videos(client, uploads_playlist: str, limit=250):
 
 def source_of(video: dict) -> str | None:
     text = (video.get("snippet") or {}).get("description") or ""
-    match = re.search(r"KIRINUKI-SOURCE:([A-Za-z0-9_-]{11})", text)
+    match = re.search(r"KIRINUKI-SOURCE:(episode-[a-f0-9]{24}|[A-Za-z0-9_-]{11})(?=\s|$)", text)
     return match.group(1) if match else None
 
 
@@ -87,7 +87,7 @@ def reservations(videos: list[dict]) -> list[dict]:
 
 
 def upload_once(client, file_path: Path, *, title: str, description: str,
-                source_video_id: str, fingerprint: str, publish_at: str):
+                source_video_id: str, fingerprint: str, publish_at: str, source_url: str | None = None):
     """Submit one resumable YouTube upload with initial scheduling.
 
     All nonexplicitly-rejected failures are considered uncertain. In that case
@@ -95,12 +95,13 @@ def upload_once(client, file_path: Path, *, title: str, description: str,
     """
     if not file_path.is_file():
         raise RuntimeError("Cannot upload missing MP4")
+    attribution = source_url or f"https://www.youtube.com/watch?v={source_video_id}"
     body = {
         "snippet": {
             "title": str(title).replace("**", "")[:98],
             "description": (
                 str(description)[:3800] + "\n\n"
-                + f"元動画: https://www.youtube.com/watch?v={source_video_id}\n"
+                + f"元動画: {attribution}\n"
                 + f"KIRINUKI-SOURCE:{source_video_id}\n"
                 + marker(fingerprint)
             )[:4900],
