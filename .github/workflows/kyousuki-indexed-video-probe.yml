@@ -9,14 +9,18 @@ jobs:
   probe:
     if: github.head_ref == 'probe/kyousuki-indexed-id' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - name: Install existing pinned BBDown version
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg >/dev/null
-          command -v ffmpeg
-          ffmpeg -version | head -n 1
+          python -m pip install --disable-pip-version-check --only-binary=:all: imageio-ffmpeg==0.6.0
+          mkdir -p "$RUNNER_TEMP/media-tools"
+          ln -s "$(python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')" "$RUNNER_TEMP/media-tools/ffmpeg"
+          "$RUNNER_TEMP/media-tools/ffmpeg" -version | head -n 1
+          echo "$RUNNER_TEMP/media-tools" >> "$GITHUB_PATH"
           dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
           echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
       - name: Check indexed exact video metadata (no media or subtitle download)
