@@ -173,7 +173,7 @@ def approved_candidates(discovery, processed_entries, folder, now=None, reg=None
 # Public metadata only. Use account archives, never keyword search.
 # No synthetic WBI signatures, cookies, proxies or fallback after denial.
 DENIAL_CODES = {401, 403, 412, 429, -101, -352, -403, -412, -509}
-PROGRAMME_TITLE = re.compile(r"今天[、，,\\s]*喜欢上你了|今天[、，,\\s]*喜欢你了|今喜|今日好き|今日[、，,\\s]*好きになりました|今日[、，,\\s]*好き", re.I)
+PROGRAMME_TITLE = re.compile(r"今天[、，,\s]*喜欢上你了|今天[、，,\s]*喜欢你了|今喜|今日好き|今日[、，,\s]*好きになりました|今日[、，,\s]*好き", re.I)
 
 
 class MetadataResponseError(RuntimeError):
@@ -218,6 +218,9 @@ def account_uploads(account):
     rows = (data.get("list") or {}).get("vlist")
     if not isinstance(rows, list):
         raise ValueError("Unexpected account archive shape")
+    if rows and not any(isinstance(row,dict) and str(row.get("mid") or "") == mid
+                        and _clean(row.get("author")) == account["name"] for row in rows):
+        raise ValueError("Archive uploader identity mismatch")
     mapped = []
     for row in rows:
         if not isinstance(row, dict):
@@ -266,7 +269,7 @@ def discover(reg=None, fetch=account_uploads, now=None, resolve=resolve_account)
                                 "stage":stage,"rows":len(result),"accepted":accepted})
         except Exception as exc:
             code=getattr(exc,"code",None)
-            denied=code in DENIAL_CODES
+            denied=isinstance(code,int) and code in DENIAL_CODES
             diagnostics.append({"account":name,"stage":stage,"status":"failed",
                                 "error":type(exc).__name__,"httpStatus":code if isinstance(exc,urllib.error.HTTPError) else None,
                                 "apiCode":code if isinstance(exc,MetadataResponseError) else None})
