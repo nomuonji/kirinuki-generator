@@ -48,7 +48,7 @@ jobs:
           GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
         run: |
-          python youtube_watcher.py --plan-only --plan-output plan.json
+          python youtube_watcher.py --plan-only --plan-output plan.json --fail-on-blocked
           echo "should_process=$(python -c 'import json; print(str(json.load(open("plan.json"))["shouldProcess"]).lower())')" >> "$GITHUB_OUTPUT"
           echo "stock=$(python -c 'import json; print(json.load(open("plan.json"))["effectiveStockClips"])')" >> "$GITHUB_OUTPUT"
           echo "reason=$(python -c 'import json; print(json.load(open("plan.json"))["reason"])')" >> "$GITHUB_OUTPUT"
