@@ -5,9 +5,6 @@ on:
     # 09:17 / 15:17 / 21:17 / 03:17 JST. Most runs stop after the cheap stock plan.
     - cron: '17 0,6,12,18 * * *'
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['.github/manual-runs/kyousuki-20261119-first.txt']
 
 concurrency:
   group: kirinuki-primary
