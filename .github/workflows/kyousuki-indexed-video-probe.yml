@@ -1,0 +1,44 @@
+name: Kyousuki indexed video metadata verification
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/kyousuki-indexed-video-probe.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: github.head_ref == 'probe/kyousuki-indexed-id' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Install existing pinned BBDown version
+        run: |
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+      - name: Check indexed exact video metadata (no media or subtitle download)
+        shell: python
+        run: |
+          import json, re, subprocess, tempfile
+          from pathlib import Path
+          # Public Google index, returned by the existing Bright Data SERP integration.
+          # The index suggests identity; it grants no processing/publication permissions.
+          bid = 'BV1zaJR6BEq2'
+          with tempfile.TemporaryDirectory(prefix='kyousuki-meta-') as tmp:
+              result = subprocess.run(['BBDown', f'https://www.bilibili.com/video/{bid}/',
+                '--only-show-info'], cwd=tmp, capture_output=True, text=True, timeout=50)
+              out = result.stdout + result.stderr
+              title = re.search(r'视频标题[:：]\s*(.*)',out)
+              v = re.search(r'共计(\d+)条视频流',out)
+              a = re.search(r'共计(\d+)条音频流',out)
+              actual = title.group(1).strip() if title else ''
+              match = bool(re.search(r'今天喜欢上你了2026\s*韩国水原篇\s*#\s*1(?:\D|$)',actual))
+              report = {'bvid':bid,'exit':result.returncode,'titleMatches':match,
+                'videoFormats':int(v.group(1)) if v else 0,'audioFormats':int(a.group(1)) if a else 0,
+                'rightsVerified':False,'mediaDownloaded':False,
+                'accessDenied':bool(re.search(r'\b(?:401|403|412|429)\b|风控|访问受限|安全验证',out)),
+                'unexpectedMedia':any(p.suffix.lower() in ('.mp4','.m4s','.flv','.srt','.ass') for p in Path(tmp).rglob('*'))}
+              report['publicMetadataVerified']=(result.returncode==0 and match and report['videoFormats']>0
+                and report['audioFormats']>0 and not report['accessDenied'] and not report['unexpectedMedia'])
+              print('INDEXED_VIDEO_METADATA',json.dumps(report),flush=True)
+              if not report['publicMetadataVerified']:
+                  raise SystemExit(1)
