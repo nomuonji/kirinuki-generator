@@ -46,7 +46,7 @@ jobs:
               report = {'bvid':bid,'exit':result.returncode,'titleMatches':match,
                 'videoFormats':int(v.group(1)) if v else 0,'audioFormats':int(a.group(1)) if a else 0,
                 'rightsVerified':False,'mediaDownloaded':False,
-                'accessDenied':bool(re.search(r'\b(?:401|403|412|429)\b|风控|访问受限|安全验证',out)),
+                'accessDenied':bool(re.search(r'(?:HTTP(?:Error)?|status(?: code)?|response status code|错误码|状态码)\s*[:=]?\s*(?:401|403|412|429)\b|(?:401 Unauthorized|403 Forbidden|412 Precondition Failed|429 Too Many Requests)|风控|访问受限|安全验证',out,re.I)),
                 'unexpectedMedia':any(p.suffix.lower() in ('.mp4','.m4s','.flv','.srt','.ass') for p in Path(tmp).rglob('*'))}
               report['publicMetadataVerified']=(result.returncode==0 and match and report['videoFormats']>0
                 and report['audioFormats']>0 and not report['accessDenied'] and not report['unexpectedMedia'])
