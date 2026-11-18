@@ -188,7 +188,16 @@ def discover(reg=None, fetch=search, now=None):
     names={a["name"]:a for a in reg["accounts"]}
     rows={}
     diagnostics=[]
-    for kw in reg["searchKeywords"]:
+    # Use the user's marked uploaders as query inputs, not merely result filters.
+    # Start with account-targeted ordinary public search, then broad discovery.
+    # An access denial stops the entire lookup; do not rotate endpoints or retry.
+    keywords = list(dict.fromkeys(
+        [a["name"] + " " + reg["searchKeywords"][0]
+         for a in sorted(reg["accounts"], key=lambda a: a["priority"])
+         if reg["searchKeywords"]]
+        + reg["searchKeywords"]
+    ))
+    for kw in keywords:
         try:
             result=fetch(kw)
             diagnostics.append({"keyword":kw,"status":"ok","rows":len(result)})
