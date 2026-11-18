@@ -2,14 +2,17 @@
 
 The primary workflow continues the existing four-times-daily stock replenishment.
 It reads configs/kyousuki_sources.json every planning run, reports new full-episode
-metadata by known account, and groups recognized titles by season and episode.
-Account names with unknown MIDs are discovery hints, not verified identities.
+metadata from direct account archives by MID, not keyword search, and groups recognized titles by season and episode.
+Unknown MIDs are resolved only from the exact marked reference video and matching owner name.
+Configured MIDs and owner names must match the returned archive entries. The direct public
+archive API is probed without emulated signatures or authentication; an inaccessible response is a blocker, not evidence of a working feed.
+The official Open Platform archive API requires creator authorization; it is not configured here.
 The official YouTube lane is unchanged in scope; Hiroyuki and the other lanes do
 not use this pool.
 
 Public metadata requests stop on access denial/rate-limiting. They do not log in,
 use proxies, or work around access controls. A failed lookup is reported as
-degraded, not a successful empty search. Known documented source grants can still
+degraded, not a successful empty account listing. Known documented source grants can still
 be attempted if discovery is unavailable; unapproved discovery entries are never
 media-production candidates.
 
@@ -28,8 +31,8 @@ stockFolderId (the explicitly covered existing primary stock folder),
 officialYoutubeVideoId when applicable (dedup alias).
 
 The planner uses verified entries in source priority/freshness order after
-the normal YouTube candidates. It does not automatically convert public search
-hits into approvals. It checks the provider-specific attempt ledger and remote
+the normal YouTube candidates. It does not automatically convert public archive
+entries into approvals. It checks the provider-specific attempt ledger and remote
 state, skips completed episodes and avoids switching to a duplicate when any
 other provider has generated stock. BBDown verifies the uploader MID during
 acquisition, and Japanese captions take precedence. If only Chinese AI captions

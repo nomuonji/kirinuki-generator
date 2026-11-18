@@ -5,6 +5,7 @@ import html
 import json
 import os
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -169,51 +170,109 @@ def approved_candidates(discovery, processed_entries, folder, now=None, reg=None
                   key=lambda c:(-datetime.fromisoformat(c["publishedAt"]).timestamp(),c["priority"],c["videoId"]))
 
 
-def search(keyword, timeout=12):
-    # Public metadata search only. No cookie harvesting, WBI spoofing, proxy, or retry on denial.
-    url="https://api.bilibili.com/x/web-interface/search/type?"+urllib.parse.urlencode({
-        "search_type":"video","keyword":keyword,"order":"pubdate","page":1})
-    request=urllib.request.Request(url,headers={"Accept":"application/json"})
-    with urllib.request.urlopen(request,timeout=timeout) as response:
-        data=json.loads(response.read(2_000_001))
-    if data.get("code")!=0: raise RuntimeError("public API returned nonzero code")
-    rows=(data.get("data") or {}).get("result") or []
-    if not isinstance(rows,list): raise ValueError("Unexpected search shape")
-    return rows
+# Public metadata only. Use account archives, never keyword search.
+# No synthetic WBI signatures, cookies, proxies or fallback after denial.
+DENIAL_CODES = {401, 403, 412, 429, -101, -352, -403, -412, -509}
+PROGRAMME_TITLE = re.compile(r"今天[、，,\s]*喜欢上你了|今天[、，,\s]*喜欢你了|今喜|今日好き|今日[、，,\s]*好きになりました|今日[、，,\s]*好き", re.I)
 
 
-def discover(reg=None, fetch=search, now=None):
+class MetadataResponseError(RuntimeError):
+    def __init__(self, code):
+        super().__init__("Bilibili returned a nonzero metadata code")
+        self.code = code
+
+
+def public_metadata(path, params, timeout=12):
+    url = "https://api.bilibili.com" + path + "?" + urllib.parse.urlencode(params)
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        data = json.loads(response.read(2_000_001))
+    if data.get("code") != 0:
+        raise MetadataResponseError(data.get("code"))
+    if not isinstance(data.get("data"), dict):
+        raise ValueError("Unexpected metadata response")
+    return data["data"]
+
+
+def resolve_account(account):
+    """Resolve an unknown MID from the already marked exact reference video."""
+    bvid = str(account.get("referenceBvid") or "")
+    if not BVID.fullmatch(bvid):
+        raise ValueError("Missing reference video")
+    data = public_metadata("/x/web-interface/view", {"bvid": bvid})
+    owner = data.get("owner") or {}
+    mid = str(owner.get("mid") or "")
+    if data.get("bvid") != bvid or _clean(owner.get("name")) != account["name"] or not mid.isdigit():
+        raise ValueError("Reference uploader identity mismatch")
+    return mid
+
+
+def account_uploads(account):
+    """Read the newest public archive page by MID, without keyword parameters."""
+    mid = str(account.get("mid") or "")
+    if not mid.isdigit():
+        raise ValueError("Missing account MID")
+    data = public_metadata("/x/space/wbi/arc/search", {
+        "mid": mid, "pn": 1, "ps": 30, "order": "pubdate"
+    })
+    rows = (data.get("list") or {}).get("vlist")
+    if not isinstance(rows, list):
+        raise ValueError("Unexpected account archive shape")
+    if rows and not any(isinstance(row,dict) and str(row.get("mid") or "") == mid
+                        and _clean(row.get("author")) == account["name"] for row in rows):
+        raise ValueError("Archive uploader identity mismatch")
+    mapped = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("mid") or "") != mid or _clean(row.get("author")) != account["name"]:
+            continue
+        if not PROGRAMME_TITLE.search(_clean(row.get("title"))):
+            continue
+        mapped.append({**row, "duration": row.get("length"), "pubdate": row.get("created")})
+    return mapped
+
+
+def discover(reg=None, fetch=account_uploads, now=None, resolve=resolve_account):
     reg=reg or load_registry()
     now=now or datetime.now(timezone.utc)
-    names={a["name"]:a for a in reg["accounts"]}
     rows={}
     diagnostics=[]
-    # Use the user's marked uploaders as query inputs, not merely result filters.
-    # Start with account-targeted ordinary public search, then broad discovery.
-    # An access denial stops the entire lookup; do not rotate endpoints or retry.
-    keywords = list(dict.fromkeys(
-        [a["name"] + " " + reg["searchKeywords"][0]
-         for a in sorted(reg["accounts"], key=lambda a: a["priority"])
-         if reg["searchKeywords"]]
-        + reg["searchKeywords"]
-    ))
-    for kw in keywords:
-        try:
-            result=fetch(kw)
-            diagnostics.append({"keyword":kw,"status":"ok","rows":len(result)})
-        except Exception as exc:
-            # A denied request is not silently classified as no new episodes.
-            diagnostics.append({"keyword":kw,"status":"failed","error":type(exc).__name__,
-                                "httpStatus":getattr(exc,"code",None)})
-            if getattr(exc,"code",None) in (401,403,412,429):
-                break
+    accounts=sorted(reg["accounts"], key=lambda a:a["priority"])
+    # Verify the account-list path first using configured IDs. Unknown IDs are
+    # resolved from exact reference videos only after accessible list checks.
+    ordered=sorted(accounts, key=lambda a:(not bool(a.get("mid")),a["priority"]))
+    denied=False
+    for entry in ordered:
+        account=dict(entry)
+        name=account["name"]
+        if denied:
+            diagnostics.append({"account":name,"status":"not_attempted_after_denial"})
             continue
-        for row in result:
-            if not isinstance(row,dict): continue
-            account=names.get(_clean(row.get("author")))
-            if account:
+        stage="resolve_identity"
+        try:
+            if not account.get("mid"):
+                account["mid"]=resolve(account)
+            stage="account_uploads"
+            result=fetch(account)
+            if not isinstance(result,list):
+                raise ValueError("Unexpected account archive shape")
+            accepted=0
+            for row in result:
+                if not isinstance(row,dict):
+                    continue
                 normalized=normalize(row,account,now)
-                if normalized: rows[normalized["bvid"]]=normalized
+                if normalized and PROGRAMME_TITLE.search(normalized["title"]):
+                    rows[normalized["bvid"]]=normalized
+                    accepted+=1
+            diagnostics.append({"account":name,"mid":str(account["mid"]),"status":"ok",
+                                "stage":stage,"rows":len(result),"accepted":accepted})
+        except Exception as exc:
+            code=getattr(exc,"code",None)
+            denied=isinstance(code,int) and code in DENIAL_CODES
+            diagnostics.append({"account":name,"stage":stage,"status":"failed",
+                                "error":type(exc).__name__,"httpStatus":code if isinstance(exc,urllib.error.HTTPError) else None,
+                                "apiCode":code if isinstance(exc,MetadataResponseError) else None})
     candidates=sorted(rows.values(),key=lambda c:(-datetime.fromisoformat(c["publishedAt"]).timestamp(),c["priority"],c["bvid"]))
     groups={}
     for c in candidates:
@@ -222,7 +281,7 @@ def discover(reg=None, fetch=search, now=None):
     for members in groups.values():
         members.sort(key=lambda c:(c["priority"],-datetime.fromisoformat(c["publishedAt"]).timestamp(),c["bvid"]))
     return {"checkedAt":now.isoformat(),"status":"ok" if diagnostics and all(d["status"]=="ok" for d in diagnostics) else "degraded",
-            "accounts":reg["accounts"],"diagnostics":diagnostics,"episodeGroups":groups,
+            "discoveryMode":"account_uploads","accounts":reg["accounts"],"diagnostics":diagnostics,"episodeGroups":groups,
             "candidateCount":len(candidates),"approvedSourceCount":len(reg["approvedSources"]),
             "autoAcquisitionAuthorized":bool(approval_records(reg)),"reason":"Only explicit approved-source records can be used for production; discovery itself grants no rights"}
 
