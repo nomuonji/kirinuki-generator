@@ -1,4 +1,9 @@
 import copy
+import json
+import os
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 import unittest
 from datetime import datetime, timezone, timedelta
 from packages.kyousuki_sources import discover,load_registry,approved_candidates,approved_source,episode_key
@@ -44,5 +49,37 @@ class SourcePoolTest(unittest.TestCase):
     def test_explicit_grant_must_cover_publication(self):
         cfg=copy.deepcopy(BASE); cfg["approvedSources"]=[{**grant(A,"黑田凖一","123"),"publicationAuthorized":False}]
         with self.assertRaises(ValueError): approved_source(A,1,"test-only-folder",cfg)
+
+
+    def test_index_hints_are_untrusted_and_stale_is_not_success(self):
+        cfg=copy.deepcopy(BASE)
+        row={"bvid":A,"url":f"https://www.bilibili.com/video/{A}/",
+             "title":"今天喜欢上你了2026 韩国水原篇 #5","accountHint":"黑田凖一",
+             "fetchedAt":NOW.isoformat(),"query":"黑田凖一 韩国水原篇 site:bilibili.com",
+             "processingAuthorized":True,"publicationAuthorized":True,"mid":"123"}
+        data={"schemaVersion":1,"provider":"brightdata","purpose":"public_metadata_only",
+              "writtenAt":NOW.isoformat(),"rows":[row,{**row,"url":"https://evil.example/"}]}
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/"index.json"
+            path.write_text(json.dumps(data),encoding="utf-8")
+            with patch.dict(os.environ, {"KYOUSUKI_INDEX_FILE":str(path)}):
+                def fail(_):
+                    self.fail("Configured indexed mode must never fall back to direct API")
+                report=discover(cfg,fetch=fail,now=NOW)
+                self.assertEqual(report["indexHintCount"],1)
+                self.assertEqual(report["status"],"ok")
+                self.assertEqual(report["episodeGroups"],{})
+                self.assertEqual(report["candidateCount"],0)
+                self.assertNotIn("mid",report["indexHints"][0])
+                self.assertNotIn("processingAuthorized",report["indexHints"][0])
+                self.assertEqual(approved_candidates(report,[],"test-only-folder",NOW,cfg),[])
+                cfg["approvedSources"]=[grant(A,"黑田凖一","123")]
+                self.assertEqual(len(approved_candidates(report,[],"test-only-folder",NOW,cfg)),1)
+                data["rows"]=[{**row,"fetchedAt":(NOW-timedelta(days=4)).isoformat()}]
+                path.write_text(json.dumps(data),encoding="utf-8")
+                report=discover(cfg,fetch=fail,now=NOW)
+                self.assertEqual(report["status"],"degraded")
+                self.assertEqual(report["indexHintCount"],0)
+
 
 if __name__=="__main__": unittest.main()

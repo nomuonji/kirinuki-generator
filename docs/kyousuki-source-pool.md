@@ -53,3 +53,7 @@ Actual privately rendered diagnostic:
 https://github.com/nomuonji/kirinuki-generator/actions/runs/44138101160
 (41.66 sec, 1080x1920, two audio channels, complete decode, underlying source 480p).
 `kyousuki-source-plan` retains operational metadata for seven days; no footage.
+
+## Public index handoff (metadata only)
+
+The optional KYOUSUKI_INDEX_FILE mode consumes a bounded, fresh snapshot from the repository's kyousuki-index-state branch at state/kyousuki-index.json. The existing primary scheduled workflow checks out that one data file; nothing from the data branch is executed. Missing/stale/empty input is degraded rather than a direct API retry. Identity, upload date, duration, and rights must not be inferred from search snippets; indexHintCount is separate from identity-verified candidateCount. Existing approved-source grants continue to be the sole gate for actual source acquisition. The shared Agent HQ routine can refresh metadata using the existing Keywords Treasury Bright Data quota; the production job needs no new search credential. A fresh index snapshot does not establish permission or prove the target video bytes were retrieved.

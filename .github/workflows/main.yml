@@ -20,6 +20,7 @@ env:
   MAX_SEARCH_VIDEOS: '30'
   SAVETUBE_QUALITY: '720'
   SOURCE_FETCH_COUNTRY: 'US'
+  KYOUSUKI_INDEX_FILE: '.kyousuki-index/state/kyousuki-index.json'
   TIMEOUT_TRANSCRIBE: '1800'
   PYTHONUNBUFFERED: '1'
 
@@ -33,6 +34,15 @@ jobs:
       reason: ${{ steps.plan.outputs.reason }}
     steps:
       - uses: actions/checkout@v4
+      - name: Read public search index data branch (no execution)
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: kyousuki-index-state
+          path: .kyousuki-index
+          sparse-checkout: state/kyousuki-index.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -74,6 +84,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Read public search index data branch (no execution)
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: kyousuki-index-state
+          path: .kyousuki-index
+          sparse-checkout: state/kyousuki-index.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5

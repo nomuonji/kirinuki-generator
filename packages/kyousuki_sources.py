@@ -182,9 +182,84 @@ def search(keyword, timeout=12):
     return rows
 
 
+
+def indexed_discovery(path, reg, now):
+    """Consume an external public search index snapshot as hints only.
+
+    The data branch is not an executable source or an approval authority. Do
+    not infer uploader MID, publication timestamp, duration, or license from
+    SERP snippets. A stale or malformed snapshot never triggers direct search.
+    """
+    report = {"checkedAt": now.isoformat(), "status": "degraded",
+              "discoveryMode": "public_index", "accounts": reg["accounts"],
+              "diagnostics": [], "episodeGroups": {}, "candidateCount": 0,
+              "indexHints": [], "indexHintCount": 0,
+              "approvedSourceCount": len(reg["approvedSources"]),
+              "autoAcquisitionAuthorized": bool(approval_records(reg)),
+              "reason": "Index hits are metadata only; exact documented source grants alone authorize production."}
+    def failure(code):
+        report["diagnostics"] = [{"stage": "index_snapshot", "status": "failed", "reason": code}]
+        return report
+    def fresh(value):
+        if not isinstance(value, str):
+            return False
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return dt.tzinfo is not None and -300 <= (now-dt).total_seconds() <= 72*3600
+        except (ValueError, TypeError, OverflowError):
+            return False
+    try:
+        with Path(path).open("rb") as fh:
+            data = json.loads(fh.read(256_001))
+    except (OSError, UnicodeError, ValueError):
+        return failure("missing_or_invalid_index")
+    if (not isinstance(data, dict) or data.get("schemaVersion") != 1
+            or data.get("purpose") != "public_metadata_only"
+            or data.get("provider") != "brightdata"):
+        return failure("invalid_index_contract")
+    if not fresh(data.get("writtenAt")):
+        return failure("stale_index")
+    rows = data.get("rows")
+    if not isinstance(rows, list) or len(rows) > 40:
+        return failure("invalid_index_rows")
+    names = {a["name"] for a in reg["accounts"]}
+    hits = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        bid = row.get("bvid")
+        title = row.get("title")
+        account = row.get("accountHint")
+        query = row.get("query")
+        if (not isinstance(bid, str) or not BVID.fullmatch(bid)
+                or row.get("url") not in (f"https://www.bilibili.com/video/{bid}/", f"https://www.bilibili.com/video/{bid}")
+                or not isinstance(account, str) or account not in names
+                or not isinstance(title, str) or not 1 <= len(title) <= 240
+                or not re.search(r"今天喜欢上你了|今天喜欢你了|今喜|今日好き", title)
+                or EXTRAS.search(title)
+                or not isinstance(query, str) or len(query) > 500 or account not in query
+                or not fresh(row.get("fetchedAt"))):
+            continue
+        # No opaque row passthrough. In particular no rights, MID or date fields.
+        hits[bid] = {"bvid": bid, "url": f"https://www.bilibili.com/video/{bid}/",
+                     "title": _clean(title), "accountHint": account,
+                     "episodeKeyHint": episode_key(title),
+                     "fetchedAt": row["fetchedAt"], "query": query,
+                     "approvalStatus": "metadata_only"}
+    report["indexHints"] = list(hits.values())
+    report["indexHintCount"] = len(hits)
+    report["status"] = "ok" if hits else "degraded"
+    report["diagnostics"] = [{"stage": "index_snapshot", "status": report["status"],
+                              "acceptedHints": len(hits), "inputRows": len(rows)}]
+    return report
+
+
 def discover(reg=None, fetch=search, now=None):
     reg=reg or load_registry()
     now=now or datetime.now(timezone.utc)
+    index_path = os.environ.get("KYOUSUKI_INDEX_FILE")
+    if index_path:
+        return indexed_discovery(index_path, reg, now)
     names={a["name"]:a for a in reg["accounts"]}
     rows={}
     diagnostics=[]
@@ -235,7 +310,7 @@ def main():
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding="utf-8")
     print("KYOUSUKI_DISCOVERY",json.dumps({"status":data["status"],"candidates":data["candidateCount"],
-         "approved":data["approvedSourceCount"],"diagnostics":data["diagnostics"]},ensure_ascii=False))
+         "approved":data["approvedSourceCount"],"indexHints":data.get("indexHintCount",0),"diagnostics":data["diagnostics"]},ensure_ascii=False))
 
 
 if __name__=="__main__":
