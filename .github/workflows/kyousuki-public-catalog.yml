@@ -51,6 +51,7 @@ jobs:
               print("CATALOG_STOP",json.dumps({"endpoint":"archives","fields":sorted(archive.keys())[:30]}),flush=True)
               raise SystemExit(1)
           hits=[]
+          print("CATALOG_SCHEMA",json.dumps([{"bvid":str(r.get("bvid","")),"title":str(r.get("title",""))[:200],"publishtime":r.get("publishtime"),"duration":r.get("duration"),"state":r.get("state"),"isugcpay":r.get("isugcpay"),"fields":sorted(r.keys())[:25]} for r in videos[:8] if isinstance(r,dict)],ensure_ascii=False),flush=True)
           for row in videos:
               if not isinstance(row,dict): continue
               bvid=str(row.get("bvid",""))
