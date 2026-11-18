@@ -1,0 +1,66 @@
+name: Kyousuki independent public catalog probe
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/kyousuki-public-catalog.yml']
+permissions:
+  contents: read
+jobs:
+  catalog:
+    if: github.head_ref == 'probe/kyousuki-indexed-id' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Inspect public catalog records via documented free guest API
+        shell: python
+        run: |
+          import json, re, urllib.request, urllib.error, urllib.parse
+          from datetime import datetime, timezone
+          # Independent documented public metadata API. Ordinary guest quota only.
+          # No credentials, upstream relay configuration, retries, media or subtitles.
+          def request(endpoint, params):
+              url="https://uapis.cn/api/v1/social/bilibili/"+endpoint+"?"+urllib.parse.urlencode(params)
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers={"Accept":"application/json"}),timeout=20) as response:
+                      raw=response.read(1_000_001)
+                      if len(raw)>1_000_000: raise ValueError("oversize")
+                      data=json.loads(raw)
+              except urllib.error.HTTPError as e:
+                  print("CATALOG_STOP",json.dumps({"endpoint":endpoint,"httpStatus":e.code}),flush=True)
+                  raise SystemExit(1)
+              except Exception as e:
+                  print("CATALOG_STOP",json.dumps({"endpoint":endpoint,"error":type(e).__name__}),flush=True)
+                  raise SystemExit(1)
+              if not isinstance(data,dict):
+                  raise SystemExit("bad response shape")
+              return data
+          seed="BV1zaJR6BEq2"
+          record=request("videoinfo",{"bvid":seed})
+          owner=record.get("owner") or {}
+          mid=str(owner.get("mid",""))
+          if record.get("bvid")!=seed or owner.get("name")!="黑田凖一" or not mid.isdigit():
+              print("CATALOG_STOP",json.dumps({"endpoint":"videoinfo","identityMatch":False,"fields":sorted(record.keys())[:30]}),flush=True)
+              raise SystemExit(1)
+          print("CATALOG_IDENTITY",json.dumps({"mid":mid,"seed":seed,"owner":owner.get("name")},ensure_ascii=False),flush=True)
+          archive=request("archives",{"mid":mid,"ps":20,"pn":1,"orderby":"pubdate"})
+          videos=archive.get("videos")
+          if not isinstance(videos,list): 
+              print("CATALOG_STOP",json.dumps({"endpoint":"archives","fields":sorted(archive.keys())[:30]}),flush=True)
+              raise SystemExit(1)
+          hits=[]
+          for row in videos:
+              if not isinstance(row,dict): continue
+              bvid=str(row.get("bvid",""))
+              title=str(row.get("title",""))
+              stamp=row.get("publishtime")
+              dur=row.get("duration")
+              if not re.fullmatch(r"BV[A-Za-z0-9]{10}",bvid) or not re.search(r"今天喜欢上你了|今喜|今日好き",title):continue
+              if type(stamp) is not int or type(dur) is not int or dur<1080 or dur>9000:continue
+              if row.get("state") != 0 or row.get("isugcpay") != 0:continue
+              hits.append({"bvid":bvid,"title":title[:200],"publishedAt":datetime.fromtimestamp(stamp,timezone.utc).isoformat(),"durationSeconds":dur})
+          latest=[row for row in hits if re.search(r"韩国水原篇\s*#\s*5(?!\d)",row["title"])]
+          print("CATALOG_RESULT",json.dumps({"mid":mid,"total":archive.get("total"),"rows":len(videos),"episodeRows":hits,"latestExactMatches":len(latest),"metadataOnly":True},ensure_ascii=False),flush=True)
+          if not latest: raise SystemExit(1)
