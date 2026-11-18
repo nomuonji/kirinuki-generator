@@ -254,10 +254,99 @@ def indexed_discovery(path, reg, now):
     return report
 
 
+
+def public_catalog(mid, timeout=15):
+    """Documented third-party public metadata catalog; guest access only.
+
+    No Bilibili credentials, proxy parameters, retries or quota evasion.
+    A capped guest allowance is not an unlimited or paid subscription.
+    """
+    url = "https://uapis.cn/api/v1/social/bilibili/archives?" + urllib.parse.urlencode(
+        {"mid": mid, "ps": 20, "pn": 1, "orderby": "pubdate"})
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        raw = response.read(1_000_001)
+        if len(raw) > 1_000_000:
+            raise ValueError("catalog payload exceeds limit")
+        data = json.loads(raw)
+        if not isinstance(data, dict) or not isinstance(data.get("videos"), list):
+            raise ValueError("catalog result unavailable")
+        if len(data["videos"]) > 20:
+            raise ValueError("catalog result exceeds requested limit")
+        remaining = response.headers.get("X-RateLimit-Remaining")
+        return data["videos"], int(remaining) if remaining and remaining.isdecimal() else None
+
+
+def catalog_discovery(reg, now, index_path=None, fetch=public_catalog):
+    """Read one bounded public archive for the verified priority-1 uploader.
+
+    The catalog's account/episode metadata never creates a source grant.
+    The media adapter must independently verify uploader identity at acquisition.
+    Other accounts still have the pre-existing, index-only observation path.
+    """
+    report = indexed_discovery(index_path, reg, now) if index_path else {
+        "checkedAt": now.isoformat(), "accounts": reg["accounts"],
+        "indexHints": [], "indexHintCount": 0, "diagnostics": [],
+        "approvedSourceCount": len(reg["approvedSources"]),
+        "autoAcquisitionAuthorized": bool(approval_records(reg))}
+    report.update({"discoveryMode": "public_catalog", "status": "degraded",
+                   "episodeGroups": {}, "candidateCount": 0,
+                   "reason": "Catalog metadata is not authorization; only documented source grants permit production."})
+    primary = min(reg["accounts"], key=lambda a: a["priority"])
+    mid = str(primary.get("mid") or "")
+    diagnostic = {"stage": "public_catalog", "provider": "uapipro",
+                  "account": primary["name"], "mid": mid}
+    report["diagnostics"].append(diagnostic)
+    if not mid.isdigit():
+        diagnostic.update(status="failed", reason="unverified_mid")
+        return report
+    try:
+        raw, remaining = fetch(mid)
+    except Exception as exc:
+        diagnostic.update(status="failed", error=type(exc).__name__,
+                          httpStatus=getattr(exc, "code", None))
+        return report
+    rows = {}
+    for r in raw:
+        if not isinstance(r, dict):
+            continue
+        title = _clean(r.get("title"))
+        if not re.search(r"今天喜欢上你了|今天喜欢你了|今喜|今日好き", title):
+            continue
+        if not FULL_EP.search(title) or EXTRAS.search(title):
+            continue
+        paid = r.get("is_ugc_pay", r.get("isugcpay"))
+        if r.get("state") != 0 or paid not in (0, False):
+            continue
+        stamp = r.get("publish_time", r.get("publishtime"))
+        duration = r.get("duration")
+        if type(duration) is not int or type(stamp) is bool:
+            continue
+        candidate = normalize({"bvid": r.get("bvid"), "title": title,
+                               "author": primary["name"], "mid": mid,
+                               "duration": duration, "pubdate": stamp}, primary, now)
+        if candidate:
+            candidate["metadataProvider"] = "uapipro"
+            candidate["identityStatus"] = "catalog_account_binding"
+            rows[candidate["bvid"]] = candidate
+    candidates = sorted(rows.values(), key=lambda r: (-datetime.fromisoformat(r["publishedAt"]).timestamp(), r["bvid"]))
+    for candidate in candidates:
+        key = candidate["episodeKey"] or "unresolved:" + candidate["bvid"]
+        report["episodeGroups"].setdefault(key, []).append(candidate)
+    report["candidateCount"] = len(candidates)
+    report["status"] = "ok" if candidates else "degraded"
+    report["latestCatalogCandidate"] = candidates[0] if candidates else None
+    diagnostic.update(status=report["status"], returnedRows=len(raw),
+                      acceptedRows=len(candidates), rateLimitRemaining=remaining)
+    return report
+
+
 def discover(reg=None, fetch=search, now=None):
     reg=reg or load_registry()
     now=now or datetime.now(timezone.utc)
     index_path = os.environ.get("KYOUSUKI_INDEX_FILE")
+    if os.environ.get("KYOUSUKI_PUBLIC_CATALOG") == "1":
+        return catalog_discovery(reg, now, index_path)
     if index_path:
         return indexed_discovery(index_path, reg, now)
     names={a["name"]:a for a in reg["accounts"]}

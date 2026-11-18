@@ -52,3 +52,18 @@ jobs:
           # Empty/stale is not a false green live discovery.
           assert p["status"]=="ok" and p["indexHintCount"]>0
           PY
+      - name: Verify latest public catalog episode in the production discovery mode
+        env:
+          KYOUSUKI_PUBLIC_CATALOG: '1'
+        run: |
+          python -m packages.kyousuki_sources --output /tmp/kyousuki-catalog-plan.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("/tmp/kyousuki-catalog-plan.json").read_text())
+          latest=p.get("latestCatalogCandidate")
+          print("KYOUSUKI_CATALOG_LIVE",json.dumps({"status":p["status"],"candidateCount":p["candidateCount"],"latest":latest,"diagnostics":p["diagnostics"],"autoAcquisitionAuthorized":p["autoAcquisitionAuthorized"]},ensure_ascii=False))
+          assert p["discoveryMode"]=="public_catalog" and p["status"]=="ok" and latest
+          assert latest["bvid"]=="BV11GsK6RE2u" and latest["episodeKey"]=="2026:スウォン:5"
+          assert not p["autoAcquisitionAuthorized"]
+          PY
