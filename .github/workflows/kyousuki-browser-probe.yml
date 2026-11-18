@@ -1,0 +1,90 @@
+name: Kyousuki public browser metadata probe
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/kyousuki-browser-probe.yml'
+permissions:
+  contents: read
+jobs:
+  browser-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install browser driver
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          google-chrome --version
+      - name: Inspect ordinary public account page
+        run: |
+          python - <<'PY'
+          import json, re
+          from playwright.sync_api import sync_playwright, TimeoutError
+          from urllib.parse import urlparse
+          from pathlib import Path
+          accounts = json.loads(Path("configs/kyousuki_sources.json").read_text())["accounts"]
+          denied = {401, 403, 412, 429}
+          programme = re.compile("今天.*喜欢.*你|今喜|今日好き|今日.*好きになりました")
+          results = []
+          with sync_playwright() as p:
+              browser = p.chromium.launch(channel="chrome", headless=True)
+              for account in sorted(accounts, key=lambda a: a["priority"]):
+                  mid = str(account.get("mid") or "")
+                  if not mid.isdigit():
+                      results.append({"account":account["name"],"status":"mid_unverified"})
+                      continue
+                  page = browser.new_page(accept_downloads=False)
+                  refusal = []
+                  def observe(resp):
+                      host = urlparse(resp.url).hostname or ""
+                      if host in {"space.bilibili.com","api.bilibili.com","www.bilibili.com"} and resp.status in denied:
+                          refusal.append({"host":host,"status":resp.status})
+                  page.on("response", observe)
+                  result = {"account":account["name"],"mid":mid}
+                  try:
+                      response = page.goto(f"https://space.bilibili.com/{mid}/video", wait_until="domcontentloaded", timeout=25000)
+                      result["httpStatus"] = response.status if response else None
+                      if not refusal:
+                          try:
+                              page.locator('a[href*="/video/BV"]:visible').first.wait_for(timeout=12000)
+                          except TimeoutError:
+                              pass
+                      text = page.locator("body").inner_text(timeout=3000)
+                      challenged = bool(re.search("访问受限|访问异常|安全验证|请求被拦截|人机验证|请完成验证|风控|412 Precondition",text))
+                      result["refusals"] = refusal
+                      if refusal or challenged:
+                          result["status"] = "access_denied"
+                      elif urlparse(page.url).hostname != "space.bilibili.com" or not urlparse(page.url).path.startswith(f"/{mid}/"):
+                          result["status"] = "unexpected_redirect"
+                      elif account["name"] not in text:
+                          result["status"] = "identity_unverified"
+                      else:
+                          links = page.locator('a[href*="/video/BV"]:visible').evaluate_all("(nodes) => nodes.map(a => ({url:a.href, title:a.innerText || a.title || ''}))")
+                          ids = set()
+                          matching = set()
+                          for link in links:
+                              if urlparse(link["url"]).hostname != "www.bilibili.com":
+                                  continue
+                              match = re.search(r"/video/(BV[A-Za-z0-9]{10})(?:/|$)",urlparse(link["url"]).path)
+                              if match:
+                                  ids.add(match.group(1))
+                                  if programme.search(link["title"]):
+                                      matching.add(match.group(1))
+                          result.update(status="visible_uploads" if ids else "no_visible_uploads", videoCount=len(ids), programmeVideoCount=len(matching), programmeBvids=sorted(matching)[:10])
+                  except Exception as exc:
+                      result.update(status="access_denied" if refusal else "probe_failed",error=type(exc).__name__,refusals=refusal)
+                  finally:
+                      page.close()
+                  results.append(result)
+                  if result.get("status") == "access_denied":
+                      break
+              browser.close()
+          print("BROWSER_PROBE",json.dumps(results,ensure_ascii=False))
+          if not any(r.get("status")=="visible_uploads" and r.get("programmeVideoCount",0)>0 for r in results):
+              raise SystemExit("No verified visible programme upload; browser acquisition not validated")
+          PY
