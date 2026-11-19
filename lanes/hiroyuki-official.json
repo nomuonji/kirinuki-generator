@@ -42,12 +42,12 @@
         "sizeBytes": 11815612,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-15T03:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 6302.24,
-      "status": "scheduled",
+      "status": "published",
       "title": "過去の炎上は家族に言うな",
       "uploadedAt": "2026-11-07T19:03:45.724942+00:00",
       "videoId": "TIcruqpZFxs"
@@ -166,12 +166,12 @@
         "sizeBytes": 27714375,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-14T03:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 5970.88,
-      "status": "scheduled",
+      "status": "published",
       "title": "3%の子には体罰が必要?",
       "uploadedAt": "2026-11-07T19:00:56.197524+00:00",
       "videoId": "YuHU0l3ePJ8"
@@ -250,12 +250,12 @@
         "sizeBytes": 23655491,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-13T11:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 2141.84,
-      "status": "scheduled",
+      "status": "published",
       "title": "美人が性格良いのは周りが優しいから",
       "uploadedAt": "2026-11-09T23:22:59.713596+00:00",
       "videoId": "TOEZ4KPPkRE"
@@ -510,12 +510,12 @@
         "width": 1080
       },
       "overflowSha256": "96fd1036f1631c7de16129b070629608965f4ce9104ff9a98d02a32c276a0600",
-      "privacyStatus": "private",
-      "publishAt": "2026-11-16T11:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 5622.84,
-      "status": "scheduled",
+      "status": "published",
       "title": "内心はB2Bみたいで嫌",
       "uploadedAt": "2026-11-10T07:41:30.001669+00:00",
       "videoId": "Goxsrx3_YU4"
@@ -618,12 +618,12 @@
         "sizeBytes": 27471176,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-16T03:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 7710.88,
-      "status": "scheduled",
+      "status": "published",
       "title": "メタ認知の原点は宇宙人？",
       "uploadedAt": "2026-11-07T19:09:30.872320+00:00",
       "videoId": "moUAF-EH48w"
@@ -681,13 +681,13 @@
         "width": 1080
       },
       "overflowSha256": "d12e3c55fede265988f93b218416d8adffabb94ac27c91f9eee9b76a2d4af0f4",
-      "privacyStatus": "private",
-      "publishAt": "2026-11-17T03:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "releasedAt": "2026-11-08T06:36:29.484671+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "EXUXJaPlKmE",
       "start": 3738.4,
-      "status": "scheduled",
+      "status": "published",
       "title": "お金を稼いでも意味はある？死を意識する年齢",
       "uploadedAt": "2026-11-09T07:05:46.211340+00:00",
       "videoId": "2KRYuzI2Rpk"
@@ -710,12 +710,12 @@
         "sizeBytes": 12396427,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-15T11:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 4106.6,
-      "status": "scheduled",
+      "status": "published",
       "title": "AIで人類は自滅する",
       "uploadedAt": "2026-11-09T23:28:58.034314+00:00",
       "videoId": "Nv7Gwq5lM7M"
@@ -743,13 +743,13 @@
         "width": 1080
       },
       "overflowSha256": "9f3aa0923dff1ed1f1428331270750b58d5e99c9aae1d11f9cfad2dde63d4c4d",
-      "privacyStatus": "private",
-      "publishAt": "2026-11-17T11:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "releasedAt": "2026-11-10T07:40:27.515963+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 1219.24,
-      "status": "scheduled",
+      "status": "published",
       "title": "カフェで仕事する人への本音",
       "uploadedAt": "2026-11-10T19:58:32.438878+00:00",
       "videoId": "JoZ8S5W52NE"
@@ -848,12 +848,12 @@
         "sizeBytes": 9474503,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-14T11:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "0ojMhUyiHB4",
       "start": 3540.88,
-      "status": "scheduled",
+      "status": "published",
       "title": "バレエは趣味かビジネスか",
       "uploadedAt": "2026-11-09T23:25:19.515966+00:00",
       "videoId": "uJl1IsVMypQ"
@@ -1080,6 +1080,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-13T07:07:48.467681+00:00",
+  "updatedAt": "2026-11-19T20:55:34.442922+00:00",
   "version": 1
 }
