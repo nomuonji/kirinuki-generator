@@ -620,12 +620,15 @@
         "sizeBytes": 14788361,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-24T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 6032.86,
-      "status": "uploading",
-      "title": "1000万で働かないは甘い？老後資金の現実"
+      "status": "verification_pending",
+      "title": "1000万で働かないは甘い？老後資金の現実",
+      "uploadedAt": "2026-11-19T21:51:32.161032+00:00",
+      "videoId": "BxcxtTYZ2KU"
     },
     "c915b52f1923fa20880d649c": {
       "attemptedAt": "2026-11-05T20:14:31.571649+00:00",
@@ -1252,6 +1255,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:51:29.174002+00:00",
+  "updatedAt": "2026-11-19T21:51:32.161082+00:00",
   "version": 1
 }
