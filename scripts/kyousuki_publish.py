@@ -219,10 +219,13 @@ def execute(drive,items,yt,playlist):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--execute",action="store_true")
+    p.add_argument("--require-ready",action="store_true",help="Fail a production readiness check if scheduling is blocked")
     args=p.parse_args()
     report,drive,items,yt,playlist=readiness()
     print("KYOUSUKI_PUBLISH_READINESS",json.dumps(report,ensure_ascii=False),flush=True)
     if not args.execute:
+        if args.require_ready and not report["readyToSchedule"]:
+            raise SystemExit("Publication blocked: "+", ".join(report["blockers"]))
         return
     if not report["readyToSchedule"]:
         raise SystemExit("Publication blocked: "+", ".join(report["blockers"]))
