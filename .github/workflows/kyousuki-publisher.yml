@@ -56,10 +56,14 @@ jobs:
           python -m unittest discover -s tests -p 'test_youtube_direct.py' -v
       - name: Read-only stock and destination readiness
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        run: python -m scripts.kyousuki_publish
-      - name: Fail closed on blocked production posting
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.execute)
-        run: python -m scripts.kyousuki_publish --require-ready
+        env:
+          REQUIRE_READY: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.execute) }}
+        run: |
+          if [ "$REQUIRE_READY" = true ]; then
+            python -m scripts.kyousuki_publish --require-ready
+          else
+            python -m scripts.kyousuki_publish
+          fi
   publish:
     needs: verify
     if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.execute)) && vars.KYOUSUKI_AUTOPUBLISH_ENABLED == 'true' && vars.KYOUSUKI_CHANNEL_AUTHORIZED == 'true' && vars.KYOUSUKI_SOURCE_RIGHTS_APPROVED == 'true'
