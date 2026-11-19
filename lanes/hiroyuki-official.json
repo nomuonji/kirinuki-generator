@@ -252,12 +252,15 @@
         "sizeBytes": 20865481,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-21T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 5329.05,
-      "status": "uploading",
-      "title": "リアルタイム風配信でゴースティング対策"
+      "status": "verification_pending",
+      "title": "リアルタイム風配信でゴースティング対策",
+      "uploadedAt": "2026-11-19T21:41:47.343198+00:00",
+      "videoId": "mM9PT7VvSkA"
     },
     "7462cf65249f041d21c55400": {
       "attemptedAt": "2026-11-05T07:17:43.115433+00:00",
@@ -1168,6 +1171,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:41:44.124025+00:00",
+  "updatedAt": "2026-11-19T21:41:47.343248+00:00",
   "version": 1
 }
