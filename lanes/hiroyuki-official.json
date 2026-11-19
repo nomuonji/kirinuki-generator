@@ -212,9 +212,12 @@
         "template": "ronpa",
         "variant": 2
       },
+      "driveMetadataId": "1DTqIMfgmoYKABWplJ7KC0IoZ_HLJUSej",
+      "driveVideoId": "1kazYNkm59Rr5AiiSTKzlAKFHgwq8wrsW",
       "editorialDigest": "9fed5f0d89b7a66aecbedfcd43d990d215cc3bb99ef6a0adb7da87ddf8026431",
       "end": 7521.57,
       "failure": "unknown_upload_result",
+      "fallbackAt": "2026-11-19T21:56:21.059256+00:00",
       "fingerprint": "4630b991c816c20c4c311120",
       "mediaAudit": {
         "audioChannels": 2,
@@ -223,11 +226,12 @@
         "sizeBytes": 32131071,
         "width": 1080
       },
+      "overflowSha256": "616e336324ada496dfc8633b8e99a21bb4a5ac84d7c89929e248718c454f5122",
       "publishAt": "2026-11-25T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 7417.17,
-      "status": "uncertain",
+      "status": "overflow",
       "title": "経営者の父に聞く自立の話"
     },
     "4e554921fa0b117f30cdbb47": {
@@ -1281,6 +1285,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:56:16.883844+00:00",
+  "updatedAt": "2026-11-19T21:56:21.059289+00:00",
   "version": 1
 }
