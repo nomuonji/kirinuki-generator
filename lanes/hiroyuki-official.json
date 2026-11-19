@@ -234,6 +234,31 @@
       "status": "uncertain",
       "title": "AIが全生産しても物価は下がらない"
     },
+    "61b9f7843fab6bc5e64eaaf6": {
+      "attemptedAt": "2026-11-19T21:41:44.124016+00:00",
+      "confidence": 0.88,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "design": {
+        "template": "ronpa",
+        "variant": 1
+      },
+      "editorialDigest": "9fed5f0d89b7a66aecbedfcd43d990d215cc3bb99ef6a0adb7da87ddf8026431",
+      "end": 5398.45,
+      "fingerprint": "61b9f7843fab6bc5e64eaaf6",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 69.46,
+        "height": 1920,
+        "sizeBytes": 20865481,
+        "width": 1080
+      },
+      "publishAt": "2026-11-21T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "J6zIxwaSdo0",
+      "start": 5329.05,
+      "status": "uploading",
+      "title": "リアルタイム風配信でゴースティング対策"
+    },
     "7462cf65249f041d21c55400": {
       "attemptedAt": "2026-11-05T07:17:43.115433+00:00",
       "confidence": 0.82,
@@ -1143,6 +1168,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:38:32.017012+00:00",
+  "updatedAt": "2026-11-19T21:41:44.124025+00:00",
   "version": 1
 }
