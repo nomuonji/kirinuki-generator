@@ -60,3 +60,69 @@ jobs:
           name: kirinuki-production-readiness
           path: readiness.json
           retention-days: 7
+
+  kyousuki-oauth:
+    # Independent of Drive stock, publication approval and rendering locks.
+    # Refresh even when the intended destination is not yet configured.
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YT_CLIENT_ID_KYOUSUKI }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET_KYOUSUKI }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN_KYOUSUKI }}
+      YOUTUBE_DESTINATION_CHANNEL_ID: ${{ vars.KYOUSUKI_DESTINATION_CHANNEL_ID }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refresh Kyousuki access and verify destination (read-only)
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request, urllib.parse, urllib.error
+          names = ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN")
+          missing = [name for name in names if not os.environ.get(name, "").strip()]
+          dest = os.environ.get("YOUTUBE_DESTINATION_CHANNEL_ID", "").strip()
+          report = {"missingCredentials": missing, "destinationConfigured": bool(dest),
+                    "tokenCheck": "not_checked", "destinationCheck": "not_checked"}
+          stage = "tokenCheck"
+          if not missing:
+              try:
+                  data = urllib.parse.urlencode({
+                      "client_id": os.environ[names[0]], "client_secret": os.environ[names[1]],
+                      "refresh_token": os.environ[names[2]], "grant_type": "refresh_token"
+                  }).encode()
+                  with urllib.request.urlopen("https://oauth2.googleapis.com/token", data=data, timeout=15) as resp:
+                      token = json.load(resp)["access_token"]
+                  report["tokenCheck"] = "refreshed"
+                  stage = "destinationCheck"
+                  request = urllib.request.Request(
+                      "https://www.googleapis.com/youtube/v3/channels?part=id&mine=true",
+                      headers={"Authorization": "Bearer " + token})
+                  with urllib.request.urlopen(request, timeout=15) as resp:
+                      ids = [row["id"] for row in json.load(resp).get("items", [])]
+                  if not dest:
+                      report[stage] = "destination_missing" if ids else "no_channel"
+                  elif dest == "UCzXVsEc1h2Elljge0fnQYRg":
+                      report[stage] = "source_channel_is_not_destination"
+                  else:
+                      report[stage] = "verified" if dest in ids else "channel_mismatch"
+              except urllib.error.HTTPError as exc:
+                  code = "http_" + str(exc.code)
+                  if stage == "tokenCheck":
+                      try:
+                          candidate = json.load(exc).get("error")
+                          if candidate in ("invalid_grant", "unauthorized_client", "invalid_client",
+                                           "invalid_scope", "temporarily_unavailable"):
+                              code = candidate
+                      except Exception:
+                          pass
+                  report[stage] = code
+              except Exception as exc:
+                  report[stage] = type(exc).__name__
+          else:
+              report["tokenCheck"] = "missing_credentials"
+          print("KYOUSUKI_OAUTH_HEALTH", json.dumps(report), flush=True)
+          if report["tokenCheck"] != "refreshed" or report["destinationCheck"] != "verified":
+              print("::error::Kyousuki OAuth or destination verification failed")
+              raise SystemExit(1)
+          PY
