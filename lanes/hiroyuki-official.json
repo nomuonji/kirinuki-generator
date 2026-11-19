@@ -75,7 +75,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 5717.75,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "頼れる男の条件は金と断言",
       "uploadedAt": "2026-11-19T21:49:10.419234+00:00",
       "videoId": "C9eot0fnq4Q"
@@ -1227,6 +1227,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:49:10.419286+00:00",
+  "updatedAt": "2026-11-19T21:49:11.507315+00:00",
   "version": 1
 }
