@@ -408,12 +408,15 @@
         "sizeBytes": 17964970,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-20T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 2657.32,
-      "status": "uploading",
-      "title": "宇宙の終わりに時間は止まるのか"
+      "status": "verification_pending",
+      "title": "宇宙の終わりに時間は止まるのか",
+      "uploadedAt": "2026-11-19T21:38:30.946684+00:00",
+      "videoId": "Cykyl9RBlXI"
     },
     "a74faa8a9b22e9652388467a": {
       "attemptedAt": "2026-11-04T07:31:24.467957+00:00",
@@ -1140,6 +1143,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:38:25.949953+00:00",
+  "updatedAt": "2026-11-19T21:38:30.946738+00:00",
   "version": 1
 }
