@@ -8,6 +8,11 @@ on:
         description: 'Schedule one explicitly approved clip (otherwise read-only)'
         type: boolean
         default: false
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/kyousuki-publisher.yml'
+      - 'scripts/kyousuki_publish.py'
   pull_request:
     paths:
       - 'scripts/kyousuki_publish.py'
@@ -52,6 +57,9 @@ jobs:
       - name: Read-only stock and destination readiness
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: python -m scripts.kyousuki_publish
+      - name: Fail closed on blocked production posting
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.execute)
+        run: python -m scripts.kyousuki_publish --require-ready
   publish:
     needs: verify
     if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.execute)) && vars.KYOUSUKI_AUTOPUBLISH_ENABLED == 'true' && vars.KYOUSUKI_CHANNEL_AUTHORIZED == 'true' && vars.KYOUSUKI_SOURCE_RIGHTS_APPROVED == 'true'
