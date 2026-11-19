@@ -795,7 +795,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 7825.18,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "経験投資は中身で選べ",
       "uploadedAt": "2026-11-19T21:59:46.477590+00:00",
       "videoId": "9HxdT_sfcXE"
@@ -1313,6 +1313,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:59:46.477665+00:00",
+  "updatedAt": "2026-11-19T21:59:47.456883+00:00",
   "version": 1
 }
