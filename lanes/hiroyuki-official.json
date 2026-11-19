@@ -772,6 +772,31 @@
       "uploadedAt": "2026-11-02T22:33:20.923177+00:00",
       "videoId": "AoabnsnL3zg"
     },
+    "de6864067ef0f8801b4c84e4": {
+      "attemptedAt": "2026-11-19T21:59:42.812954+00:00",
+      "confidence": 0.86,
+      "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
+      "design": {
+        "template": "ronpa",
+        "variant": 0
+      },
+      "editorialDigest": "9fed5f0d89b7a66aecbedfcd43d990d215cc3bb99ef6a0adb7da87ddf8026431",
+      "end": 7899.528,
+      "fingerprint": "de6864067ef0f8801b4c84e4",
+      "mediaAudit": {
+        "audioChannels": 2,
+        "durationSeconds": 74.39,
+        "height": 1920,
+        "sizeBytes": 21904131,
+        "width": 1080
+      },
+      "publishAt": "2026-11-25T03:00:00Z",
+      "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
+      "sourceVideoId": "J6zIxwaSdo0",
+      "start": 7825.18,
+      "status": "uploading",
+      "title": "経験投資は中身で選べ"
+    },
     "e01a102e85ff788635f69d09": {
       "attemptedAt": "2026-11-07T18:34:41.871080+00:00",
       "confidence": 0.82,
@@ -1285,6 +1310,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:56:21.905961+00:00",
+  "updatedAt": "2026-11-19T21:59:42.812963+00:00",
   "version": 1
 }
