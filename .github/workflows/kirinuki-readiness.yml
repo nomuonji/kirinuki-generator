@@ -43,7 +43,18 @@ jobs:
         run: python -m pip install --disable-pip-version-check google-api-python-client google-auth-httplib2 google-auth-oauthlib
       - name: Inspect configuration and read-only destination authorization
         run: python -m scripts.kirinuki_readiness --output readiness.json --verify-oauth
+      - name: Reject false-green production status
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r = json.loads(Path('readiness.json').read_text(encoding='utf-8'))
+          if not r['productionReadyByConfiguration']:
+              print('::error::Hiroyuki publisher blocked: ' + ', '.join(r['blockers']))
+              raise SystemExit(1)
+          PY
       - name: Attach redacted readiness report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kirinuki-production-readiness
