@@ -1245,7 +1245,42 @@
     },
     "J6zIxwaSdo0": {
       "attemptedAt": "2026-11-19T20:56:31.328703+00:00",
-      "status": "processing",
+      "completedAt": "2026-11-19T21:59:48.531466+00:00",
+      "outcomes": [
+        {
+          "key": "575fdb064cb70821bde167f2",
+          "status": "uncertain"
+        },
+        {
+          "key": "9e7ea7549e74766133998004",
+          "status": "scheduled"
+        },
+        {
+          "key": "61b9f7843fab6bc5e64eaaf6",
+          "status": "scheduled"
+        },
+        {
+          "key": "1ab3e9475e238131ade20a2a",
+          "status": "scheduled"
+        },
+        {
+          "key": "078cdd444fb08cea1d8524ce",
+          "status": "scheduled"
+        },
+        {
+          "key": "b9ae2e34359cee117e8e80a4",
+          "status": "scheduled"
+        },
+        {
+          "key": "4630b991c816c20c4c311120",
+          "status": "uncertain"
+        },
+        {
+          "key": "de6864067ef0f8801b4c84e4",
+          "status": "scheduled"
+        }
+      ],
+      "status": "completed",
       "title": "日本酒造り4日目だよ。"
     },
     "R9fFru7ST-o": {
@@ -1313,6 +1348,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:59:47.456883+00:00",
+  "updatedAt": "2026-11-19T21:59:48.531488+00:00",
   "version": 1
 }
