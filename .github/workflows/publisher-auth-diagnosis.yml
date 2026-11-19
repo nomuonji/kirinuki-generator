@@ -1,0 +1,82 @@
+name: Kirinuki publisher credential diagnosis
+on:
+  pull_request:
+    paths: ['.github/workflows/publisher-auth-diagnosis.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DEST_H: ${{ vars.KIRINUKI_DESTINATION_CHANNEL_ID || secrets.KIRINUKI_DESTINATION_CHANNEL_ID }}
+      DEST_Y: ${{ vars.KYOUSUKI_DESTINATION_CHANNEL_ID }}
+      H_ID: ${{ secrets.YT_CLIENT_ID_HIROYUKI }}
+      H_SECRET: ${{ secrets.YT_CLIENT_SECRET_HIROYUKI }}
+      H_REFRESH: ${{ secrets.YT_REFRESH_TOKEN_HIROYUKI }}
+      G_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      G_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      G_REFRESH: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      O_ID: ${{ secrets.YOUTUBE_OAUTH_CLIENT_ID }}
+      O_SECRET: ${{ secrets.YOUTUBE_OAUTH_CLIENT_SECRET }}
+      O_REFRESH: ${{ secrets.YOUTUBE_OAUTH_REFRESH_TOKEN }}
+      K_ID: ${{ secrets.KIRINUKI_YOUTUBE_CLIENT_ID }}
+      K_SECRET: ${{ secrets.KIRINUKI_YOUTUBE_CLIENT_SECRET }}
+      K_REFRESH: ${{ secrets.KIRINUKI_YOUTUBE_REFRESH_TOKEN }}
+      Y_ID: ${{ secrets.YT_CLIENT_ID_KYOUSUKI }}
+      Y_SECRET: ${{ secrets.YT_CLIENT_SECRET_KYOUSUKI }}
+      Y_REFRESH: ${{ secrets.YT_REFRESH_TOKEN_KYOUSUKI }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check existing OAuth bundles without outputting credentials
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, json, urllib.request, urllib.parse, urllib.error
+          def check(cid, secret, refresh, dest):
+              try:
+                  data=urllib.parse.urlencode({'client_id':cid,'client_secret':secret,'refresh_token':refresh,'grant_type':'refresh_token'}).encode()
+                  with urllib.request.urlopen('https://oauth2.googleapis.com/token',data=data,timeout=12) as resp:
+                      token=json.load(resp)['access_token']
+                  req=urllib.request.Request('https://www.googleapis.com/youtube/v3/channels?part=id&mine=true',headers={'Authorization':'Bearer '+token})
+                  with urllib.request.urlopen(req,timeout=12) as resp:
+                      ids=[x['id'] for x in json.load(resp).get('items',[])]
+                  return 'verified' if dest in ids else 'channel_mismatch'
+              except urllib.error.HTTPError as exc:
+                  try:
+                      body=json.load(exc)
+                      code=body.get('error','')
+                      if code in ('unauthorized_client','invalid_client','invalid_grant','invalid_scope','temporarily_unavailable'):
+                          return code
+                  except Exception:
+                      pass
+                  return 'http_'+str(exc.code)
+              except Exception as exc:
+                  return type(exc).__name__
+          for lane, family, clients, refreshes in [('hiroyuki','H',['H','G','O','K'],['H','G','O','K']),('kyousuki','Y',['Y'],['Y'])]:
+              dest=os.environ.get('DEST_'+family,'').strip()
+              candidates=[(f,f) for f in clients]
+              if lane=='hiroyuki':
+                  candidates += [(f,'H') for f in ('G','O','K')]
+              seen=set()
+              stats={}
+              for client, token in candidates:
+                  parts=tuple(os.environ.get(k,'').strip() for k in (client+'_ID',client+'_SECRET',token+'_REFRESH'))
+                  label=client+'_client_'+token+'_refresh'
+                  if not dest:
+                      stats[label]='destination_missing'
+                  elif not all(parts):
+                      stats[label]='incomplete'
+                  elif parts in seen:
+                      stats[label]='duplicate'
+                  else:
+                      seen.add(parts)
+                      stats[label]=check(*parts,dest)
+                      if stats[label]=='verified':
+                          break
+              print('PUBLISHER_AUTH',json.dumps({'lane':lane,'destinationConfigured':bool(dest),'candidates':stats,'verified': 'verified' in stats.values()}),flush=True)
+          PY
