@@ -790,12 +790,15 @@
         "sizeBytes": 21904131,
         "width": 1080
       },
+      "privacyStatus": "private",
       "publishAt": "2026-11-25T03:00:00Z",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 7825.18,
-      "status": "uploading",
-      "title": "経験投資は中身で選べ"
+      "status": "verification_pending",
+      "title": "経験投資は中身で選べ",
+      "uploadedAt": "2026-11-19T21:59:46.477590+00:00",
+      "videoId": "9HxdT_sfcXE"
     },
     "e01a102e85ff788635f69d09": {
       "attemptedAt": "2026-11-07T18:34:41.871080+00:00",
@@ -1310,6 +1313,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:59:42.812963+00:00",
+  "updatedAt": "2026-11-19T21:59:46.477665+00:00",
   "version": 1
 }
