@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "sourceRunId": 44717083325,
+  "items": [
+    {
+      "name": "kyousuki_v2_ep2_clip_001.mp4",
+      "sha256": "bb6e5ecd908f75d6cb4e907046fcdcbfb320c45615fee8e93be00ebbfc01cea9",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_002.mp4",
+      "sha256": "8bfee1738ac8b5508e8f3b9d8957c87a83d77616ca783fd6b4e8107173a4478a",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_003.mp4",
+      "sha256": "7cc398880c379e205e3ad7ede1fe0a163469adfa353412a67ca08b7d8626dbc5",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_004.mp4",
+      "sha256": "29cc95c5f72f67dfb37f03f9ee7a832090dbf611fba793025e763975909d807e",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_005.mp4",
+      "sha256": "da277fa22589556a80f630ac42718cb36ac706a2e3e1453e22243d6f9b4acb6d",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_006.mp4",
+      "sha256": "f3aad3df3f80770e24799d65e7c06336c65b46bfaaf4298a4354c8de6378e0e5",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_001.mp4",
+      "sha256": "d6b892a92d4c75bd74d1a1f4212c75ff914954c92cf7542299bab6250932605f",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_002.mp4",
+      "sha256": "9c1eb8fb8eaa8ee979c7c5353898c39c0d8deadcb2f71734cb4f9138f0b4a83e",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_003.mp4",
+      "sha256": "48602e5adc76c42eb22627397ef4605a5f756b28cae7cf16a1502ab4973706d3",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_004.mp4",
+      "sha256": "011c56e8e9d68c9da2e24bb193a97989c5e9e93417ee824f3a3a3f5f511a5ad3",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_005.mp4",
+      "sha256": "53c90ac80b7d69793c0c75113c13c6eacaead06551d8d5a172264aada02fb2eb",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_006.mp4",
+      "sha256": "eed20bc52c28eb5f5b2157194cfce5e6f90a4d1cbae54b13e32d85caea9c91f1",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (visual review of all 36 sampled source-render frames)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44717083325/artifacts/14620147949",
+      "notes": "Original full landscape footage retained in vertical format; original white cat overlay covers top-edge repost label; no face or caption occlusion observed in sampled frames; source identity and audio/video/timing passed."
+    }
+  ]
+}
