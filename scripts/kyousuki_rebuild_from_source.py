@@ -194,7 +194,7 @@ def ass_file(subtitles, seconds, path, hook):
 
 
 def render_episode_cut(source, mascot, record, destination, workdir):
-    from packages.kyousuki_researched_telop import render_ass
+    from packages.kyousuki_researched_telop import render_ass, telop_variant
     duration=record["endSeconds"]-record["startSeconds"]
     if duration<=0: raise ValueError("Invalid duration")
     stream=next((v for v in probe(source).get("streams",[]) if v.get("codec_type")=="video"),None)
@@ -210,7 +210,7 @@ def render_episode_cut(source, mascot, record, destination, workdir):
           seconds=duration,output=subtitles,
           hook=props.get("topRichText"),
           punchline=props.get("bottomRichText"),
-          video_top=top,video_height=height,variant=props.get("variant") or 0,
+          video_top=top,video_height=height,variant=telop_variant(record["episodeKey"],record["index"]),
           reactions=props.get("reactionTimeline") or [])
 
     # 2026-11-18 YouTube Studio research: black canvas, bold two-tone editorial
@@ -292,6 +292,7 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "subtitleBottomMargin":int(1920-layout["spokenCaptionBottom"]),
          "captionWrapped":True,"hookWrapped":True,
          "template":"telop","variant":layout["variant"],
+         "legacyVariant":data.get("variant"),
          "researchRef":"docs/design/README.md (2026-11-18)",
          "punchlineText":str(data.get("bottomRichText") or "").replace("**","")}
     # A v1 source cut may round up its final subtitle by a handful of frames.
@@ -306,6 +307,8 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
         if clean["endFrame"]>int(clean.get("startFrame",0)):
             timeline.append(clean)
     meta={"renderSpecVersion":2,"videoFileName":stem+".mp4",
+          "template":"telop","variant":layout["variant"],
+          "legacyDesignVariant":data.get("variant"),
           "topRichText":data.get("topRichText"),"bottomRichText":data.get("bottomRichText"),
           "kirinukiAudit":audit,"stockMigration":mig,
           "subtitleTimeline":timeline,
