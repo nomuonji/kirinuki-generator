@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 from packages.kyousuki_sources import approval_records, load_registry
-from packages.publish_scheduler import aware, eligible_to_post, reserve_slots, utc_now
+from packages.publish_scheduler import aware, reserve_slots, utc_now
 
 OFFICIAL_CHANNEL = "UCzXVsEc1h2Elljge0fnQYRg"
 BVID = re.compile(r"BV[A-Za-z0-9]{10}")
@@ -119,7 +119,10 @@ def readiness():
     folder=env.get("GDRIVE_PARENT_FOLDER_ID","")
     destination=env.get("YOUTUBE_DESTINATION_CHANNEL_ID","")
     # No arbitrary yes/no activation flags. Verify OAuth identity and content.
-    enabled,why=eligible_to_post(env)
+    oauth_keys=("YOUTUBE_CLIENT_ID","YOUTUBE_CLIENT_SECRET",
+                "YOUTUBE_REFRESH_TOKEN","YOUTUBE_DESTINATION_CHANNEL_ID")
+    missing_keys=[key for key in oauth_keys if not str(env.get(key) or "").strip()]
+    enabled,why=(False, "missing: "+", ".join(missing_keys)) if missing_keys else (True,"oauth_configured")
     report={"enabledByConfiguration":enabled,"activation":why,
         "approvedSources":sum(r["stockFolderId"]==folder for r in approval_records(registry)),
         "destinationConfigured":bool(destination),
