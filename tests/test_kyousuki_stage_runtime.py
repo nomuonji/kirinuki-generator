@@ -63,7 +63,7 @@ class StagingPreflight(unittest.TestCase):
                 self.assertEqual(result["status"], "review_required")
                 meta = json.loads((work / "kyousuki_v2_ep2_clip_001.json").read_text())
                 self.assertEqual(meta["stockMigration"]["sourceBvid"],record["sourceBvid"])
-                self.assertEqual(meta["stockMigration"]["designVersion"],7)
+                self.assertEqual(meta["stockMigration"]["designVersion"],8)
                 self.assertEqual(meta["template"],"telop")
                 self.assertIn(meta["variant"],(0,1,2))
                 self.assertIsInstance(meta["designSeed"],int)
