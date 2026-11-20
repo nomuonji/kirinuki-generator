@@ -75,24 +75,28 @@ def archive_pairs(drive, folder):
     return records
 
 def make_cat(destination):
+    """Opaque original loaf-cat, 320x96, covers only top-edge uploader mark."""
     from PIL import Image,ImageDraw
-    out=Image.new("RGBA",(210,210),(0,0,0,0))
+    out=Image.new("RGBA",(320,96),(0,0,0,0))
     dr=ImageDraw.Draw(out)
-    dr.ellipse((12,16,197,200),fill=(251,239,226,245),outline=(65,63,73,255),width=6)
-    dr.polygon([(29,69),(34,11),(91,48)],fill=(251,239,226,255))
-    dr.polygon([(119,48),(176,11),(181,69)],fill=(251,239,226,255))
-    dr.polygon([(43,49),(43,25),(74,48)],fill=(255,172,189,240))
-    dr.polygon([(139,48),(166,25),(167,49)],fill=(255,172,189,240))
-    dr.ellipse((52,84,71,116),fill=(60,74,99,255))
-    dr.ellipse((138,84,157,116),fill=(60,74,99,255))
-    dr.ellipse((61,89,68,97),fill="white")
-    dr.ellipse((147,89,154,97),fill="white")
-    dr.ellipse((28,113,63,135),fill=(255,166,188,170))
-    dr.ellipse((149,113,184,135),fill=(255,166,188,170))
-    dr.polygon([(99,116),(112,116),(105,124)],fill=(210,111,131,255))
-    dr.arc((82,117,128,146),10,168,fill=(60,74,99,255),width=4)
-    dr.line([(97,43),(110,17),(120,40)],fill=(115,177,117,255),width=7,joint="curve")
+    border=(55,64,83,255)
+    cream=(255,249,236,255)
+    dr.rounded_rectangle((1,15,319,95),radius=38,fill=cream,outline=border,width=4)
+    dr.ellipse((48,44,86,76),fill=(255,215,222,255))
+    dr.ellipse((117,32,155,66),fill=(249,222,181,255))
+    dr.polygon([(228,24),(244,0),(262,22)],fill=cream)
+    dr.polygon([(285,23),(306,0),(312,32)],fill=cream)
+    dr.polygon([(236,24),(247,9),(258,25)],fill=(255,174,189,255))
+    dr.polygon([(290,24),(303,10),(306,30)],fill=(255,174,189,255))
+    dr.ellipse((247,40,254,53),fill=border)
+    dr.ellipse((287,40,294,53),fill=border)
+    dr.ellipse((261,54,271,62),fill=(218,119,143,255))
+    dr.arc((251,55,284,75),5,170,fill=border,width=3)
+    dr.ellipse((225,56,240,68),fill=(255,172,190,200))
+    dr.ellipse((299,56,313,68),fill=(255,172,190,200))
+    dr.line([(81,77),(106,83),(128,76)],fill=border,width=3)
     out.save(destination)
+
 
 def ass_time(seconds):
     cs=max(0,int(round(seconds*100)))
@@ -142,26 +146,20 @@ def render_episode_cut(source, mascot, record, destination, workdir):
     # Blurred full-height fill eliminates black bars. Contained foreground preserves
     # multiple subjects and facial expressions, without the portrait centre-crop loss.
     watermark_fallback = record["sourceUploaderMid"] == SOURCE_BLACK
-    clean_foreground = (
-        # Clean the known uploader+platform bug from a small upper-right
-        # corner of the original footage. The cat is placed outside the
-        # picture to avoid hiding anyone's expression or the programme captions.
-        "[b]scale=1080:-2,setsar=1,"
-        "delogo=x=735:y=2:w=340:h=78:show=0,"
-        "delogo=x=830:y=558:w=245:h=48:show=0[fg];"
-        if watermark_fallback else "[b]scale=1080:-2,setsar=1[fg];"
-    )
     base=(
        "[0:v]fps=30,split=2[a][b];"
        "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
        "boxblur=16:2,eq=brightness=-0.35[bg];"
-       +clean_foreground+
+       "[b]scale=1080:-2,setsar=1[fg];"
        f"[bg][fg]overlay=0:{top}:shortest=1[scene];"
     )
     if watermark_fallback:
+        # The opaque cat's horizontal body hides the 320px-wide uploader
+        # imprint only along the first 96px of the landscape scene. No faces
+        # or subtitles are covered; no expensive per-frame inpainting.
         filters=base+(
-          "[1:v]scale=140:140[mascot];"
-          f"[scene][mascot]overlay=W-w-28:{top-156}:shortest=1[decor];"
+          "[1:v]format=rgba[mascot];"
+          f"[scene][mascot]overlay=W-w-2:{top}:shortest=1[decor];"
           f"[decor]ass=filename='{subtitles}'[v]"
         )
     else:
@@ -218,7 +216,7 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "oldDriveMp4Id":record["oldDriveMp4Id"],
          "oldDriveJsonId":record["oldDriveJsonId"],
          "cutStartSeconds":record["startSeconds"],"cutEndSeconds":record["endSeconds"],
-         "rebuildMethod":"source_episode_ffmpeg_v4_corner_delogo_face_safe",
+         "rebuildMethod":"source_episode_ffmpeg_v4_catbadge_face_safe",
          "newMp4Sha256":hashed,"newSizeBytes":filename.stat().st_size,
          "fallbackMascot":record["sourceUploaderMid"]==SOURCE_BLACK,
          "manualPostedExcluded":False,"visualReviewEvidence":"raw-rebuild-proof/"+stem,
