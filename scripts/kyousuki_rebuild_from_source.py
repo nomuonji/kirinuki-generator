@@ -219,8 +219,9 @@ def render_episode_cut(source, mascot, record, destination, workdir):
     watermark_fallback=record["sourceUploaderMid"]==SOURCE_BLACK
     base=(
         "[0:v]fps=30,split=2[a][b];"
-        "[a]scale=1080:1920:force_original_aspect_ratio=increase,"
-        "crop=1080:1920,boxblur=18:2,eq=brightness=-0.42[bg];"
+        "[a]scale=270:480:force_original_aspect_ratio=increase,"
+        "crop=270:480,boxblur=8:2,scale=1080:1920:flags=bicubic,"
+        "eq=brightness=-0.42[bg];"
         "[b]scale=1080:-2,setsar=1[fg];"
         f"[bg][fg]overlay=0:{top}:shortest=1[scene];"
         f"[scene]drawbox=x=0:y={top+height-120}:w=1080:h=120:"
