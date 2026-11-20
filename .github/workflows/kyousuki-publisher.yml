@@ -39,7 +39,6 @@ jobs:
       KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
       KIRINUKI_DIRECT_MODE: 'true'
       KIRINUKI_AUTOPUBLISH_ENABLED: ${{ vars.KYOUSUKI_AUTOPUBLISH_ENABLED }}
-      KIRINUKI_SOURCE_RIGHTS_APPROVED: ${{ vars.KYOUSUKI_SOURCE_RIGHTS_APPROVED }}
       KIRINUKI_CHANNEL_AUTHORIZED: ${{ vars.KYOUSUKI_CHANNEL_AUTHORIZED }}
       YOUTUBE_DESTINATION_CHANNEL_ID: ${{ vars.KYOUSUKI_DESTINATION_CHANNEL_ID }}
       YOUTUBE_CLIENT_ID: ${{ secrets.YT_CLIENT_ID_KYOUSUKI }}
@@ -70,7 +69,7 @@ jobs:
           fi
   publish:
     needs: verify
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_run' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.execute)) && vars.KYOUSUKI_AUTOPUBLISH_ENABLED == 'true' && vars.KYOUSUKI_CHANNEL_AUTHORIZED == 'true' && vars.KYOUSUKI_SOURCE_RIGHTS_APPROVED == 'true'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_run' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.execute)) && vars.KYOUSUKI_AUTOPUBLISH_ENABLED == 'true' && vars.KYOUSUKI_CHANNEL_AUTHORIZED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
