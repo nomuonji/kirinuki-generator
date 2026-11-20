@@ -210,7 +210,8 @@ def render_episode_cut(source, mascot, record, destination, workdir):
           seconds=duration,output=subtitles,
           hook=props.get("topRichText"),
           punchline=props.get("bottomRichText"),
-          video_top=top,video_height=height,variant=props.get("variant") or 0)
+          video_top=top,video_height=height,variant=props.get("variant") or 0,
+          reactions=props.get("reactionTimeline") or [])
 
     # 2026-11-18 YouTube Studio research: black canvas, bold two-tone editorial
     # hook, image dominant and uncropped, speech on clip bottom, punchline below.
