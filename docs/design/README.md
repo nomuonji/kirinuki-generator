@@ -10,7 +10,7 @@ Shorts in YouTube Studio's research tab (ショート動画 › 自分のジャ�
 - black canvas, no decoration;
 - a two-tone headline in heavy rounded gothic (M PLUS Rounded 1c 900), thick outline, lines
   alternating between two inks, emphasised words in a third, hugging the top of the clip;
-- the source title as a small kicker line above the headline;
+- omit the source/repost title kicker. The authored editorial hook (`topRichText`) **must stay**; it is not a source title.
 - the clip edge to edge, cropped to 4:3 (`zoom`) so faces are bigger, or full frame (`wide`);
 - the spoken line burned in over the bottom edge of the clip (white, black outline);
 - reactions as a tilted outlined cut-in on the clip;
@@ -19,6 +19,33 @@ Shorts in YouTube Studio's research tab (ショート動画 › 自分のジャ�
 Three variants rotate (pink glow / zoom, red-white / wide, lavender / zoom). The five themed
 templates below stay available: `KIRINUKI_DESIGN_POOL=all` (or a comma list such as
 `pop,cinema`) brings back the old rotation, and `KIRINUKI_DESIGN_TEMPLATE` still pins one.
+
+## 今日好き lane — research contract
+
+The 2026-11-18 YouTube Studio outlier research applies to `kirinuki-generator`
+even when the source is replayed with FFmpeg instead of Remotion:
+
+- Use the **authored** rich hook (`topRichText`) with two-tone heavy outlined letters,
+  highlighted `**words**`, and per-clip `variant`. Never composite
+  `sourceVideoTitle` or a Chinese uploader headline;
+- Keep participants' full frame visible and the scene edge-to-edge; avoid
+  unverified face-cutting zoom. Use black rather than a giant decorative band;
+- Put *spoken* subtitles over the lower edge of the scene (not below the visual),
+  readable in two or three lines; keep the *editorial punchline*
+  (`bottomRichText`) underneath the scene in the safe viewing area;
+- Use `reactionTimeline` only where there is a real timestamped reaction.
+  Do not invent reactions to satisfy a visual template;
+- Each clip retains its source episode, original hook and punchline, timestamped
+  subtitles, prior `template/variant`, and design seed. Quality review checks
+  all three text roles separately (hook, speech, payoff), plus first frame and
+  whether the hook is meaningfully fulfilled by the selected scene;
+- The fast FFmpeg migration uses `packages/kyousuki_researched_telop.py`,
+  while Remotion uses the existing `Telop` component. Both must preserve the
+  editorial hierarchy. `CleanShort` must not silently bypass the researched
+  `telop` layout.
+
+Observed examples support the *format*, not guaranteed reach. Public performance
+still requires YouTube retention / stayed-to-watch measurements.
 
 ## ひろゆき lane: `ronpa` (debate / news caption layout)
 
