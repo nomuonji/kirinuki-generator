@@ -38,7 +38,7 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
   const fontSize = Math.max(40, Math.min(65, Math.floor(900 / Math.max(10, characters / 1.65))));
   const showMascot = p.mascot?.enabled === true;
   const hook = (p.editorialHook ?? "").trim();
-  const hookLength = hook.replace(/\\*\\*/g,"").length;
+  const hookLength = hook.replace(/\*\*/g,"").length;
   // Only the authored editorial hook is shown; sourceVideoTitle and episode banners are never rendered.
   return (
     <AbsoluteFill style={{backgroundColor:"#080b15", overflow:"hidden"}}>
