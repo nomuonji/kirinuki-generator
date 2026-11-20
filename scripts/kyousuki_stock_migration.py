@@ -165,7 +165,7 @@ def main():
         ledger["items"].append(row)
     if args.execute:
         prior=find_file(drive,args.stock_folder,REPORT_NAME)
-        upload_json_data(drive,args.stock_folder,REPORT_NAME,ledger,prior["id"] if prior else None)
+        upload_json_data(drive,args.stock_folder,REPORT_NAME,json.dumps(ledger,ensure_ascii=False).encode("utf-8"),prior["id"] if prior else None)
     summary={"reviewed":len(items),"promoted":sum(i["status"]=="promoted" for i in ledger["items"]),
              "held":sum(i["status"]=="held" for i in ledger["items"]),
              "failed":sum(i["status"]=="failed" for i in ledger["items"])}
