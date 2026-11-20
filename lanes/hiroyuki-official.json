@@ -216,7 +216,7 @@
       "driveVideoId": "1kazYNkm59Rr5AiiSTKzlAKFHgwq8wrsW",
       "editorialDigest": "9fed5f0d89b7a66aecbedfcd43d990d215cc3bb99ef6a0adb7da87ddf8026431",
       "end": 7521.57,
-      "failure": "needs_provider_reconciliation",
+      "failure": "upload_absent_after_check",
       "fallbackAt": "2026-11-19T21:56:21.059256+00:00",
       "fingerprint": "4630b991c816c20c4c311120",
       "mediaAudit": {
@@ -227,11 +227,11 @@
         "width": 1080
       },
       "overflowSha256": "616e336324ada496dfc8633b8e99a21bb4a5ac84d7c89929e248718c454f5122",
-      "publishAt": "2026-11-25T03:00:00Z",
+      "releasedAt": "2026-11-20T07:40:34.629856+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 7417.17,
-      "status": "uncertain",
+      "status": "overflow",
       "title": "経営者の父に聞く自立の話"
     },
     "4e554921fa0b117f30cdbb47": {
@@ -302,7 +302,7 @@
       "driveVideoId": "1GE4QeLrXldqq-PCl0gYzPdLmeyC6rsIE",
       "editorialDigest": "9fed5f0d89b7a66aecbedfcd43d990d215cc3bb99ef6a0adb7da87ddf8026431",
       "end": 1235.7,
-      "failure": "needs_provider_reconciliation",
+      "failure": "upload_absent_after_check",
       "fallbackAt": "2026-11-19T21:35:09.366194+00:00",
       "fingerprint": "575fdb064cb70821bde167f2",
       "mediaAudit": {
@@ -313,11 +313,11 @@
         "width": 1080
       },
       "overflowSha256": "f76f80ac2b41cf1dab6567737d652583659ca30724066d35d55af202c4996838",
-      "publishAt": "2026-11-20T03:00:00Z",
+      "releasedAt": "2026-11-20T07:40:34.629896+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 1146.3,
-      "status": "uncertain",
+      "status": "overflow",
       "title": "AIが全生産しても物価は下がらない"
     },
     "61b9f7843fab6bc5e64eaaf6": {
@@ -522,12 +522,12 @@
         "sizeBytes": 17964970,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-20T03:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 2657.32,
-      "status": "scheduled",
+      "status": "published",
       "title": "宇宙の終わりに時間は止まるのか",
       "uploadedAt": "2026-11-19T21:38:30.946684+00:00",
       "videoId": "Cykyl9RBlXI"
@@ -1348,6 +1348,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-19T21:59:48.531488+00:00",
+  "updatedAt": "2026-11-20T07:40:34.629925+00:00",
   "version": 1
 }
