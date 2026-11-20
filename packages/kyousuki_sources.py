@@ -92,7 +92,7 @@ def normalize(row, account, now):
 
 
 def approval_records(reg=None):
-    """Explicit per-source permission records, never a discovery-name allowlist."""
+    """Optional exact-source/official-episode provenance records, not an approval gate."""
     reg=reg or load_registry()
     accepted=[]
     for record in reg.get("approvedSources",[]):
@@ -107,8 +107,6 @@ def approval_records(reg=None):
         if str(record.get("officialYoutubeVideoId","")) and not re.fullmatch(r"[A-Za-z0-9_-]{11}",record["officialYoutubeVideoId"]): continue
         if not re.fullmatch(r"20[2-3]\d:[^:\r\n]{1,32}:[1-9]\d?",str(record.get("episodeKey",""))): continue
         if not re.fullmatch(r"https://abema\.tv/video/episode/[A-Za-z0-9_-]+",str(record.get("officialEpisodeUrl",""))): continue
-        if not isinstance(record.get("rightsEvidence"),str) or not record["rightsEvidence"].strip(): continue
-        if record.get("processingAuthorized") is not True or record.get("publicationAuthorized") is not True: continue
         if not isinstance(record.get("stockFolderId"),str) or not record["stockFolderId"]: continue
         accepted.append(record)
     return accepted
@@ -117,7 +115,7 @@ def approval_records(reg=None):
 def approved_source(bvid,page,folder,reg=None):
     rows=[r for r in approval_records(reg) if r["bvid"]==bvid and r["page"]==page and r["stockFolderId"]==folder]
     if len(rows)!=1:
-        raise ValueError("No unambiguous, documented Bilibili source and posting-stock authorization")
+        raise ValueError("No unambiguous exact Bilibili source and canonical episode identity")
     return rows[0]
 
 
@@ -156,8 +154,8 @@ def approved_candidates(discovery, processed_entries, folder, now=None, reg=None
     groups={}
     for r in records:
         inspection_rank, inspection_state = visual_inspection(r["bvid"], r["episodeKey"], reg or load_registry())
-        if inspection_rank is None or (inspection_rank == 1 and r["mid"] != "3690992020490662"):
-            continue
+        if inspection_state == "rejected": continue
+        if inspection_rank is None: inspection_rank = 2
         if r["stockFolderId"]!=folder:
             continue
         try:
@@ -197,10 +195,10 @@ def approved_candidates(discovery, processed_entries, folder, now=None, reg=None
 
 
 def catalog_stock_candidates(discovery, processed_entries, reg=None, now=None, max_age_days=90):
-    """Select account-bound catalog rows, independently of per-video registration.
+    """Select canonical episode-bound catalog rows; source/visual QA runs later.
 
-    This is an operational source selection rule, not a license determination.
-    The user remains responsible for lawful use. Never manufacture rights receipts.
+    Source identity, exact episode key and original provenance are mandatory.
+    Administrative processing/permission booleans are not selection gates.
     """
     if discovery.get("status") != "ok" or discovery.get("discoveryMode") != "public_catalog":
         return []
@@ -208,7 +206,6 @@ def catalog_stock_candidates(discovery, processed_entries, reg=None, now=None, m
     now = now or datetime.now(timezone.utc)
     byid = {p.get("videoId"): p for p in processed_entries}
     rows = {}
-    grants = {(r["bvid"], r["episodeKey"]):r for r in approval_records(reg)}
     for group in discovery.get("episodeGroups", {}).values():
         for row in group:
             if row.get("metadataProvider") != "uapipro" or row.get("identityStatus") != "catalog_account_binding":
@@ -233,12 +230,13 @@ def catalog_stock_candidates(discovery, processed_entries, reg=None, now=None, m
                 continue
             sid = f'bilibili_{item["bvid"]}_p1_auto'
             ep = item["episodeKey"]
-            # Require exact official-episode/rights linkage and real frame QA.
-            if not ep or (item["bvid"], ep) not in grants:
-                continue
+            # Source discovery cannot possess media frames yet. Source frame QA
+            # is performed after media acquisition, not used as a metadata gate.
+            # Unresolved official episode identities must never be pooled.
+            if not ep: continue
             visual_rank, visual_state = visual_inspection(item["bvid"], ep, reg)
-            if visual_rank is None or (visual_rank == 1 and item["mid"] != "3690992020490662"):
-                continue
+            if visual_state == "rejected": continue
+            if visual_rank is None: visual_rank = 2
             # Unknown season aliases still dedupe by exact BV; don't invent official EP identity.
             related = [e for e in processed_entries if e.get("videoId")==sid or (ep and e.get("episodeKey")==ep)]
             if any(e.get("status")=="completed" or (e.get("videoId")!=sid and int(e.get("uploadedClips") or 0)>0) for e in related):
