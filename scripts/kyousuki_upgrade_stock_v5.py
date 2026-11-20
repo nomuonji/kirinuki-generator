@@ -105,7 +105,7 @@ def preflight(drive, manifest):
         olda=old.get("kirinukiAudit") or {}
         if (newmg.get("designVersion")!=5 or
             newmg.get("rebuildMethod")!=RENDERER or
-            newmg.get("qaStatus")!="review_required" or
+            newmg.get("qaStatus") not in ("review_required","pass") or
             newmg.get("mediaIntegrityQa")!="pass" or
             newmg.get("subtitleBottomMargin")!=516 or
             not str(newmg.get("hookText") or "").strip()):
