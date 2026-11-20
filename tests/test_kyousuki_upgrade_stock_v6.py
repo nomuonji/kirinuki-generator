@@ -4,7 +4,7 @@ from scripts.kyousuki_upgrade_stock_v6 import EXPECTED, RENDERER, validated_rece
 
 
 def fixture():
-    return {"schemaVersion":5,"sourceRuns":{"2-3":44761229002,"4-5":44761229001},
+    return {"schemaVersion":6,"sourceRuns":{"2-3":44761229002,"4-5":44761229001},
       "items":[{"name":name,"sha256":"a"*64,"visualQa":"pass",
                 "reviewedBy":"test","screenshots":["beginning.png","middle.png","end.png"],
                 "artifactUrl":"https://github.com/nomuonji/kirinuki-generator/actions/runs/1"}
