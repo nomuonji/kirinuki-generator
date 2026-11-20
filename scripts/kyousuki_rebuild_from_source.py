@@ -218,8 +218,10 @@ def render_episode_cut(source, mascot, record, destination, workdir):
     # We only remove the source-video/repost title kicker, not authored commentary.
     watermark_fallback=record["sourceUploaderMid"]==SOURCE_BLACK
     base=(
-        "[0:v]fps=30,scale=1080:-2,setsar=1[fg];"
-        "color=c=black:s=1080x1920:r=30[bg];"
+        "[0:v]fps=30,split=2[a][b];"
+        "[a]scale=1080:1920:force_original_aspect_ratio=increase,"
+        "crop=1080:1920,boxblur=18:2,eq=brightness=-0.42[bg];"
+        "[b]scale=1080:-2,setsar=1[fg];"
         f"[bg][fg]overlay=0:{top}:shortest=1[scene];"
     )
     if watermark_fallback:
@@ -283,14 +285,14 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "oldDriveMp4Id":record["oldDriveMp4Id"],
          "oldDriveJsonId":record["oldDriveJsonId"],
          "cutStartSeconds":record["startSeconds"],"cutEndSeconds":record["endSeconds"],
-         "rebuildMethod":"source_episode_ffmpeg_v6_researched_telop",
+         "rebuildMethod":"source_episode_ffmpeg_v7_researched_telop_soft_background",
          "newMp4Sha256":hashed,"newSizeBytes":filename.stat().st_size,
          "fallbackMascot":record["sourceUploaderMid"]==SOURCE_BLACK,
          "manualPostedExcluded":False,"visualReviewEvidence":"raw-rebuild-proof/"+stem,
-         "subtitleCount":layout["subtitleCount"],"designVersion":6,
+         "subtitleCount":layout["subtitleCount"],"designVersion":7,
          "hookText":re.sub(r"\*\*","",str(data.get("topRichText") or "")),
          "subtitleBottomMargin":int(1920-layout["spokenCaptionBottom"]),
-         "captionWrapped":True,"hookWrapped":True,
+         "captionWrapped":True,"hookWrapped":True,"deadSpaceTreatment":"dark_source_blur",
          "template":"telop","variant":layout["variant"],
          "legacyVariant":data.get("variant"),
          "researchRef":"docs/design/README.md (2026-11-18)",
