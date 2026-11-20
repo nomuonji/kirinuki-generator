@@ -109,16 +109,15 @@ class SourcePoolTest(unittest.TestCase):
         self.assertEqual(report["diagnostics"][-1]["httpStatus"],429)
 
 
-    def test_catalog_selection_requires_grant_and_frame_review(self):
+    def test_catalog_selection_does_not_require_rights_approval(self):
         cfg=copy.deepcopy(BASE)
         row={"bvid":A,"title":"今天喜欢上你了2026 韩国水原篇 #5","duration":3144,
              "publish_time":int((NOW-timedelta(days=1)).timestamp()),"state":0,"is_ugc_pay":0}
         report=catalog_discovery(cfg,NOW,fetch=lambda mid:([row],5) if mid=="123" else ([],5))
-        self.assertEqual(catalog_stock_candidates(report,[],cfg,NOW),[])
-        cfg["approvedSources"]=[grant(A,"黑田凖一","123")]
-        self.assertEqual(catalog_stock_candidates(report,[],cfg,NOW),[])
-        cfg["visualInspections"]=[inspection(A)]
         result=catalog_stock_candidates(report,[],cfg,NOW)
+        self.assertEqual(result[0]["visualQaStatus"],"unreviewed")
+        cfg["approvedSources"]=[grant(A,"黑田凖一","123")]
+        cfg["visualInspections"]=[inspection(A)]
         self.assertEqual(len(result),1)
         self.assertEqual(result[0]["mid"],"123")
         self.assertEqual(result[0]["bvid"],A)
