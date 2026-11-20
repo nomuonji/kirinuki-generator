@@ -1,0 +1,53 @@
+name: Kyousuki v6 researched-telop stock replacement
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/kyousuki_upgrade_stock_v6.py'
+      - 'tests/test_kyousuki_upgrade_stock_v6.py'
+      - 'configs/kyousuki_v6_visual_review.json'
+      - '.github/workflows/kyousuki-upgrade-stock-v6.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'configs/kyousuki_v6_visual_review.json'
+
+concurrency:
+  group: kyousuki-v6-stock-replacement
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 160
+    env:
+      GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+      GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+      GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install Drive dependencies
+        run: pip install --disable-pip-version-check google-api-python-client google-auth-httplib2 google-auth-oauthlib
+      - name: Verify all-23 signed-off manifest and safe upgrade rules
+        run: |
+          python -m py_compile scripts/kyousuki_upgrade_stock_v6.py
+          python -m unittest discover -s tests -p test_kyousuki_upgrade_stock_v6.py -v
+      - name: Validate 23 real hashes, archive v4, and activate new v6 pairs
+        if: github.event_name == 'push'
+        run: |
+          set -o pipefail
+          python -u -m scripts.kyousuki_upgrade_stock_v6 \
+            --manifest configs/kyousuki_v6_visual_review.json | tee migration-v6.log
+      - name: Upload migration receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kyousuki-v6-stock-migration
+          path: migration-v6.log
+          if-no-files-found: ignore
