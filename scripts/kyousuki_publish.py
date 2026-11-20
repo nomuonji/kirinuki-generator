@@ -28,8 +28,9 @@ def publication_item(metadata, folder, registry):
         return None
     # Editorial hooks + raised speech subtitles are mandatory before post.
     if (migration.get("qaStatus") != "pass" or migration.get("designVersion") != 5
-            or migration.get("rebuildMethod") != "source_episode_ffmpeg_v5_hook_high_subtitles"
-            or not str(migration.get("hookText") or "").strip()):
+            or migration.get("rebuildMethod") != "source_episode_ffmpeg_v5_hook_wrapped_high_subtitles"
+            or not str(migration.get("hookText") or "").strip()
+            or migration.get("captionWrapped") is not True):
         return None
     audit = metadata.get("kirinukiAudit") if isinstance(metadata, dict) else None
     if not isinstance(audit, dict):

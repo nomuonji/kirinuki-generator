@@ -130,6 +130,39 @@ def editorial_hook(raw):
     return hook
 
 
+def wrap_spoken_caption(caption):
+    """Prevent horizontal clipping on 1080px canvases for up to 61 JP glyphs.
+
+    Raised subtitles remain 516px above the bottom; large lines are broken
+    before display without changing timing or losing words.
+    """
+    size=len(caption)
+    if size<=16: font, limit = 58, 16
+    elif size<=34: font, limit = 52, 17
+    elif size<=55: font, limit = 46, 20
+    else: font, limit = 40, 23
+    pieces=[]
+    remaining=caption
+    while remaining:
+        if len(remaining)<=limit:
+            pieces.append(remaining)
+            break
+        limit_at=limit
+        # Japanese punctuation belongs to the preceding line whenever possible.
+        if len(remaining)>limit and remaining[limit] in "、。！？!?.,)」』":
+            limit_at=limit+1
+        else:
+            for cut in range(limit-1, max(8,limit-5), -1):
+                if remaining[cut-1] in "、。！？!?":
+                    limit_at=cut
+                    break
+        pieces.append(remaining[:limit_at])
+        remaining=remaining[limit_at:]
+    if len(pieces)>4:
+        raise ValueError("Spoken subtitle too long to display safely")
+    return r"{\fs"+str(font)+"}"+r"\N".join(pieces)
+
+
 def ass_file(subtitles, seconds, path, hook):
     """Keep the actual hook at top; move spoken captions 280 px above v4."""
     head=(
@@ -153,7 +186,7 @@ def ass_file(subtitles, seconds, path, hook):
         caption=str(obj.get("text") or "").strip()
         if not caption: continue
         caption=caption.replace("\\", "＼").replace("{","(").replace("}",")").replace("\n",r"\N")
-        rows.append(f"Dialogue: 1,{ass_time(start)},{ass_time(end)},Dialogue,,0,0,0,,{caption}")
+        rows.append(f"Dialogue: 1,{ass_time(start)},{ass_time(end)},Dialogue,,0,0,0,,{wrap_spoken_caption(caption)}")
         dialogue_count+=1
     if not dialogue_count: raise RuntimeError("No reusable spoken subtitles in archived clip")
     path.write_text(head+"\n".join(rows)+"\n",encoding="utf-8")
@@ -246,13 +279,13 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "oldDriveMp4Id":record["oldDriveMp4Id"],
          "oldDriveJsonId":record["oldDriveJsonId"],
          "cutStartSeconds":record["startSeconds"],"cutEndSeconds":record["endSeconds"],
-         "rebuildMethod":"source_episode_ffmpeg_v5_hook_high_subtitles",
+         "rebuildMethod":"source_episode_ffmpeg_v5_hook_wrapped_high_subtitles",
          "newMp4Sha256":hashed,"newSizeBytes":filename.stat().st_size,
          "fallbackMascot":record["sourceUploaderMid"]==SOURCE_BLACK,
          "manualPostedExcluded":False,"visualReviewEvidence":"raw-rebuild-proof/"+stem,
          "subtitleCount":layout["subtitleCount"],"designVersion":5,
          "hookText":re.sub(r"\*\*","",str(data.get("topRichText") or "")),
-         "subtitleBottomMargin":516}
+         "subtitleBottomMargin":516,"captionWrapped":True}
     # A v1 source cut may round up its final subtitle by a handful of frames.
     # Clamp the audit timeline to the actual re-rendered duration without
     # moving the start of a spoken line.
