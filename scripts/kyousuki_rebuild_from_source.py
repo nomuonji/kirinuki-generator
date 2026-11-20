@@ -23,6 +23,8 @@ from scripts.kyousuki_media_qa import inspect as inspect_media
 OLD_CLIP = re.compile(r"clip_(\d{3})_(\d+)-(\d+)\.mp4$")
 SOURCE_BLACK = "3690992020490662"
 EXPECTED_SOURCE = {
+    "2026:スウォン:2": ("BV1FNnZ6mEM3", SOURCE_BLACK),
+    "2026:スウォン:3": ("BV1VX4P6qEwC", SOURCE_BLACK),
     "2026:スウォン:4": ("BV1DzW86hE4H", SOURCE_BLACK),
     "2026:スウォン:5": ("BV11GsK6RE2u", SOURCE_BLACK),
 }
