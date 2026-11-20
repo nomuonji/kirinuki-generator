@@ -34,7 +34,7 @@ def publication_item(metadata, folder, registry):
     episode = audit.get("episodeKey")
     if (not isinstance(bvid,str) or not BVID.fullmatch(bvid)
             or not mid.isdigit() or not isinstance(episode,str)
-            or not re.fullmatch(r"20[2-3]\\d:[^:\\r\\n]{1,32}:[1-9]\\d?", episode)
+            or not re.fullmatch(r"20[2-3]\d:[^:\r\n]{1,32}:[1-9]\d?", episode)
             or not any(str(a.get("mid")) == mid for a in registry.get("accounts",[]))):
         return None
     source_url = audit.get("sourceVideoUrl") or ""
