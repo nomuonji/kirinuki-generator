@@ -37,7 +37,7 @@
     "今日好き"
   ],
   "approvedSources": [],
-  "approvalNote": "Accounts are discovery hints only. Each approvedSources record must identify an exact BV ID, verified uploader MID, exact official episode URL and canonical episode key, and documented redistribution/processing rights. Never infer permission from search results. See docs/kyousuki-source-pool.md.",
+  "approvalNote": "Optional source/official-episode provenance. Administrative rights-confirmation fields are recorded when available but are not required to discover or produce stock. Never claim a permission receipt exists when it does not.",
   "visualInspections": [],
-  "visualInspectionNote": "Frame inspection required per BV and canonical episode; do not infer clean video from uploader reputation. Each record requires bvid, episodeKey, at least three actual source timestamps, review state clean/fallback/reject, evidence URL, and rights grant. Fallback mascot does not grant reuse permission."
+  "visualInspectionNote": "Actual frames from each candidate must be sampled at multiple timestamps after downloading. Rank clean same-episode variants first; only use last-choice uploader with original mascot when removal is visually safe. Never infer visual status from uploader names."
 }
