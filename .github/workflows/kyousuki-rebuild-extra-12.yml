@@ -31,7 +31,7 @@ jobs:
       GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
       GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
       GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-      KYOUSUKI_REVIEW_FOLDER_ID: '1OZyuTrAelNSUMXXrYUoHGeUPFKcOoExX'
+      KYOUSUKI_REVIEW_FOLDER_ID: '1oPpE81OCFuBeeVpq6w-0S6umIZ0XGYaw'
       KYOUSUKI_QUARANTINE_FOLDER_ID: '1hui3CPo2uA42GbN5puJpW6xkBvY1F-ZY'
       PYTHONUNBUFFERED: '1'
     steps:
@@ -44,11 +44,11 @@ jobs:
           python - <<'PY'
           import os, re
           from pathlib import Path
-          source = Path("scripts/kyousuki_upgrade_stock_v7.py").read_text()
+          source = Path("scripts/kyousuki_upgrade_stock_v8.py").read_text()
           key = "REVIEW12"
           match = re.search(r'^'+key+r'="([^"]+)"', source, re.M)
           assert match, "v6 migration review ID missing"
-          assert match.group(1) == os.environ["KYOUSUKI_REVIEW_FOLDER_ID"], "Wrong v7 review folder"
+          assert match.group(1) == os.environ["KYOUSUKI_REVIEW_FOLDER_ID"], "Wrong v8 review folder"
           PY
       - name: Validate entrypoint and research design contract
         run: |
