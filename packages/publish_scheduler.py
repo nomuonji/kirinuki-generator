@@ -92,11 +92,15 @@ def rolling_uploads(entries, *, now=None, hours=24):
 
 
 def eligible_to_post(env) -> tuple[bool, str]:
-    """OAuth credentials and destination channel identity replace arbitrary toggles.
-
-    Real channel ownership must still be verified with channels.list(mine=True).
-    """
-    needed = ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
-              "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_DESTINATION_CHANNEL_ID")
-    missing = [key for key in needed if not str(env.get(key, "")).strip()]
-    return (False, "missing: "+", ".join(missing)) if missing else (True, "oauth_configured")
+    """All gates are explicit; none can be inferred from source MCN participation."""
+    gates = ("KIRINUKI_DIRECT_MODE", "KIRINUKI_AUTOPUBLISH_ENABLED",
+             "KIRINUKI_SOURCE_RIGHTS_APPROVED", "KIRINUKI_CHANNEL_AUTHORIZED")
+    missing = [key for key in gates if str(env.get(key, "")).lower() != "true"]
+    if missing:
+        return False, "inactive: " + ", ".join(missing)
+    secrets = ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
+               "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_DESTINATION_CHANNEL_ID")
+    missing = [key for key in secrets if not str(env.get(key, "")).strip()]
+    if missing:
+        return False, "missing: " + ", ".join(missing)
+    return True, "approved_configured"
