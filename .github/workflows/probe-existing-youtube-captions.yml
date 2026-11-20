@@ -1,0 +1,72 @@
+name: Probe existing YouTube captions for an exact video ID (no ASR)
+on:
+  pull_request:
+    paths:
+      - .github/workflows/probe-existing-youtube-captions.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing caption provider dependencies
+        run: python -m pip install -q --disable-pip-version-check python-dotenv requests youtube-transcript-api
+      - name: Check original YouTube caption API and existing RapidAPI fallback (no ASR)
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from transcribe_rapidapi import (
+              fetch_transcript_from_youtube, fetch_transcript_from_rapidapi_1,
+              fetch_transcript_from_rapidapi_2, _normalize_segments
+          )
+          VIDEO='4YSXNotY8QU'
+          print('SOURCE_VIDEO_ID='+VIDEO,flush=True)
+          # Original caption retrieval, never speech recognition.
+          data=fetch_transcript_from_youtube(VIDEO,['en','en-US'])
+          provider='youtube_transcript_api' if data else None
+          if not data:
+              print('YOUTUBE_CAPTION_DIRECT=unavailable_or_blocked',flush=True)
+              key=os.environ.get('RAPIDAPI_KEY','')
+              if key:
+                  print('EXISTING_RAPIDAPI_CREDENTIAL=present',flush=True)
+                  data=fetch_transcript_from_rapidapi_1(VIDEO,key,'en')
+                  if data: provider='rapidapi1_existing_caption_download'
+                  else:
+                      data=fetch_transcript_from_rapidapi_2(VIDEO,key)
+                      if data: provider='rapidapi2_existing_fallback_unverified_origin'
+              else:
+                  print('EXISTING_RAPIDAPI_CREDENTIAL=not_configured',flush=True)
+          if not data:
+              print('EXISTING_CAPTION_PIPELINE_RESULT=NO_DATA',flush=True)
+              raise SystemExit(0)  # Diagnostic, not an empty transcript success.
+          segments=_normalize_segments(data)
+          last=max((x['end'] for x in segments),default=0)
+          minutes=sorted(set(int(x['start']//600) for x in segments))
+          print('EXISTING_CAPTION_PIPELINE_RESULT=DATA_RETURNED',flush=True)
+          print('SOURCE_PROVIDER='+provider,flush=True)
+          print('CUE_COUNT='+str(len(segments)),flush=True)
+          print('LAST_END_SECONDS='+str(last),flush=True)
+          print('TEN_MINUTE_BINS='+json.dumps(minutes),flush=True)
+          body=json.dumps(segments,sort_keys=True,ensure_ascii=False).encode()
+          print('TEMP_CAPTION_SHA256='+hashlib.sha256(body).hexdigest(),flush=True)
+          print('TEMP_CAPTION_BYTES='+str(len(body)),flush=True)
+          plausible=len(segments)>50 and last>4000 and len(minutes)>=7
+          print('COVERAGE_PLAUSIBLE='+str(plausible).lower(),flush=True)
+          # RapidAPI may repackage existing captions, but provider origin is
+          # NOT sufficient to prove they are YouTube's exact original track.
+          print('PROVEN_YOUTUBE_ORIGINAL_TRACK='+str(provider=='youtube_transcript_api' and plausible).lower(),flush=True)
+          # Do not save text, publish, make an article, or upload artifacts.
+          del segments,body
+          PY
