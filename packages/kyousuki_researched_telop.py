@@ -118,7 +118,7 @@ def spoken_caption(text):
     return r"{\fs"+str(size)+"}"+r"\N".join(escape_ass(part) for part in pieces)
 
 def render_ass(*, subtitles, seconds, output, hook, punchline, video_top,
-               video_height, variant=0, fps=30):
+               video_height, variant=0, fps=30, reactions=None):
     """Return rendered dialogue count and layout receipt; no source title allowed."""
     video_bottom=video_top+video_height
     if not 0<video_top<video_bottom<1600:
@@ -138,7 +138,8 @@ def render_ass(*, subtitles, seconds, output, hook, punchline, video_top,
       "Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\n"
       "Style: Hook,Noto Sans CJK JP,80,&H00FFFFFF,&H00FFFFFF,&H00111111,&H00000000,-1,0,0,0,100,100,0,0,1,7,2,2,64,140,0,1\n"
       "Style: Speech,Noto Sans CJK JP,58,&H00FFFFFF,&H00FFFFFF,&H00111111,&H00000000,-1,0,0,0,100,100,0,0,1,5,2,2,64,140,0,1\n"
-      "Style: Punch,Noto Sans CJK JP,76,&H00FFFFFF,&H00FFFFFF,&H00111111,&H00000000,-1,0,0,0,100,100,0,0,1,6,2,8,64,140,0,1\n\n"
+      "Style: Punch,Noto Sans CJK JP,76,&H00FFFFFF,&H00FFFFFF,&H00111111,&H00000000,-1,0,0,0,100,100,0,0,1,6,2,8,64,140,0,1\n"
+      "Style: Reaction,Noto Sans CJK JP,53,&H0000E9FF,&H0000E9FF,&H00111111,&H00000000,-1,0,0,0,100,100,0,0,1,5,2,7,64,140,0,1\n\n"
       "[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
     )
     top_label=r"{\an2\pos(540,"+str(hook_y)+r")\fs"+str(hsize)+"}"+rich_ass(hlines,palette)
@@ -160,6 +161,18 @@ def render_ass(*, subtitles, seconds, output, hook, punchline, video_top,
         at=r"{\an2\pos(540,"+str(sub_bottom)+")}"
         rows.append(f"Dialogue: 1,{ass_time(first)},{ass_time(last)},Speech,,0,0,0,,{at+line}")
         count+=1
+    for reaction in reactions or []:
+        try:
+            start=max(0,int(reaction["startFrame"]))/fps
+            stop=min(seconds,(int(reaction["startFrame"])+int(reaction["durationInFrames"]))/fps)
+        except (KeyError,TypeError,ValueError):
+            continue
+        if stop<=start:continue
+        text=escape_ass(str(reaction.get("text") or "").strip())
+        if not text:continue
+        if len(text)>18:raise ValueError("Reaction cut-in is too long")
+        at=r"{\an7\pos(65,"+str(video_top+100)+")}"
+        rows.append(f"Dialogue: 2,{ass_time(start)},{ass_time(stop)},Reaction,,0,0,0,,{at+text}")
     if count==0:raise ValueError("No real spoken caption events")
     Path(output).write_text(header+"\n".join(rows)+"\n",encoding="utf-8")
     return {
