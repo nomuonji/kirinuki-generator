@@ -6,6 +6,7 @@ on:
       - 'scripts/kyousuki_rebuild_from_source.py'
       - 'packages/kyousuki_researched_telop.py'
       - 'tests/test_kyousuki_researched_telop.py'
+      - 'tests/test_kyousuki_stage_runtime.py'
       - 'apps/remotion/src/VideoWithBands.tsx'
       - 'apps/remotion/src/design/templates/Telop.tsx'
       - '.github/workflows/kyousuki-rebuild-from-source.yml'
@@ -66,6 +67,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install Pillow
+          python -m unittest discover -s tests -p test_kyousuki_stage_runtime.py -v
       - name: Replay all archived unposted cuts into review stock
         if: github.event_name != 'pull_request'
         run: |
