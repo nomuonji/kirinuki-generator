@@ -25,7 +25,7 @@ export type VideoWithBandsProps = {
 
 /** The composition ID stays stable, but every template now uses title-free media layout. */
 export const VideoWithBands: React.FC<VideoWithBandsProps> = (props) => {
-  const safePath = props.videoFileName.split("\\\\").join("/").replace(/^public\\//, "");
+  const safePath = props.videoFileName.split("\\").join("/").replace(/^public\//, "");
   return (
     <AbsoluteFill lang="ja">
       <CleanShort
