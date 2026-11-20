@@ -38,6 +38,7 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
   const fontSize = Math.max(40, Math.min(65, Math.floor(900 / Math.max(10, characters / 1.65))));
   const showMascot = p.mascot?.enabled === true;
   const hook = (p.editorialHook ?? "").trim();
+  const hookLength = hook.replace(/\\*\\*/g,"").length;
   // Only the authored editorial hook is shown; sourceVideoTitle and episode banners are never rendered.
   return (
     <AbsoluteFill style={{backgroundColor:"#080b15", overflow:"hidden"}}>
@@ -50,8 +51,10 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
       </div>
       {hook && (
         <div style={{position:"absolute",top:124,left:64,right:64,
-          zIndex:3,textAlign:"center",fontFamily:FONT.sans,fontSize:60,
+          zIndex:3,textAlign:"center",fontFamily:FONT.sans,
           fontWeight:900,color:"#fff",lineHeight:1.28,
+          fontSize:hookLength>19?54:hookLength>14?53:60,
+          overflowWrap:"anywhere",wordBreak:"break-word",
           textShadow:"0 3px 8px rgba(0,0,0,.9), 0 0 5px rgba(0,0,0,.9)"}}>
           {hook.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((chunk, i) => {
             const emph=chunk.startsWith("**") && chunk.endsWith("**");
