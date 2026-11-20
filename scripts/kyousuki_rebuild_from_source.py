@@ -18,6 +18,7 @@ from pathlib import Path
 
 from packages.shared.gdrive import get_drive_service, download_file_bytes, find_file, upload_file, upload_json_data
 from packages.quality_gate import verify_rendered_media
+from packages.kyousuki_researched_telop import render_ass, telop_variant, telop_design
 from scripts.kyousuki_media_qa import inspect as inspect_media
 
 OLD_CLIP = re.compile(r"clip_(\d{3})_(\d+)-(\d+)\.mp4$")
@@ -194,7 +195,6 @@ def ass_file(subtitles, seconds, path, hook):
 
 
 def render_episode_cut(source, mascot, record, destination, workdir):
-    from packages.kyousuki_researched_telop import render_ass, telop_variant, telop_design
     duration=record["endSeconds"]-record["startSeconds"]
     if duration<=0: raise ValueError("Invalid duration")
     stream=next((v for v in probe(source).get("streams",[]) if v.get("codec_type")=="video"),None)
