@@ -292,6 +292,10 @@ GitHub Actions の定期実行は、毎回フルパイプラインを回すの�
 `FALLBACK_MAX_SOURCE_AGE_DAYS`, `MAX_SOURCE_DURATION_MINUTES`,
 `FALLBACK_MAX_SOURCE_DURATION_MINUTES`, `MIN_SELECTION_SCORE`。
 
+## RapidAPI字幕キーの取り扱い
+
+字幕取得用の `RAPIDAPI_KEY` は**このリポジトリのGitHub Actions Repository Secret**で管理します。The Annotated Worldへキーを複製しないでください。字幕の手動診断（新たなASRなし）、Secretの適用範囲、PR実行の禁止、料金・クォータ確認、ローテーション手順は [RapidAPIキー管理ガイド](docs/rapidapi-key-management.md) を参照してください。
+
 ## YouTube ダウンロードの現在の構成
 
 GitHub Actions では、まず SaveTube CDN から完成した media bytes を取得します。ダウンロード後は `ffprobe` で video / audio の両 stream を検証します。
