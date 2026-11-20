@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from scripts.kyousuki_rebuild_from_source import ass_file, editorial_hook
+from scripts.kyousuki_rebuild_from_source import ass_file, editorial_hook, wrap_spoken_caption
 
 
 class KyousukiEditorialHookTests(unittest.TestCase):
@@ -19,6 +19,12 @@ class KyousukiEditorialHookTests(unittest.TestCase):
             self.assertIn("65,65,516,1",text)
             self.assertNotIn("今天喜欢上你了",text)
             self.assertIn("Dialogue: 0,0:00:00.00,0:00:04.00,Hook",text)
+
+    def test_long_spoken_line_is_wrapped_without_cutting_words(self):
+        spoken="ちょっと、絵もいいよ。適当。適当でっていうか、伝わるなら"
+        rendered=wrap_spoken_caption(spoken)
+        self.assertIn(r"\N",rendered)
+        self.assertEqual(rendered.split("}",1)[1].replace(r"\N",""),spoken)
 
     def test_hook_requires_editorial_text(self):
         with self.assertRaises(ValueError):
