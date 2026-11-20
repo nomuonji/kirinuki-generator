@@ -52,9 +52,11 @@ class SourcePoolTest(unittest.TestCase):
         report=discover(cfg,fetch=lambda kw:[result(A,"黑田凖一","999"),result(B,"backup","456","今日好き2026 水原篇 #5 予告")],now=NOW)
         self.assertEqual(report["candidateCount"],0)
         self.assertIsNone(episode_key("今日好き2026 新しい島編 #1"))
-    def test_explicit_grant_must_cover_publication(self):
-        cfg=copy.deepcopy(BASE); cfg["approvedSources"]=[{**grant(A,"黑田凖一","123"),"publicationAuthorized":False}]
-        with self.assertRaises(ValueError): approved_source(A,1,"test-only-folder",cfg)
+    def test_source_provenance_does_not_require_rights_receipts(self):
+        cfg=copy.deepcopy(BASE)
+        cfg["approvedSources"]=[{**grant(A,"黑田凖一","123"),
+            "publicationAuthorized":False, "processingAuthorized":False, "rightsEvidence":""}]
+        self.assertEqual(approved_source(A,1,"test-only-folder",cfg)["bvid"],A)
 
 
     def test_index_hints_are_untrusted_and_stale_is_not_success(self):
