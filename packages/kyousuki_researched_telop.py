@@ -23,6 +23,22 @@ VARIANTS = (
      "hl": ("#FF5FA8", "#111111"), "punch": ("#FFFFFF", "#B45CFF")},
 )
 
+def telop_variant(episode_key, clip_index):
+    """Rotate the three researched inks across a deterministic 23-video sequence.
+
+    Archived v1 metadata had variant=1 on all 23 clips, contrary to the
+    2026-11-18 rotation contract. Preserve that original value in provenance
+    but assign a new explicit v6 variant for rendering.
+    """
+    ep=int(str(episode_key).rsplit(":",1)[-1])
+    offsets={2:0,3:6,4:12,5:17}
+    index=int(clip_index)
+    maximum={2:6,3:6,4:5,5:6}
+    if ep not in offsets or not 1<=index<=maximum[ep]:
+        raise ValueError("Unexpected canonical episode/clip for stock rotation")
+    return (offsets[ep]+index-1)%len(VARIANTS)
+
+
 def ass_color(css):
     rgb=css.lstrip("#")
     if not re.fullmatch(r"[a-fA-F0-9]{6}",rgb):
