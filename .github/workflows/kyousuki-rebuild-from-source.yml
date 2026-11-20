@@ -26,7 +26,7 @@ jobs:
       GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
       GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
       GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-      KYOUSUKI_REVIEW_FOLDER_ID: '1yW0sZaPHLpW2cBeHeb5hgZMkKjpDzHvv'
+      KYOUSUKI_REVIEW_FOLDER_ID: '1LkFnSKkKVPJFrpCAhdIp_ypgIGPP67gx'
       KYOUSUKI_QUARANTINE_FOLDER_ID: '1WXqO4BN_6TlFpCdcJduFHd6lNtKSIFXU'
       PYTHONUNBUFFERED: '1'
     steps:
@@ -36,30 +36,24 @@ jobs:
           python-version: '3.11'
       - name: Validate entrypoint
         run: python -m py_compile scripts/kyousuki_rebuild_from_source.py
-      - uses: actions/setup-node@v4
-        if: github.event_name != 'pull_request'
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: apps/remotion/package-lock.json
       - name: Install FFmpeg and Tesseract
         if: github.event_name != 'pull_request'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-jpn tesseract-ocr-chi-sim
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-jpn tesseract-ocr-chi-sim fonts-noto-cjk
       - name: Install BBDown public source adapter
         if: github.event_name != 'pull_request'
         run: |
           dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
           echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
-      - name: Install Python and Remotion packages
+      - name: Install Python media and Drive dependencies
         if: github.event_name != 'pull_request'
         run: |
           pip install -r requirements.txt
-          cd apps/remotion && npm ci
-          npx remotion browser ensure
+          pip install Pillow
       - name: Replay all archived unposted cuts into review stock
         if: github.event_name != 'pull_request'
         run: |
-          python -m scripts.kyousuki_rebuild_from_source \
+          set -o pipefail
+          python -u -m scripts.kyousuki_rebuild_from_source \
             --quarantine-folder "$KYOUSUKI_QUARANTINE_FOLDER_ID" \
             --review-folder "$KYOUSUKI_REVIEW_FOLDER_ID" \
             --stock-folder "$GDRIVE_PARENT_FOLDER_ID" --limit 11 | tee raw-rebuild.log
