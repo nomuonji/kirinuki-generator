@@ -7,6 +7,7 @@ export type CleanShortProps = {
   src: string;
   aspect: number;
   subtitles: SubtitleEntry[];
+  editorialHook?: string;
   reactions: ReactionEntry[];
   mascot?: {enabled: boolean; size?: number; right?: number; insetTop?: number};
 };
@@ -36,7 +37,8 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
   const characters = sub.entry ? [...sub.entry.text].length : 0;
   const fontSize = Math.max(40, Math.min(65, Math.floor(900 / Math.max(10, characters / 1.65))));
   const showMascot = p.mascot?.enabled === true;
-  // No top banner, episode label, source title, Chinese repost title or bottom headline.
+  const hook = (p.editorialHook ?? "").trim();
+  // Only the authored editorial hook is shown; sourceVideoTitle and episode banners are never rendered.
   return (
     <AbsoluteFill style={{backgroundColor:"#080b15", overflow:"hidden"}}>
       <AbsoluteFill style={{overflow:"hidden",backgroundColor:"#151923"}}>
@@ -46,6 +48,19 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
       <div style={{position:"absolute",left:0,top:videoTop,width:1080,height:videoHeight,overflow:"hidden"}}>
         <OffthreadVideo src={p.src} style={{width:"100%",height:"100%",objectFit:"contain",objectPosition:"center center"}}/>
       </div>
+      {hook && (
+        <div style={{position:"absolute",top:124,left:64,right:64,
+          zIndex:3,textAlign:"center",fontFamily:FONT.sans,fontSize:60,
+          fontWeight:900,color:"#fff",lineHeight:1.28,
+          textShadow:"0 3px 8px rgba(0,0,0,.9), 0 0 5px rgba(0,0,0,.9)"}}>
+          {hook.split(/(\\*\\*[^*]+\\*\\*)/g).filter(Boolean).map((chunk, i) => {
+            const emph=chunk.startsWith("**") && chunk.endsWith("**");
+            return <span key={i} style={{color:emph?"#FFD500":"#fff"}}>
+              {emph?chunk.slice(2,-2):chunk}
+            </span>;
+          })}
+        </div>
+      )}
       {reaction.entry && (
         <div style={{position:"absolute",top:videoTop+225,left:SAFE.left,right:210,
           fontFamily:FONT.sans,fontSize:50,fontWeight:900,color:"#fff",
@@ -54,7 +69,7 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
         </div>
       )}
       {sub.entry && (
-        <div style={{position:"absolute",bottom:326,left:SAFE.left,right:1080-SAFE.right,
+        <div style={{position:"absolute",bottom:516,left:SAFE.left,right:1080-SAFE.right,
           padding:"15px 18px",borderRadius:12,background:"rgba(0,0,0,.46)",
           textAlign:"center",fontFamily:FONT.sans,fontWeight:900,
           fontSize,lineHeight:1.32,color:"#fff",whiteSpace:"pre-wrap",
