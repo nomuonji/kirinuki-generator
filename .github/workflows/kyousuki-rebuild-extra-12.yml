@@ -1,0 +1,69 @@
+name: Kyousuki replay extra 12 stock (episodes 2 and 3)
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/kyousuki_rebuild_from_source.py'
+      - '.github/workflows/kyousuki-rebuild-from-source.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/kyousuki_rebuild_from_source.py'
+      - '.github/workflows/kyousuki-rebuild-extra-12.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: kyousuki-extra12-rebuild
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+      GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+      GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+      KYOUSUKI_REVIEW_FOLDER_ID: '14UnUSjyAK5BIeVOgEDSPt75EDzQSjlSa'
+      KYOUSUKI_QUARANTINE_FOLDER_ID: '1hui3CPo2uA42GbN5puJpW6xkBvY1F-ZY'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate entrypoint
+        run: python -m py_compile scripts/kyousuki_rebuild_from_source.py
+      - name: Install FFmpeg and Tesseract
+        if: github.event_name != 'pull_request'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-jpn tesseract-ocr-chi-sim fonts-noto-cjk
+      - name: Install BBDown public source adapter
+        if: github.event_name != 'pull_request'
+        run: |
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+      - name: Install Python media and Drive dependencies
+        if: github.event_name != 'pull_request'
+        run: |
+          pip install -r requirements.txt
+          pip install Pillow
+      - name: Replay all archived unposted cuts into review stock
+        if: github.event_name != 'pull_request'
+        run: |
+          set -o pipefail
+          python -u -m scripts.kyousuki_rebuild_from_source \
+            --quarantine-folder "$KYOUSUKI_QUARANTINE_FOLDER_ID" \
+            --review-folder "$KYOUSUKI_REVIEW_FOLDER_ID" \
+            --stock-folder "$GDRIVE_PARENT_FOLDER_ID" --limit 12 | tee raw-rebuild.log
+      - name: Attach real rendered frames and report, never source video bytes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kyousuki-original-rebuild-qa
+          path: |
+            raw-rebuild.log
+            raw-rebuild-proof/
+          if-no-files-found: ignore
+          retention-days: 14
