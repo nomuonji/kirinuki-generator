@@ -739,8 +739,6 @@ def main():
                 catalog_mid = catalog_source_identity(source_content_id, args.bilibili_expected_mid)
             except ValueError as exc:
                 parser.error(str(exc))
-        elif not args.source_rights_confirmed:
-            parser.error("Manual Bilibili source requires the existing explicit source option")
         elif args.bilibili_approved_stock:
             from packages.kyousuki_sources import approved_source
             try:
