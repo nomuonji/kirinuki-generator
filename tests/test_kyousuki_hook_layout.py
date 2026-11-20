@@ -23,7 +23,7 @@ class KyousukiEditorialHookTests(unittest.TestCase):
     def test_long_editorial_hook_is_wrapped_with_emphasis(self):
         long_hook="気持ちを伝えてくれてるから…**付き合いたい**って思ってる"
         text=editorial_hook(long_hook)
-        self.assertIn(r"\\N",text)
+        self.assertIn(r"\N",text)
         self.assertIn("付き合いたい",text)
 
     def test_long_spoken_line_is_wrapped_without_cutting_words(self):
