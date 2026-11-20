@@ -3,7 +3,7 @@ on:
   schedule:
     - cron: '47 0,12 * * *'
   workflow_run:
-    workflows: ['Kirinuki Production Readiness']
+    workflows: ['Kirinuki Production Readiness', 'Kyousuki v7 researched-telop stock replacement']
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -75,10 +75,7 @@ jobs:
       GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
       GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
       GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-      KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
       KIRINUKI_DIRECT_MODE: 'true'
-      KIRINUKI_AUTOPUBLISH_ENABLED: ${{ vars.KYOUSUKI_AUTOPUBLISH_ENABLED }}
-      KIRINUKI_CHANNEL_AUTHORIZED: ${{ vars.KYOUSUKI_CHANNEL_AUTHORIZED }}
       YOUTUBE_DESTINATION_CHANNEL_ID: ${{ vars.KYOUSUKI_DESTINATION_CHANNEL_ID }}
       YOUTUBE_CLIENT_ID: ${{ secrets.YT_CLIENT_ID_KYOUSUKI }}
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET_KYOUSUKI }}
