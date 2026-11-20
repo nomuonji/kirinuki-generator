@@ -16,6 +16,8 @@ jobs:
             bvid: BV1PwjzzVELc
           - label: other-b
             bvid: BV1L9edzWENw
+          - label: source-a
+            bvid: BV1DzW86hE4H
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -30,7 +32,11 @@ jobs:
         run: |
           mkdir -p /tmp/kyo-frame-video /tmp/kyo-frame-output
           cd /tmp/kyo-frame-video
-          timeout 650 BBDown "https://www.bilibili.com/video/$BVID/" --select-page 1 --skip-cover --skip-subtitle --encoding-priority "avc,hevc,av1" > /tmp/bbdown-log.txt 2>&1
+          if ! timeout 650 BBDown "https://www.bilibili.com/video/$BVID/" --select-page 1 --skip-cover --skip-subtitle --encoding-priority "avc,hevc,av1" > /tmp/bbdown-log.txt 2>&1; then
+            echo "BBDown diagnostics (URL-redacted):"
+            tail -25 /tmp/bbdown-log.txt | sed -E 's#https?://[^ ]+#URL_REDACTED#g' | cut -c1-250
+            exit 1
+          fi
           find . -type f -name '*.mp4' -print
           file=$(find . -type f -name '*.mp4' | head -1)
           test -n "$file"
