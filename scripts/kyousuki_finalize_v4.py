@@ -21,22 +21,23 @@ EXPECTED = {
 MANUAL_POSTED_NAME = "posted_manual_7c6061c8e548ae5d0ffd1921.mp4"
 LEDGER_NAME = "kyousuki_v4_final_migration.json"
 
-def parse_review(data):
+def parse_review(data, expected=None):
+    expected = EXPECTED if expected is None else set(expected)
     """Review receipts contain three real screenshots per independently reviewed clip."""
     if not isinstance(data,dict) or data.get("schemaVersion")!=1:
         raise ValueError("Invalid visual review manifest version")
     if not isinstance(data.get("sourceRunId"),int) or data["sourceRunId"]<=0:
         raise ValueError("Source GitHub Actions run ID is mandatory")
     rows=data.get("items")
-    if not isinstance(rows,list) or len(rows)!=len(EXPECTED):
-        raise ValueError("Exactly eleven reviewed clips required")
+    if not isinstance(rows,list) or len(rows)!=len(expected):
+        raise ValueError("Wrong number of visually reviewed clips")
     result={}
     for row in rows:
         if not isinstance(row,dict): raise ValueError("Invalid reviewed row")
         name=row.get("name")
         sha=row.get("sha256")
         samples=row.get("screenshots")
-        if name not in EXPECTED or name in result or row.get("visualQa")!="pass":
+        if name not in expected or name in result or row.get("visualQa")!="pass":
             raise ValueError("Missing, duplicate or unapproved clip")
         if not isinstance(sha,str) or not re.fullmatch("[a-f0-9]{64}",sha):
             raise ValueError("Invalid source-media SHA256")
@@ -46,12 +47,14 @@ def parse_review(data):
         if not row.get("reviewedBy") or not row.get("evidenceArtifactUrl"):
             raise ValueError("Visual QA reviewer and real evidence location required")
         result[name]=row
-    if set(result)!=EXPECTED: raise ValueError("Missing reviewed clip")
+    if set(result)!=expected: raise ValueError("Missing reviewed clip")
     return result
 
-def promote(drive,stock,review,quarantine,manifest):
-    approvals=parse_review(manifest)
-    if len(children(drive,quarantine)) != 22:
+def promote(drive,stock,review,quarantine,manifest,expected=None,ledger_name=None):
+    expected = EXPECTED if expected is None else set(expected)
+    ledger_name = LEDGER_NAME if ledger_name is None else ledger_name
+    approvals=parse_review(manifest,expected)
+    if len(children(drive,quarantine)) != 2*len(expected):
         raise RuntimeError("Legacy archived video/JSON inventory changed unexpectedly")
     before={row["name"]:row for row in children(drive,stock)}
     posted=before.get(MANUAL_POSTED_NAME)
@@ -59,7 +62,7 @@ def promote(drive,stock,review,quarantine,manifest):
         raise RuntimeError("Manual published video no longer present; stop")
     staging={row["name"]:row for row in plan(drive,stock,review,quarantine)}
     already={}
-    for name in EXPECTED:
+    for name in expected:
         if name in before:
             side=before.get(name[:-4]+".json")
             if not side: raise RuntimeError("Orphan v4 video in active stock")
@@ -69,7 +72,7 @@ def promote(drive,stock,review,quarantine,manifest):
                 raise RuntimeError("Active v4 clip is not matching approved manifest")
             already[name]={"status":"already_active","mp4Id":before[name]["id"],
                            "jsonId":side["id"],"sha256":approvals[name]["sha256"]}
-    outstanding=EXPECTED-set(already)
+    outstanding=expected-set(already)
     if not outstanding.issubset(set(staging)):
         raise RuntimeError("Missing v4 pairs in staging/active Drive")
     for name in sorted(outstanding):
@@ -107,19 +110,19 @@ def promote(drive,stock,review,quarantine,manifest):
             # Preserve old quarantined clips and remaining review stock on failure.
             break
     current={row["name"]:row for row in children(drive,stock)}
-    complete=len(receipts)==len(EXPECTED) and all(x["status"] in ("promoted","already_active") for x in receipts.values())
-    for name in EXPECTED:
+    complete=len(receipts)==len(expected) and all(x["status"] in ("promoted","already_active") for x in receipts.values())
+    for name in expected:
         if name not in current or name[:-4]+".json" not in current:
             complete=False
     if MANUAL_POSTED_NAME not in current or current[MANUAL_POSTED_NAME]["id"]!=posted["id"]:
         complete=False
     report={"schemaVersion":4,"sourceRunId":manifest["sourceRunId"],
-            "expected":11,"promotedOrPreviouslyActive":sum(x["status"] in ("promoted","already_active") for x in receipts.values()),
+            "expected":len(expected),"promotedOrPreviouslyActive":sum(x["status"] in ("promoted","already_active") for x in receipts.values()),
             "complete":complete,"results":receipts,
             "manualPostedUntouched":MANUAL_POSTED_NAME in current and current[MANUAL_POSTED_NAME]["id"]==posted["id"],
-            "archivedLegacyPairs":11}
-    prior=find_file(drive,stock,LEDGER_NAME)
-    upload_json_data(drive,stock,LEDGER_NAME,json.dumps(report,ensure_ascii=False,indent=2).encode("utf-8"),
+            "archivedLegacyPairs":len(expected)}
+    prior=find_file(drive,stock,ledger_name)
+    upload_json_data(drive,stock,ledger_name,json.dumps(report,ensure_ascii=False,indent=2).encode("utf-8"),
                      prior["id"] if prior else None)
     if not complete:
         raise RuntimeError("Final Drive stock reconciliation incomplete")
