@@ -21,6 +21,11 @@ BVID = re.compile(r"BV[A-Za-z0-9]{10}")
 
 def publication_item(metadata, folder, registry):
     """Validate exact provenance, independent media digest and editorial metadata."""
+    if not isinstance(metadata,dict) or metadata.get("renderSpecVersion") != 2:
+        return None
+    migration = metadata.get("stockMigration")
+    if isinstance(migration,dict) and migration.get("qaStatus") != "pass":
+        return None
     audit = metadata.get("kirinukiAudit") if isinstance(metadata, dict) else None
     if not isinstance(audit, dict):
         return None
