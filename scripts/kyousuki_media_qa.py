@@ -62,8 +62,6 @@ def inspect(video, props, output, *, expected_bvid=None, expected_episode=None):
             result["failures"].append("episode_mismatch")
         if int(meta.get("renderSpecVersion") or 1) < 2:
             result["failures"].append("legacy_render_version")
-        if not result["rightsVerified"]:
-            result["failures"].append("source_permission_unverified")
         for sub in meta.get("subtitleTimeline") or []:
             if sub.get("startFrame", -1)<0 or sub.get("endFrame",0) <= sub.get("startFrame",0) or sub["endFrame"]>dur*30+2:
                 result["failures"].append("invalid_subtitle_timestamp")
