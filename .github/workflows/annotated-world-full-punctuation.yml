@@ -1,0 +1,37 @@
+name: Format all Žižek source captions without changing words
+
+on:
+  workflow_run:
+    workflows:
+      - One-shot complete Žižek 1533-caption Japanese translation
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: annotated-world-zizek-punctuation
+  cancel-in-progress: false
+jobs:
+  punctuate:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+      GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+      GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+      OPENCODE_GO_MAX_TOKENS: '8192'
+      OPENCODE_GO_REASONING_EFFORT: 'none'
+      OPENCODE_GO_MAX_TIMEOUT_SECONDS: '150'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install translation and Drive dependencies
+        run: python -m pip install -q --disable-pip-version-check requests python-dotenv google-api-python-client google-auth-httplib2 google-auth-oauthlib
+      - name: Format English while preserving every source word and original cue
+        run: PYTHONPATH=. python scripts/annotated_world_punctuate_english.py
