@@ -27,11 +27,12 @@ def publication_item(metadata, folder, registry):
     if not isinstance(migration, dict):
         return None
     # Editorial hooks + raised speech subtitles are mandatory before post.
-    if (migration.get("qaStatus") != "pass" or migration.get("designVersion") != 6
-            or migration.get("rebuildMethod") != "source_episode_ffmpeg_v6_researched_telop"
+    if (migration.get("qaStatus") != "pass" or migration.get("designVersion") != 7
+            or migration.get("rebuildMethod") != "source_episode_ffmpeg_v7_researched_telop_soft_background"
             or not str(migration.get("hookText") or "").strip()
             or migration.get("captionWrapped") is not True
             or migration.get("template") != "telop"
+            or migration.get("deadSpaceTreatment") != "dark_source_blur"
             or metadata.get("variant") not in (0,1,2)
             or migration.get("variant") != metadata.get("variant")
             or not str(migration.get("punchlineText") or "").strip()
