@@ -23,6 +23,7 @@ jobs:
     steps:
       - name: Prepare frame extraction tools
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y ffmpeg
           dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
           echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
           ffmpeg -version | head -1
