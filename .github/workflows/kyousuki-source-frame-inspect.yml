@@ -1,0 +1,59 @@
+name: Temporary Kyousuki source frame inspection
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/kyousuki-source-frame-inspect.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: other-a
+            bvid: BV1PwjzzVELc
+          - label: other-b
+            bvid: BV1L9edzWENw
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Prepare frame extraction tools
+        run: |
+          dotnet tool install --tool-path "$RUNNER_TEMP/bbtools" BBDown --version 1.6.3
+          echo "$RUNNER_TEMP/bbtools" >> "$GITHUB_PATH"
+          ffmpeg -version | head -1
+      - name: Obtain public comparison video only for ephemeral visual inspection
+        env:
+          BVID: ${{ matrix.bvid }}
+        run: |
+          mkdir -p /tmp/kyo-frame-video /tmp/kyo-frame-output
+          cd /tmp/kyo-frame-video
+          timeout 650 BBDown "https://www.bilibili.com/video/$BVID/" --select-page 1 --skip-cover --skip-subtitle --encoding-priority "avc,hevc,av1" > /tmp/bbdown-log.txt 2>&1
+          find . -type f -name '*.mp4' -print
+          file=$(find . -type f -name '*.mp4' | head -1)
+          test -n "$file"
+          echo "VIDEO_FILE=$PWD/$file" >> "$GITHUB_ENV"
+      - name: Capture actual frames (no video bytes archived)
+        env:
+          BVID: ${{ matrix.bvid }}
+        run: |
+          python - <<'PY'
+          import subprocess, os, json
+          src=os.environ['VIDEO_FILE']
+          duration=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',src],text=True).strip())
+          print('SOURCE_FRAME_INFO',json.dumps({'bvid':os.environ['BVID'],'durationSec':round(duration),'framesAtPercent':[7,35,73]}),flush=True)
+          for pct in [7,35,73]:
+              sec=min(duration-2,max(1,duration*pct/100))
+              target=f"/tmp/kyo-frame-output/{os.environ['BVID']}_{pct:02d}.jpg"
+              subprocess.run(['ffmpeg','-y','-hide_banner','-loglevel','error','-ss',str(sec),'-i',src,'-frames:v','1','-vf','scale=640:-2',target],check=True)
+          PY
+      - name: Attach comparison frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kyousuki-frame-${{ matrix.label }}
+          path: /tmp/kyo-frame-output/*.jpg
+          if-no-files-found: ignore
+          retention-days: 1
