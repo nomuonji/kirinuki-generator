@@ -107,15 +107,41 @@ def ass_time(seconds):
     s,cs=divmod(rem,100)
     return f"{h}:{m:02}:{s:02}.{cs:02}"
 
-def ass_file(subtitles, seconds, path):
+def editorial_hook(raw):
+    """Restore authored hook commentary; never render sourceVideoTitle or episode title."""
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("Missing editorial hook comment in archived sidecar")
+    parts = re.split(r"(\*\*[^*]+\*\*)", raw.strip())
+    final = []
+    for token in parts:
+        if not token:
+            continue
+        emphasis = token.startswith("**") and token.endswith("**")
+        text = token[2:-2] if emphasis else token
+        text = text.replace("\\", "＼").replace("{", "（").replace("}", "）")
+        text = text.replace("\n", r"\N")
+        if emphasis:
+            final.append(r"{\c&H0000D5FF&\b1}" + text + r"{\c&H00FFFFFF&\b1}")
+        else:
+            final.append(text)
+    hook = "".join(final).strip()
+    if not hook or len(raw)>100:
+        raise ValueError("Invalid editorial hook")
+    return hook
+
+
+def ass_file(subtitles, seconds, path, hook):
+    """Keep the actual hook at top; move spoken captions 280 px above v4."""
     head=(
         "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
         "WrapStyle: 0\nScaledBorderAndShadow: yes\n\n[V4+ Styles]\n"
         "Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\n"
-        "Style: Default,Noto Sans CJK JP,58,&H00FFFFFF,&H00FFFFFF,&H00121A21,&H88000000,-1,0,0,0,100,100,0,0,1,5,2,2,65,65,236,1\n\n"
+        "Style: Dialogue,Noto Sans CJK JP,58,&H00FFFFFF,&H00FFFFFF,&H00121A21,&H88000000,-1,0,0,0,100,100,0,0,1,5,2,2,65,65,516,1\n"
+        "Style: Hook,Noto Sans CJK JP,60,&H00FFFFFF,&H00FFFFFF,&H0021262C,&H88000000,-1,0,0,0,100,100,0,0,1,6,2,8,66,66,150,1\n\n"
         "[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
     )
-    rows=[]
+    rows=["Dialogue: 0,0:00:00.00,"+ass_time(seconds)+",Hook,,0,0,0,,"+editorial_hook(hook)]
+    dialogue_count=0
     for obj in subtitles:
         try:
             start=float(obj["startFrame"])/30
@@ -126,18 +152,20 @@ def ass_file(subtitles, seconds, path):
         if start<0 or end<=start: continue
         caption=str(obj.get("text") or "").strip()
         if not caption: continue
-        # Strip potentially active ASS override markup rather than interpolating it.
-        caption=caption.replace("{","(").replace("}",")").replace("\n",r"\N")
-        rows.append(f"Dialogue: 0,{ass_time(start)},{ass_time(end)},Default,,0,0,0,,{caption}")
-    if not rows: raise RuntimeError("No reusable subtitles in archived clip")
+        caption=caption.replace("\\", "＼").replace("{","(").replace("}",")").replace("\n",r"\N")
+        rows.append(f"Dialogue: 1,{ass_time(start)},{ass_time(end)},Dialogue,,0,0,0,,{caption}")
+        dialogue_count+=1
+    if not dialogue_count: raise RuntimeError("No reusable spoken subtitles in archived clip")
     path.write_text(head+"\n".join(rows)+"\n",encoding="utf-8")
-    return len(rows)
+    return dialogue_count
+
 
 def render_episode_cut(source, mascot, record, destination, workdir):
     duration=record["endSeconds"]-record["startSeconds"]
     if duration<=0: raise ValueError("Invalid duration")
     subtitles=workdir/"subs.ass"
-    count=ass_file(record["data"].get("subtitleTimeline") or [],duration,subtitles)
+    count=ass_file(record["data"].get("subtitleTimeline") or [],duration,subtitles,
+                   record["data"].get("topRichText"))
     stream=next((s for s in probe(source).get("streams",[]) if s.get("codec_type")=="video"),None)
     if stream is None: raise RuntimeError("Source video stream unavailable")
     iw,ih=int(stream.get("width") or 0),int(stream.get("height") or 0)
@@ -218,11 +246,13 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "oldDriveMp4Id":record["oldDriveMp4Id"],
          "oldDriveJsonId":record["oldDriveJsonId"],
          "cutStartSeconds":record["startSeconds"],"cutEndSeconds":record["endSeconds"],
-         "rebuildMethod":"source_episode_ffmpeg_v4_catbadge_face_safe",
+         "rebuildMethod":"source_episode_ffmpeg_v5_hook_high_subtitles",
          "newMp4Sha256":hashed,"newSizeBytes":filename.stat().st_size,
          "fallbackMascot":record["sourceUploaderMid"]==SOURCE_BLACK,
          "manualPostedExcluded":False,"visualReviewEvidence":"raw-rebuild-proof/"+stem,
-         "subtitleCount":layout["subtitleCount"]}
+         "subtitleCount":layout["subtitleCount"],"designVersion":5,
+         "hookText":re.sub(r"\*\*","",str(data.get("topRichText") or "")),
+         "subtitleBottomMargin":516}
     # A v1 source cut may round up its final subtitle by a handful of frames.
     # Clamp the audit timeline to the actual re-rendered duration without
     # moving the start of a spoken line.
@@ -235,6 +265,7 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
         if clean["endFrame"]>int(clean.get("startFrame",0)):
             timeline.append(clean)
     meta={"renderSpecVersion":2,"videoFileName":stem+".mp4",
+          "topRichText":data.get("topRichText"),"bottomRichText":data.get("bottomRichText"),
           "kirinukiAudit":audit,"stockMigration":mig,
           "subtitleTimeline":timeline,
           "reactionTimeline":data.get("reactionTimeline") or []}
