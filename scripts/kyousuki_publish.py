@@ -24,7 +24,12 @@ def publication_item(metadata, folder, registry):
     if not isinstance(metadata,dict) or metadata.get("renderSpecVersion") != 2:
         return None
     migration = metadata.get("stockMigration")
-    if isinstance(migration,dict) and migration.get("qaStatus") != "pass":
+    if not isinstance(migration, dict):
+        return None
+    # Editorial hooks + raised speech subtitles are mandatory before post.
+    if (migration.get("qaStatus") != "pass" or migration.get("designVersion") != 5
+            or migration.get("rebuildMethod") != "source_episode_ffmpeg_v5_hook_high_subtitles"
+            or not str(migration.get("hookText") or "").strip()):
         return None
     audit = metadata.get("kirinukiAudit") if isinstance(metadata, dict) else None
     if not isinstance(audit, dict):
@@ -113,10 +118,8 @@ def readiness():
     registry=load_registry()
     folder=env.get("GDRIVE_PARENT_FOLDER_ID","")
     destination=env.get("YOUTUBE_DESTINATION_CHANNEL_ID","")
-    # Source-rights declarations are kept as provenance only. Do not turn
-    # on posting: direct-mode, autopublish, destination authorization and OAuth
-    # remain independent explicit configuration gates.
-    enabled,why=eligible_to_post({**env, "KIRINUKI_SOURCE_RIGHTS_APPROVED":"true"})
+    # No arbitrary yes/no activation flags. Verify OAuth identity and content.
+    enabled,why=eligible_to_post(env)
     report={"enabledByConfiguration":enabled,"activation":why,
         "approvedSources":sum(r["stockFolderId"]==folder for r in approval_records(registry)),
         "destinationConfigured":bool(destination),
