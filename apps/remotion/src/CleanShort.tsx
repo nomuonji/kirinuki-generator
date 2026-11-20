@@ -53,7 +53,7 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
           zIndex:3,textAlign:"center",fontFamily:FONT.sans,fontSize:60,
           fontWeight:900,color:"#fff",lineHeight:1.28,
           textShadow:"0 3px 8px rgba(0,0,0,.9), 0 0 5px rgba(0,0,0,.9)"}}>
-          {hook.split(/(\\*\\*[^*]+\\*\\*)/g).filter(Boolean).map((chunk, i) => {
+          {hook.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((chunk, i) => {
             const emph=chunk.startsWith("**") && chunk.endsWith("**");
             return <span key={i} style={{color:emph?"#FFD500":"#fff"}}>
               {emph?chunk.slice(2,-2):chunk}
