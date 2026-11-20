@@ -1,0 +1,31 @@
+name: One-shot independent caption relay comparison
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/compare_caption_relay_providers.py
+      - .github/workflows/one-shot-independent-caption-comparison.yml
+
+permissions:
+  contents: read
+jobs:
+  compare:
+    if: >-
+      github.repository == 'nomuonji/kirinuki-generator' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[caption-relay-dual-compare-20261121]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -q python-dotenv requests youtube-transcript-api
+      - name: Compare two existing caption providers without raw transcript output
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: python scripts/compare_caption_relay_providers.py
