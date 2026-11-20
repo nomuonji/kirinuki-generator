@@ -4,17 +4,8 @@
   "officialSchedule": "https://abema.tv/lp/kyousuki-official/",
   "accounts": [
     {
-      "name": "黑田凖一",
-      "priority": 1,
-      "mid": "3690992020490662",
-      "referenceBvid": "BV1yPJG6oEEN",
-      "status": "weekly_current",
-      "identityEvidence": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44372055940",
-      "profileUrl": "https://space.bilibili.com/3690992020490662"
-    },
-    {
       "name": "乄灬涟漪为谁丶",
-      "priority": 2,
+      "priority": 1,
       "mid": "8587834",
       "referenceBvid": "BV1PwjzzVELc",
       "status": "media_tested_historical",
@@ -23,12 +14,21 @@
     },
     {
       "name": "Jeanne_d_Arc",
-      "priority": 3,
+      "priority": 2,
       "mid": "19679210",
       "referenceBvid": "BV1L9edzWENw",
       "status": "historical_unverified",
       "profileUrl": "https://space.bilibili.com/19679210",
       "identityEvidence": "https://www.bilibili.com/video/BV1L9edzWENw/"
+    },
+    {
+      "name": "黑田凖一",
+      "priority": 3,
+      "mid": "3690992020490662",
+      "referenceBvid": "BV1yPJG6oEEN",
+      "status": "fallback_only_known_watermark",
+      "identityEvidence": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44372055940",
+      "profileUrl": "https://space.bilibili.com/3690992020490662"
     }
   ],
   "searchKeywords": [
@@ -37,5 +37,7 @@
     "今日好き"
   ],
   "approvedSources": [],
-  "approvalNote": "Accounts are discovery hints only. Each approvedSources record must identify an exact BV ID, verified uploader MID, exact official episode URL and canonical episode key, and documented redistribution/processing rights. Never infer permission from search results. See docs/kyousuki-source-pool.md."
+  "approvalNote": "Optional source/official-episode provenance. Administrative rights-confirmation fields are recorded when available but are not required to discover or produce stock. Never claim a permission receipt exists when it does not.",
+  "visualInspections": [],
+  "visualInspectionNote": "Actual frames from each candidate must be sampled at multiple timestamps after downloading. Rank clean same-episode variants first; only use last-choice uploader with original mascot when removal is visually safe. Never infer visual status from uploader names."
 }

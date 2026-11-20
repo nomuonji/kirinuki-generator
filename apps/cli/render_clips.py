@@ -383,7 +383,10 @@ def main():
             "durationInFrames": duration_frames,
             "reactionTimeline": reaction_timeline,
             "subtitleTimeline": subtitle_timeline,
-            "sourceVideoTitle": source_title,
+            "sourceVideoTitle": source_title,  # provenance only; never composited
+            "renderSpecVersion": 2,
+            "fallbackMascot": {"enabled": True, "size": 118, "right": 56, "insetTop": 282}
+                if os.environ.get("KYOUSUKI_FALLBACK_MASCOT") == "1" else {"enabled": False},
         }
         design = designs.get(clip_path.name)
         if design:

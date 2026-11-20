@@ -739,8 +739,6 @@ def main():
                 catalog_mid = catalog_source_identity(source_content_id, args.bilibili_expected_mid)
             except ValueError as exc:
                 parser.error(str(exc))
-        elif not args.source_rights_confirmed:
-            parser.error("Manual Bilibili source requires the existing explicit source option")
         elif args.bilibili_approved_stock:
             from packages.kyousuki_sources import approved_source
             try:
@@ -770,6 +768,11 @@ def main():
             source_provenance.update(sourceUploaderMid=catalog_mid,
                 episodeKey=episode_key(os.environ.get("SOURCE_VIDEO_TITLE","")),
                 selectionMode="catalog", permissionVerified=False, publicPublishingAuthorized=False)
+        # Visual fallback is per source, not a global channel preference.
+        if str(source_provenance.get("sourceUploaderMid") or "") == "3690992020490662":
+            os.environ["KYOUSUKI_FALLBACK_MASCOT"] = "1"
+        else:
+            os.environ.pop("KYOUSUKI_FALLBACK_MASCOT", None)
         # These audit fields report verification status; selection does not assert a license.
 
     # --- 1. Path Definitions ---

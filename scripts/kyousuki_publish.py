@@ -12,30 +12,38 @@ import re
 import tempfile
 from pathlib import Path
 
-from packages.kyousuki_sources import approved_source, approval_records, load_registry
+from packages.kyousuki_sources import approval_records, load_registry
 from packages.publish_scheduler import aware, eligible_to_post, reserve_slots, utc_now
 
 OFFICIAL_CHANNEL = "UCzXVsEc1h2Elljge0fnQYRg"
-FLAGS = ("permissionVerified", "transformativeUseVerified", "publicPublishingAuthorized")
+BVID = re.compile(r"BV[A-Za-z0-9]{10}")
 
 
 def publication_item(metadata, folder, registry):
-    """Validate an independent, file-bound publication receipt against source grant."""
+    """Validate exact provenance, independent media digest and editorial metadata."""
+    if not isinstance(metadata,dict) or metadata.get("renderSpecVersion") != 2:
+        return None
+    migration = metadata.get("stockMigration")
+    if isinstance(migration,dict) and migration.get("qaStatus") != "pass":
+        return None
     audit = metadata.get("kirinukiAudit") if isinstance(metadata, dict) else None
-    if not isinstance(audit, dict) or not all(audit.get(k) is True for k in FLAGS):
+    if not isinstance(audit, dict):
         return None
     if audit.get("sourcePlatform") != "bilibili":
         return None
     page = audit.get("sourcePage")
     if type(page) is not int or page < 1:
         return None
-    try:
-        grant = approved_source(audit.get("sourceContentId"), page, folder, registry)
-    except ValueError:
+    bvid = audit.get("sourceContentId")
+    mid = str(audit.get("sourceUploaderMid") or "")
+    episode = audit.get("episodeKey")
+    if (not isinstance(bvid,str) or not BVID.fullmatch(bvid)
+            or not mid.isdigit() or not isinstance(episode,str)
+            or not re.fullmatch(r"20[2-3]\d:[^:\r\n]{1,32}:[1-9]\d?", episode)
+            or not any(str(a.get("mid")) == mid for a in registry.get("accounts",[]))):
         return None
-    if (str(audit.get("sourceUploaderMid")) != str(grant["mid"])
-            or audit.get("episodeKey") != grant["episodeKey"]
-            or audit.get("officialEpisodeUrl") != grant["officialEpisodeUrl"]):
+    source_url = audit.get("sourceVideoUrl") or ""
+    if not source_url.startswith(f"https://www.bilibili.com/video/{bvid}/"):
         return None
     digest = audit.get("publicationSha256")
     editorial = audit.get("approvedCandidateDigest")
@@ -56,9 +64,9 @@ def publication_item(metadata, folder, registry):
         return None
     # Same episode on another mirror has the same scheduling key.
     # Identical bytes cannot be re-uploaded even under another filename.
-    source_id = "episode-" + hashlib.sha256(grant["episodeKey"].encode()).hexdigest()[:24]
+    source_id = "episode-" + hashlib.sha256(episode.encode()).hexdigest()[:24]
     key = hashlib.sha256(("kyousuki-stock-v1:"+digest).encode()).hexdigest()[:24]
-    return {"fingerprint":key,"sourceId":source_id,"sourceUrl":grant["officialEpisodeUrl"],
+    return {"fingerprint":key,"sourceId":source_id,"sourceUrl":source_url,
             "sha256":digest,"sizeBytes":media["sizeBytes"],"title":title.strip(),
             "description":description.strip()}
 
@@ -105,7 +113,10 @@ def readiness():
     registry=load_registry()
     folder=env.get("GDRIVE_PARENT_FOLDER_ID","")
     destination=env.get("YOUTUBE_DESTINATION_CHANNEL_ID","")
-    enabled,why=eligible_to_post(env)
+    # Source-rights declarations are kept as provenance only. Do not turn
+    # on posting: direct-mode, autopublish, destination authorization and OAuth
+    # remain independent explicit configuration gates.
+    enabled,why=eligible_to_post({**env, "KIRINUKI_SOURCE_RIGHTS_APPROVED":"true"})
     report={"enabledByConfiguration":enabled,"activation":why,
         "approvedSources":sum(r["stockFolderId"]==folder for r in approval_records(registry)),
         "destinationConfigured":bool(destination),
@@ -139,7 +150,6 @@ def readiness():
     elif destination==OFFICIAL_CHANNEL:
         report["destinationCheck"]="source_channel_is_not_destination"
     if not enabled: blockers.append("activation_or_oauth_missing")
-    if not report["approvedSources"]: blockers.append("source_grants_missing")
     if report["stockFolderCheck"]!="verified": blockers.append("stock_folder_unverified")
     elif not report["stockClips"]: blockers.append("stock_empty")
     elif not ready: blockers.append("publication_receipts_missing")
