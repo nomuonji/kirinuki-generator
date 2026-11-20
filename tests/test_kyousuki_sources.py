@@ -23,6 +23,12 @@ def grant(bvid,author,mid):
             "rightsEvidence":"synthetic test fixture only","processingAuthorized":True,
             "publicationAuthorized":True,"stockFolderId":"test-only-folder"}
 
+def inspection(bvid, status="clean"):
+    return {"bvid":bvid,"episodeKey":"2026:スウォン:5",
+            "sampleSeconds":[30,400,1100],"framesArtifactUrl":"https://example.org/three-frames.zip",
+            "reviewedBy":"synthetic-fixture","status":status,
+            "watermarkDetected":False,"titleOverlayDetected":False}
+
 class SourcePoolTest(unittest.TestCase):
     def test_public_discovery_is_never_approval(self):
         cfg=copy.deepcopy(BASE)
@@ -32,7 +38,7 @@ class SourcePoolTest(unittest.TestCase):
         self.assertEqual(approved_candidates(report,[],"test-only-folder",NOW,cfg),[])
         with self.assertRaises(ValueError): approved_source(A,1,"test-only-folder",cfg)
     def test_approved_fallback_and_dedupe(self):
-        cfg=copy.deepcopy(BASE); cfg["approvedSources"]=[grant(A,"黑田凖一","123"),grant(B,"backup","456")]
+        cfg=copy.deepcopy(BASE); cfg["approvedSources"]=[grant(A,"黑田凖一","123"),grant(B,"backup","456")]; cfg["visualInspections"]=[inspection(A),inspection(B)]
         report=discover(cfg,fetch=lambda kw:[],now=NOW)
         rows=approved_candidates(report,[],"test-only-folder",NOW,cfg)
         self.assertEqual([r["bvid"] for r in rows],[A,B])
@@ -73,7 +79,7 @@ class SourcePoolTest(unittest.TestCase):
                 self.assertNotIn("mid",report["indexHints"][0])
                 self.assertNotIn("processingAuthorized",report["indexHints"][0])
                 self.assertEqual(approved_candidates(report,[],"test-only-folder",NOW,cfg),[])
-                cfg["approvedSources"]=[grant(A,"黑田凖一","123")]
+                cfg["approvedSources"]=[grant(A,"黑田凖一","123")]; cfg["visualInspections"]=[inspection(A)]
                 self.assertEqual(len(approved_candidates(report,[],"test-only-folder",NOW,cfg)),1)
                 data["rows"]=[{**row,"fetchedAt":(NOW-timedelta(days=4)).isoformat()}]
                 path.write_text(json.dumps(data),encoding="utf-8")
@@ -89,12 +95,12 @@ class SourcePoolTest(unittest.TestCase):
         row={"bvid":A,"title":"今天喜欢上你了2026 韩国水原篇 #5",
              "duration":3144,"publish_time":int((NOW-timedelta(days=1)).timestamp()),
              "state":0,"is_ugc_pay":0}
-        report=catalog_discovery(cfg,NOW,fetch=lambda mid:([row,{**row,"bvid":B,"is_ugc_pay":1}],5))
+        report=catalog_discovery(cfg,NOW,fetch=lambda mid:([row,{**row,"bvid":B,"is_ugc_pay":1}],5) if mid=="123" else ([],5))
         self.assertEqual(report["status"],"ok")
         self.assertEqual(report["candidateCount"],1)
         self.assertEqual(report["latestCatalogCandidate"]["episodeKey"],"2026:スウォン:5")
         self.assertEqual(approved_candidates(report,[],"test-only-folder",NOW,cfg),[])
-        cfg["approvedSources"]=[grant(A,"黑田凖一","123")]
+        cfg["approvedSources"]=[grant(A,"黑田凖一","123")]; cfg["visualInspections"]=[inspection(A)]
         self.assertEqual(len(approved_candidates(report,[],"test-only-folder",NOW,cfg)),1)
         def denied(mid): raise HTTPError("https://uapis.cn",429,"quota",{},None)
         report=catalog_discovery(cfg,NOW,fetch=denied)
@@ -103,11 +109,15 @@ class SourcePoolTest(unittest.TestCase):
         self.assertEqual(report["diagnostics"][-1]["httpStatus"],429)
 
 
-    def test_catalog_selection_does_not_require_manual_grant(self):
+    def test_catalog_selection_requires_grant_and_frame_review(self):
         cfg=copy.deepcopy(BASE)
         row={"bvid":A,"title":"今天喜欢上你了2026 韩国水原篇 #5","duration":3144,
              "publish_time":int((NOW-timedelta(days=1)).timestamp()),"state":0,"is_ugc_pay":0}
-        report=catalog_discovery(cfg,NOW,fetch=lambda mid:([row],5))
+        report=catalog_discovery(cfg,NOW,fetch=lambda mid:([row],5) if mid=="123" else ([],5))
+        self.assertEqual(catalog_stock_candidates(report,[],cfg,NOW),[])
+        cfg["approvedSources"]=[grant(A,"黑田凖一","123")]
+        self.assertEqual(catalog_stock_candidates(report,[],cfg,NOW),[])
+        cfg["visualInspections"]=[inspection(A)]
         result=catalog_stock_candidates(report,[],cfg,NOW)
         self.assertEqual(len(result),1)
         self.assertEqual(result[0]["mid"],"123")
