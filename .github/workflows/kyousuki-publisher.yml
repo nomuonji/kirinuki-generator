@@ -3,7 +3,7 @@ on:
   schedule:
     - cron: '47 0,12 * * *'
   workflow_run:
-    workflows: ['Kirinuki Production Readiness', 'Kyousuki v7 researched-telop stock replacement']
+    workflows: ['Kirinuki Production Readiness', 'Kyousuki v8 researched-telop stock replacement']
     types: [completed]
   workflow_dispatch:
     inputs:
