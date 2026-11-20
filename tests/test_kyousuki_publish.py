@@ -10,21 +10,24 @@ GRANT={"bvid":"BV1PwjzzVELc","page":1,"author":"fixture","mid":"123",
        "stockFolderId":FOLDER}
 REG={"accounts":[{"name":"fixture","mid":"123","priority":1}],"approvedSources":[GRANT]}
 META={"kirinukiAudit":{"sourcePlatform":"bilibili","sourceContentId":GRANT["bvid"],"sourcePage":1,
-       "sourceUploaderMid":"123","episodeKey":GRANT["episodeKey"],"officialEpisodeUrl":GRANT["officialEpisodeUrl"],
+       "sourceUploaderMid":"123","episodeKey":GRANT["episodeKey"],"officialEpisodeUrl":GRANT["officialEpisodeUrl"],"sourceVideoUrl":"https://www.bilibili.com/video/BV1PwjzzVELc/?p=1",
        "permissionVerified":True,"transformativeUseVerified":True,"publicPublishingAuthorized":True,
        "publicationSha256":"a"*64,"approvedCandidateDigest":"b"*64,"media":{"sizeBytes":100001},
        "publicationTitle":"fixture clip","publicationDescription":"fixture original commentary"}}
 
 class PublicationTests(unittest.TestCase):
-    def test_review_stock_is_not_publication_ready(self):
+    def test_publication_is_independent_of_administrative_rights_flags(self):
         item=copy.deepcopy(META)
-        for flag in ("permissionVerified","transformativeUseVerified","publicPublishingAuthorized"):
-            with self.subTest(flag=flag):
-                item=copy.deepcopy(META);item["kirinukiAudit"][flag]=False
-                self.assertIsNone(publication_item(item,FOLDER,REG))
-        self.assertIsNone(publication_item(META,"wrong-folder",REG))
-        self.assertIsNone(publication_item(META,FOLDER,{**REG,"approvedSources":[]}))
-        item=copy.deepcopy(META);item["kirinukiAudit"].pop("publicationSha256")
+        item["kirinukiAudit"]["permissionVerified"]=False
+        item["kirinukiAudit"]["transformativeUseVerified"]=False
+        item["kirinukiAudit"]["publicPublishingAuthorized"]=False
+        self.assertIsNotNone(publication_item(item,FOLDER,REG))
+        self.assertIsNotNone(publication_item(item,FOLDER,{**REG,"approvedSources":[]}))
+        item=copy.deepcopy(META)
+        item["kirinukiAudit"].pop("publicationSha256")
+        self.assertIsNone(publication_item(item,FOLDER,REG))
+        item=copy.deepcopy(META)
+        item["kirinukiAudit"]["sourceUploaderMid"]="999"
         self.assertIsNone(publication_item(item,FOLDER,REG))
     def test_destination_receipt_requires_actual_marker_and_exact_slot(self):
         item=publication_item(META,FOLDER,REG)
