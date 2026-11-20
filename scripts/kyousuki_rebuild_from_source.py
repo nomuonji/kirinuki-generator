@@ -108,26 +108,35 @@ def ass_time(seconds):
     return f"{h}:{m:02}:{s:02}.{cs:02}"
 
 def editorial_hook(raw):
-    """Restore authored hook commentary; never render sourceVideoTitle or episode title."""
+    """Two-line top hook when needed. Never render the original source title."""
     if not isinstance(raw, str) or not raw.strip():
         raise ValueError("Missing editorial hook comment in archived sidecar")
-    parts = re.split(r"(\*\*[^*]+\*\*)", raw.strip())
-    final = []
-    for token in parts:
-        if not token:
-            continue
-        emphasis = token.startswith("**") and token.endswith("**")
-        text = token[2:-2] if emphasis else token
-        text = text.replace("\\", "＼").replace("{", "（").replace("}", "）")
-        text = text.replace("\n", r"\N")
-        if emphasis:
-            final.append(r"{\c&H0000D5FF&\b1}" + text + r"{\c&H00FFFFFF&\b1}")
-        else:
-            final.append(text)
-    hook = "".join(final).strip()
-    if not hook or len(raw)>100:
+    plain=raw.strip().replace("**","")
+    if not plain or len(plain)>80:
         raise ValueError("Invalid editorial hook")
-    return hook
+    size=len(plain)
+    font=60 if size<=14 else (53 if size<=19 else 54)
+    split_at=None
+    if size>19:
+        midpoint=size//2
+        punctuation=[i+1 for i,c in enumerate(plain)
+                     if c in "、。！？…?!" and abs(i-midpoint)<=5]
+        split_at=punctuation[0] if punctuation else midpoint
+    parts=re.split(r"(\*\*[^*]+\*\*)",raw.strip())
+    final=[r"{\fs"+str(font)+"}"]
+    count=0
+    for token in parts:
+        if not token: continue
+        emphasis=token.startswith("**") and token.endswith("**")
+        text=token[2:-2] if emphasis else token
+        if emphasis: final.append(r"{\c&H0000D5FF&\b1}")
+        for char in text:
+            if split_at is not None and count==split_at:
+                final.append(r"\N")
+            final.append(char.replace("\\","＼").replace("{","（").replace("}","）"))
+            count+=1
+        if emphasis: final.append(r"{\c&H00FFFFFF&\b1}")
+    return "".join(final)
 
 
 def wrap_spoken_caption(caption):
@@ -279,13 +288,13 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "oldDriveMp4Id":record["oldDriveMp4Id"],
          "oldDriveJsonId":record["oldDriveJsonId"],
          "cutStartSeconds":record["startSeconds"],"cutEndSeconds":record["endSeconds"],
-         "rebuildMethod":"source_episode_ffmpeg_v5_hook_wrapped_high_subtitles",
+         "rebuildMethod":"source_episode_ffmpeg_v5_wrapped_hook_and_subtitles",
          "newMp4Sha256":hashed,"newSizeBytes":filename.stat().st_size,
          "fallbackMascot":record["sourceUploaderMid"]==SOURCE_BLACK,
          "manualPostedExcluded":False,"visualReviewEvidence":"raw-rebuild-proof/"+stem,
          "subtitleCount":layout["subtitleCount"],"designVersion":5,
          "hookText":re.sub(r"\*\*","",str(data.get("topRichText") or "")),
-         "subtitleBottomMargin":516,"captionWrapped":True}
+         "subtitleBottomMargin":516,"captionWrapped":True,"hookWrapped":True}
     # A v1 source cut may round up its final subtitle by a handful of frames.
     # Clamp the audit timeline to the actual re-rendered duration without
     # moving the start of a spoken line.
