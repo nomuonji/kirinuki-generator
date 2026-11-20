@@ -34,6 +34,8 @@ export const inputPropsSchema = z.object({
 	topRichText: z.string().optional(),
 	bottomRichText: z.string().optional(),
 	sourceVideoTitle: z.string().optional(),
+	fallbackMascot: z.object({enabled: z.boolean(), size: z.number().optional(), right: z.number().optional(), insetTop: z.number().optional()}).optional(),
+	renderSpecVersion: z.number().int().optional(),
 	sourceAspect: z.number().positive().optional(),
 	durationInFrames: z.number().positive(),
 	reactionTimeline: z.array(reactionTimelineSchema).optional(),
@@ -57,11 +59,11 @@ export const RemotionRoot: React.FC = () => {
 				schema={inputPropsSchema}
 				defaultProps={{
 					videoFileName: "out_clips/clip_001_84-125.mp4",
-					topText: "Default Top Text",
-					bottomText: "Default Bottom Text",
+					topText: "",
+					bottomText: "",
 					topRichText: undefined,
 					bottomRichText: undefined,
-					sourceVideoTitle: "Sample Video Title",
+					sourceVideoTitle: "",
 					durationInFrames: 1200,
 					reactionTimeline: [],
 				}}
