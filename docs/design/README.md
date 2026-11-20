@@ -29,7 +29,7 @@ even when the source is replayed with FFmpeg instead of Remotion:
   highlighted `**words**`, and per-clip `variant`. Never composite
   `sourceVideoTitle` or a Chinese uploader headline;
 - Keep participants' full frame visible and the scene edge-to-edge; avoid
-  unverified face-cutting zoom. Use black rather than a giant decorative band;
+  unverified face-cutting zoom. To avoid dead letterbox filling most of the 9:16 frame, use a *very dark blurred copy of the original scene* behind the existing black-based telop hierarchy; no decorative title banner;
 - Put *spoken* subtitles over the lower edge of the scene (not below the visual),
   readable in two or three lines; keep the *editorial punchline*
   (`bottomRichText`) underneath the scene in the safe viewing area;

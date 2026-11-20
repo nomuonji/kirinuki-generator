@@ -152,7 +152,7 @@ def render_ass(*, subtitles, seconds, output, hook, punchline, video_top,
     plines,psize=break_rich(punchline,preferred_size=76,min_size=42)
     hook_y=video_top-22
     punch_y=video_bottom+50
-    sub_bottom=video_bottom+30
+    sub_bottom=video_bottom-20
     if hook_y-len(hlines)*hsize*1.27<110 or punch_y+len(plines)*psize*1.2>1615:
         raise ValueError("Headline/punchline would leave YouTube Shorts safe bounds")
     header=(
@@ -204,5 +204,6 @@ def render_ass(*, subtitles, seconds, output, hook, punchline, video_top,
        "punchline":" ".join("".join(c for c,_ in l) for l in plines),
        "hookRows":len(hlines),"punchRows":len(plines),
        "template":"telop","variant":variant%len(VARIANTS),
+       "deadSpaceTreatment":"dark_source_blur",
        "sourceTitleComposited":False,"spokenCaptionBottom":sub_bottom
     }

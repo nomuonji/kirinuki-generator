@@ -112,6 +112,13 @@ export const Telop: React.FC<DesignProps> = (p) => {
 
   return (
     <AbsoluteFill style={{background: "#000", overflow: "hidden"}}>
+      {/* Very dark, scene-derived backdrop fills otherwise dead 9:16 space.
+          The existing two-tone hook, uncut scene, captions and payoff remain unchanged. */}
+      <AbsoluteFill style={{overflow:"hidden"}}>
+        <OffthreadVideo muted src={p.videoSrc}
+          style={{width:"100%",height:"100%",objectFit:"cover",
+                  filter:"blur(55px) brightness(0.23)",transform:"scale(1.12)"}} />
+      </AbsoluteFill>
       {/* Source as a quiet lead-in line, like the "もうさ.." / "今までは…" kicker above clip titles */}
       {/* Two-tone outlined headline: lines alternate between the two inks */}
       <div
