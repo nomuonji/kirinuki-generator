@@ -28,7 +28,7 @@ class ReviewedStockUpgradeTests(unittest.TestCase):
         m=fixture();m["items"][5]["sha256"]="xyz"
         with self.assertRaises(ValueError):validated_receipts(m)
     def test_source_based_v5_renderer(self):
-        self.assertIn("v5_hook_high_subtitles",RENDERER)
+        self.assertIn("v5_hook_wrapped_high_subtitles",RENDERER)
 
 
 if __name__=="__main__":
