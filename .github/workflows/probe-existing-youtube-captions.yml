@@ -1,9 +1,18 @@
 name: Probe existing YouTube captions for an exact video ID (no ASR)
+# This workflow consumes the repository RAPIDAPI_KEY secret.
+# Do not run it on pull_request events or unreviewed code.
 on:
-  pull_request:
-    paths:
-      - .github/workflows/probe-existing-youtube-captions.yml
   workflow_dispatch:
+    inputs:
+      video_id:
+        description: 'YouTube video ID (11 characters)'
+        required: true
+        type: string
+        default: '4YSXNotY8QU'
+
+concurrency:
+  group: rapidapi-caption-manual-probe
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -24,14 +33,17 @@ jobs:
       - name: Check original YouTube caption API and existing RapidAPI fallback (no ASR)
         env:
           RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          SOURCE_VIDEO_ID: ${{ inputs.video_id }}
         run: |
           python - <<'PY'
-          import hashlib, json, os
+          import hashlib, json, os, re
           from transcribe_rapidapi import (
               fetch_transcript_from_youtube, fetch_transcript_from_rapidapi_1,
               fetch_transcript_from_rapidapi_2, _normalize_segments
           )
-          VIDEO='4YSXNotY8QU'
+          VIDEO=os.environ.get('SOURCE_VIDEO_ID','')
+          if not re.fullmatch(r'[A-Za-z0-9_-]{11}', VIDEO):
+              raise SystemExit('Invalid 11-character video ID (no API call)')
           print('SOURCE_VIDEO_ID='+VIDEO,flush=True)
           # Original caption retrieval, never speech recognition.
           data=fetch_transcript_from_youtube(VIDEO,['en','en-US'])
