@@ -1,0 +1,84 @@
+name: One-shot original YouTube subtitle file comparison
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/compare_original_youtube_captions.py
+      - .github/workflows/one-shot-youtube-caption-source-compare.yml
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    if: >-
+      github.repository == 'nomuonji/kirinuki-generator' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[original-caption-compare-20261121]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install source-caption fetch dependencies
+        run: |
+          python -m pip install -q -U --pre "yt-dlp[default]" bgutil-ytdlp-pot-provider requests python-dotenv youtube-transcript-api
+      - name: Create ephemeral private cookie file
+        env:
+          YT_COOKIES_TXT: ${{ secrets.YT_COOKIES_TXT }}
+        run: |
+          umask 077
+          mkdir -p "$RUNNER_TEMP/annotated-world-yt-captions"
+          if [ -n "$YT_COOKIES_TXT" ]; then
+            printf '%s' "$YT_COOKIES_TXT" > "$RUNNER_TEMP/yt-cookies.txt"
+            echo "YOUTUBE_COOKIE_CONFIGURED=1"
+          else
+            echo "YOUTUBE_COOKIE_CONFIGURED=0"
+          fi
+      - name: Start existing local PO-token provider (optional)
+        continue-on-error: true
+        run: |
+          docker run -d --rm --name caption-pot-provider --init \
+            -p 127.0.0.1:4416:4416 \
+            brainicism/bgutil-ytdlp-pot-provider:2.0.1-deno
+          for attempt in $(seq 1 25); do
+            if curl -fsS http://127.0.0.1:4416/ping >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Retrieve only original YouTube English subtitles (no media or ASR)
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "$RUNNER_TEMP/annotated-world-yt-captions"
+          OPTS=()
+          if [ -s "$RUNNER_TEMP/yt-cookies.txt" ]; then
+            OPTS+=(--cookies "$RUNNER_TEMP/yt-cookies.txt")
+          fi
+          yt-dlp --quiet --no-warnings --no-playlist \
+            --write-subs --write-auto-subs --sub-langs 'en' \
+            --sub-format 'json3/vtt' --skip-download \
+            "${OPTS[@]}" \
+            -o "$RUNNER_TEMP/annotated-world-yt-captions/4YSXNotY8QU.%(ext)s" \
+            'https://www.youtube.com/watch?v=4YSXNotY8QU'
+          RC=$?
+          echo "YOUTUBE_SUBTITLE_FETCH_EXIT=$RC"
+          # No credential or signed URL gets printed.
+          exit 0
+      - name: Compare original track and previously returned relay candidate
+        env:
+          CAPTION_TMP: ${{ runner.temp }}/annotated-world-yt-captions
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: python scripts/compare_original_youtube_captions.py
+      - name: Erase raw subtitle and cookie files from runner
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/annotated-world-yt-captions" "$RUNNER_TEMP/yt-cookies.txt"
