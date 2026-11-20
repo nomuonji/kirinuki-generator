@@ -9,7 +9,7 @@ GRANT={"bvid":"BV1PwjzzVELc","page":1,"author":"fixture","mid":"123",
        "rightsEvidence":"synthetic fixture","processingAuthorized":True,"publicationAuthorized":True,
        "stockFolderId":FOLDER}
 REG={"accounts":[{"name":"fixture","mid":"123","priority":1}],"approvedSources":[GRANT]}
-META={"kirinukiAudit":{"sourcePlatform":"bilibili","sourceContentId":GRANT["bvid"],"sourcePage":1,
+META={"renderSpecVersion":2,"kirinukiAudit":{"sourcePlatform":"bilibili","sourceContentId":GRANT["bvid"],"sourcePage":1,
        "sourceUploaderMid":"123","episodeKey":GRANT["episodeKey"],"officialEpisodeUrl":GRANT["officialEpisodeUrl"],"sourceVideoUrl":"https://www.bilibili.com/video/BV1PwjzzVELc/?p=1",
        "permissionVerified":True,"transformativeUseVerified":True,"publicPublishingAuthorized":True,
        "publicationSha256":"a"*64,"approvedCandidateDigest":"b"*64,"media":{"sizeBytes":100001},
