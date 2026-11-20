@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 8,
+  "sourceRuns": {
+    "ep2_3": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247",
+    "ep4_5": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187"
+  },
+  "reviewNote": "All 23 sampled at beginning, middle and end. Original authored 2-tone hook, blurred scene, lower punchline and native caption suppression were visually inspected; QA showed no failed checks or OCR flags. Source title is not re-composited. Archival source links and cut timestamps remain in sidecars.",
+  "items": [
+    {
+      "name": "kyousuki_v2_ep2_clip_001.mp4",
+      "sha256": "04701826ce3317538f130cd780c80ddb461376126589e615a6cc55d97527b87b",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_002.mp4",
+      "sha256": "f63f005b33c04e2bf3edfad3bace00f7d72c688a0955587e392358b5dcd231c5",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_003.mp4",
+      "sha256": "b2a623d6ee061a9172d2d479ae87539ad7839656693cca70b2ae83134b551c82",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_004.mp4",
+      "sha256": "0eb720e266c65c092df89ea36f39e25af3765ca6384737e716068070011656a2",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_005.mp4",
+      "sha256": "f9f20615931e7b367912aa5616e479a74ed8735128e9063e104b90735edaf773",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep2_clip_006.mp4",
+      "sha256": "d9701a13ff6597a7f998a7b7868c56575811eff1c04a21e0965049078b743336",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_001.mp4",
+      "sha256": "d4b07b1ef5d5f2bed9a65cc0d263a92d44abcf863f9cef376e2f82c30468cf79",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_002.mp4",
+      "sha256": "f141dfd76749c025fa1bebf1bacc4cea997abc355563961493ce901a6e9a0d16",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_003.mp4",
+      "sha256": "7ba63b5dc560cae0643067bda4c402ff19ce86238f12b0be445206efcc3afcd1",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_004.mp4",
+      "sha256": "e13c8865f16ef3483e4c616df3ada3dac3cbc144ce854cb91e62c7ae81b91e25",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_005.mp4",
+      "sha256": "4f65ffd1a22dc19609f3d8f35cdbc715dd8c17db25438175ca11948ee0eed54c",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep3_clip_006.mp4",
+      "sha256": "0e002c3c90ff29eb8257316a9a354e1e6e4e22a2aba4e086d19cfd8bf6628e15",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926247/artifacts/14664568795"
+    },
+    {
+      "name": "kyousuki_v2_ep4_clip_001.mp4",
+      "sha256": "9fe6fea62b5e1e957f51d95ad98c376ce9a3d64f87d4e70244a25bdf042a3d95",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep4_clip_002.mp4",
+      "sha256": "1a97fb9d3131a18c64d8c2756af12ce7aa6f21b788338f9bf4f611721bbe1cc5",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep4_clip_003.mp4",
+      "sha256": "54934d5265b29b1ab4007d14f390cdd0cd2d7f54230d00945d7947f1aa11f21f",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep4_clip_004.mp4",
+      "sha256": "faf4f286b22f7b6b2d698e8af8ea7ff338edff3ed3855bd44000268cb70ed829",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep4_clip_005.mp4",
+      "sha256": "f6e0af8c566404de3b92e89d25a2ea4d715f319fecb472d52bec16f2d36bac2e",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_001.mp4",
+      "sha256": "17461bdcd6dee047bb922556eeabdfc0b61df8109d51649aa5b48f250b4f8744",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_002.mp4",
+      "sha256": "3f23f42cfc48bc24f8be0f15b24505b1fd54e68089aaad0da8969fe564368463",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_003.mp4",
+      "sha256": "d04aa1a0dc08b0560e8a8ef319a5dfe5891e5680fd7a4a7b3ecf32b40bc7c1a1",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_004.mp4",
+      "sha256": "378558ff5f0b930756ec921ccaa3b92b69adda18230e61a02db877c99b043699",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_005.mp4",
+      "sha256": "b02f0534acd509bda2e50fd72565a4026ac15af126b5579885eb545a862f6633",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_006.mp4",
+      "sha256": "4137c65b3702fa38e9bc550602ef4c6f5b23c558ce3a8a7896f6e1c27d26faf0",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 / 2026-11-21: visual review of 69 actual rendered frames, 3 each",
+      "artifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44808926187/artifacts/14665340658"
+    }
+  ]
+}
