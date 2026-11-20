@@ -10,6 +10,9 @@ import hashlib
 import json
 import os
 import re
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from transcribe_rapidapi import fetch_transcript_from_rapidapi_1, _normalize_segments
 
 VIDEO_ID = "4YSXNotY8QU"
