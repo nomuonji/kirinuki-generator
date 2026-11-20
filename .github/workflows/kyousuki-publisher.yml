@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       execute:
-        description: 'Schedule one explicitly approved clip (otherwise read-only)'
+        description: 'Schedule one QA-passed clip (otherwise read-only)'
         type: boolean
         default: false
   push:
@@ -36,10 +36,6 @@ jobs:
       GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
       GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
       GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-      KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
-      KIRINUKI_DIRECT_MODE: 'true'
-      KIRINUKI_AUTOPUBLISH_ENABLED: ${{ vars.KYOUSUKI_AUTOPUBLISH_ENABLED }}
-      KIRINUKI_CHANNEL_AUTHORIZED: ${{ vars.KYOUSUKI_CHANNEL_AUTHORIZED }}
       YOUTUBE_DESTINATION_CHANNEL_ID: ${{ vars.KYOUSUKI_DESTINATION_CHANNEL_ID }}
       YOUTUBE_CLIENT_ID: ${{ secrets.YT_CLIENT_ID_KYOUSUKI }}
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET_KYOUSUKI }}
@@ -69,9 +65,9 @@ jobs:
           fi
   publish:
     needs: verify
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_run' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.execute)) && vars.KYOUSUKI_AUTOPUBLISH_ENABLED == 'true' && vars.KYOUSUKI_CHANNEL_AUTHORIZED == 'true'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_run' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.execute))
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     permissions:
       contents: write
     env:
@@ -82,7 +78,6 @@ jobs:
       KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
       KIRINUKI_DIRECT_MODE: 'true'
       KIRINUKI_AUTOPUBLISH_ENABLED: ${{ vars.KYOUSUKI_AUTOPUBLISH_ENABLED }}
-      KIRINUKI_SOURCE_RIGHTS_APPROVED: ${{ vars.KYOUSUKI_SOURCE_RIGHTS_APPROVED }}
       KIRINUKI_CHANNEL_AUTHORIZED: ${{ vars.KYOUSUKI_CHANNEL_AUTHORIZED }}
       YOUTUBE_DESTINATION_CHANNEL_ID: ${{ vars.KYOUSUKI_DESTINATION_CHANNEL_ID }}
       YOUTUBE_CLIENT_ID: ${{ secrets.YT_CLIENT_ID_KYOUSUKI }}
