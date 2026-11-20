@@ -121,6 +121,27 @@ def approved_source(bvid,page,folder,reg=None):
     return rows[0]
 
 
+def visual_inspection(bvid, episode, reg):
+    """Return (rank, state) only for a documented >=3-frame source inspection."""
+    for qa in reg.get("visualInspections", []):
+        if not isinstance(qa, dict) or qa.get("bvid") != bvid or qa.get("episodeKey") != episode:
+            continue
+        times = qa.get("sampleSeconds")
+        if (not isinstance(times, list) or len(set(str(t) for t in times)) < 3
+                or not all(isinstance(t, (int, float)) and t >= 0 for t in times)
+                or not str(qa.get("framesArtifactUrl") or "").startswith("https://")
+                or not qa.get("reviewedBy")):
+            continue
+        state = qa.get("status")
+        if state == "clean" and qa.get("watermarkDetected") is False and qa.get("titleOverlayDetected") is False:
+            return 0, "clean"
+        if (state == "fallback" and qa.get("watermarkDetected") is True
+                and qa.get("maskFits") is True and qa.get("obscuresSubject") is False):
+            return 1, "fallback"
+        return None, "rejected"
+    return None, "unreviewed"
+
+
 def approved_candidates(discovery, processed_entries, folder, now=None, reg=None, max_age_days=90):
     """Choose one approved provider per episode. No rollover after partial stock creation.
 
@@ -134,6 +155,9 @@ def approved_candidates(discovery, processed_entries, folder, now=None, reg=None
     records=approval_records(reg)
     groups={}
     for r in records:
+        inspection_rank, inspection_state = visual_inspection(r["bvid"], r["episodeKey"], reg or load_registry())
+        if inspection_rank is None or (inspection_rank == 1 and r["mid"] != "3690992020490662"):
+            continue
         if r["stockFolderId"]!=folder:
             continue
         try:
@@ -162,11 +186,14 @@ def approved_candidates(discovery, processed_entries, folder, now=None, reg=None
         groups.setdefault(r["episodeKey"],[]).append({"videoId":sid,"sourcePlatform":"bilibili","bvid":r["bvid"],"page":r["page"],
             "episodeKey":r["episodeKey"],"officialYoutubeVideoId":r.get("officialYoutubeVideoId"),"title":r["title"],
             "publishedAt":aired.isoformat(),"ageHours":age*24,"durationSeconds":dur,
-            "selectionScore":0.82 if age<=1 else 0.65,"viewsPerHour":0.0,"views":0,"likes":0,"comments":0,"priority":priority})
-    # Newer episodes first; alternate providers in priority order. Caller must
-    # recheck durable state/partial uploads before attempting another provider.
-    return sorted((c for g in groups.values() for c in g),
-                  key=lambda c:(-datetime.fromisoformat(c["publishedAt"]).timestamp(),c["priority"],c["videoId"]))
+            "selectionScore":0.82 if age<=1 else 0.65,"viewsPerHour":0.0,"visualQaRank":inspection_rank,"visualQaStatus":inspection_state,"views":0,"likes":0,"comments":0,"priority":priority})
+    # Compare clean/fallback and priorities only within the SAME canonical episode.
+    # Rank episode groups by newest known source date; never let an old provider
+    # block another account's latest episode.
+    return [row for _, group in sorted(groups.items(),
+            key=lambda pair: -max(datetime.fromisoformat(c["publishedAt"]).timestamp() for c in pair[1]))
+            for row in sorted(group, key=lambda c:(c["visualQaRank"], c["priority"],c["videoId"]))]
+
 
 
 def catalog_stock_candidates(discovery, processed_entries, reg=None, now=None, max_age_days=90):
@@ -181,6 +208,7 @@ def catalog_stock_candidates(discovery, processed_entries, reg=None, now=None, m
     now = now or datetime.now(timezone.utc)
     byid = {p.get("videoId"): p for p in processed_entries}
     rows = {}
+    grants = {(r["bvid"], r["episodeKey"]):r for r in approval_records(reg)}
     for group in discovery.get("episodeGroups", {}).values():
         for row in group:
             if row.get("metadataProvider") != "uapipro" or row.get("identityStatus") != "catalog_account_binding":
@@ -205,6 +233,12 @@ def catalog_stock_candidates(discovery, processed_entries, reg=None, now=None, m
                 continue
             sid = f'bilibili_{item["bvid"]}_p1_auto'
             ep = item["episodeKey"]
+            # Require exact official-episode/rights linkage and real frame QA.
+            if not ep or (item["bvid"], ep) not in grants:
+                continue
+            visual_rank, visual_state = visual_inspection(item["bvid"], ep, reg)
+            if visual_rank is None or (visual_rank == 1 and item["mid"] != "3690992020490662"):
+                continue
             # Unknown season aliases still dedupe by exact BV; don't invent official EP identity.
             related = [e for e in processed_entries if e.get("videoId")==sid or (ep and e.get("episodeKey")==ep)]
             if any(e.get("status")=="completed" or (e.get("videoId")!=sid and int(e.get("uploadedClips") or 0)>0) for e in related):
@@ -222,8 +256,15 @@ def catalog_stock_candidates(discovery, processed_entries, reg=None, now=None, m
                 "mid":item["mid"],"author":item["author"],"episodeKey":ep,"title":title,
                 "publishedAt":item["publishedAt"],"ageHours":age*24,"durationSeconds":duration,
                 "selectionScore":0.82 if age<=1 else 0.65,"viewsPerHour":0.0,"views":0,"likes":0,"comments":0,
-                "priority":account["priority"],"selectionMode":"catalog"}
-    return sorted(rows.values(),key=lambda r:(-datetime.fromisoformat(r["publishedAt"]).timestamp(),r["priority"],r["videoId"]))
+                "priority":account["priority"],"selectionMode":"catalog",
+                "visualQaRank":visual_rank,"visualQaStatus":visual_state}
+    groups = {}
+    for row in rows.values():
+        groups.setdefault(row["episodeKey"], []).append(row)
+    return [row for _, group in sorted(groups.items(),
+            key=lambda pair:-max(datetime.fromisoformat(c["publishedAt"]).timestamp() for c in pair[1]))
+            for row in sorted(group,key=lambda c:(c["visualQaRank"],c["priority"],c["videoId"]))]
+
 
 def catalog_source_identity(bvid, mid, reg=None):
     """Bind the selected BV to a configured numeric uploader; media adapter checks actual MID."""
