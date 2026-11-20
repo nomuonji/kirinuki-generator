@@ -158,7 +158,14 @@ def main():
                     side=wd/(outname+".json")
                     side.write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding="utf-8")
                     from scripts.kyousuki_media_qa import inspect
-                    qa=inspect(mp4,side,wd/(outname+"_frames"),expected_bvid=bvid,expected_episode=episode)
+                    qa_dir=wd/(outname+"_frames")
+                    qa=inspect(mp4,side,qa_dir,expected_bvid=bvid,expected_episode=episode)
+                    proof=Path("raw-rebuild-proof")/outname
+                    proof.mkdir(parents=True,exist_ok=True)
+                    for img in qa_dir.glob("*.png"):
+                        shutil.copy2(img,proof/img.name)
+                    if (qa_dir/"qa.json").exists():
+                        shutil.copy2(qa_dir/"qa.json",proof/"qa.json")
                     # A/V integrity and screenshot generation do not imply visual approval.
                     json_id=upload_json_data(drive,args.review_folder,side.name,side.read_bytes())
                     video_id=upload_file(drive,mp4,outname+".mp4",args.review_folder)
