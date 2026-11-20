@@ -41,7 +41,8 @@ jobs:
         run: |
           python -m py_compile scripts/kyousuki_finalize_extra12.py
           python -m unittest discover -s tests -p test_kyousuki_finalize_extra12.py -v
-      - name: Promote reviewed stock and reconcile all 11 pairs
+          python -m unittest discover -s tests -p test_kyousuki_finalize_v4.py -v
+      - name: Promote reviewed extra 12 and preserve original 11 pairs
         if: github.event_name == 'push'
         run: |
           set -o pipefail
