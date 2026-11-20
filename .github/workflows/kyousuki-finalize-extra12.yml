@@ -1,0 +1,56 @@
+name: Kyousuki finalize additional 12 inspected episodes 2 and 3
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/kyousuki_finalize_extra12.py'
+      - 'tests/test_kyousuki_finalize_extra12.py'
+      - 'configs/kyousuki_v4_extra12_visual_review.json'
+      - '.github/workflows/kyousuki-finalize-extra12.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'configs/kyousuki_v4_extra12_visual_review.json'
+      - 'scripts/kyousuki_finalize_extra12.py'
+      - '.github/workflows/kyousuki-finalize-extra12.yml'
+
+concurrency:
+  group: kyousuki-v4-finalize-extra12
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+      GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+      GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Drive client
+        run: |
+          pip install --disable-pip-version-check google-api-python-client google-auth-httplib2 google-auth-oauthlib
+      - name: Validate promotion contract
+        run: |
+          python -m py_compile scripts/kyousuki_finalize_extra12.py
+          python -m unittest discover -s tests -p test_kyousuki_finalize_extra12.py -v
+      - name: Promote reviewed stock and reconcile all 11 pairs
+        if: github.event_name == 'push'
+        run: |
+          set -o pipefail
+          python -u -m scripts.kyousuki_finalize_extra12 \
+            --manifest configs/kyousuki_v4_extra12_visual_review.json | tee v4-extra12-final-ledger.log
+      - name: Retain promotion outcome
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kyousuki-v4-final-extra12-stock
+          path: v4-extra12-final-ledger.log
+          if-no-files-found: ignore
