@@ -2,8 +2,9 @@
   "clips": {
     "7c6061c8e548ae5d0ffd1921": {
       "attemptedAt": "2026-11-20T02:51:50.144920+00:00",
+      "privacyStatus": "public",
       "sourceId": "BV1DzW86hE4H",
-      "status": "verification_pending",
+      "status": "published",
       "title": "今日、好きになりました。 切り抜き",
       "videoId": "aokRlNZ-1XM"
     }
@@ -15,6 +16,6 @@
       "status": "attempted"
     }
   },
-  "updatedAt": "2026-11-20T02:51:55.762114+00:00",
+  "updatedAt": "2026-11-20T02:51:56.724462+00:00",
   "version": 1
 }
