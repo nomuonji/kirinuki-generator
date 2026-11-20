@@ -14,7 +14,7 @@ on:
 
 concurrency:
   group: kyousuki-original-rebuild
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -26,7 +26,7 @@ jobs:
       GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
       GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
       GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-      KYOUSUKI_REVIEW_FOLDER_ID: '1LkFnSKkKVPJFrpCAhdIp_ypgIGPP67gx'
+      KYOUSUKI_REVIEW_FOLDER_ID: '11W4KuH3Tdzi7vzVE857vNKqcxG0vrehO'
       KYOUSUKI_QUARANTINE_FOLDER_ID: '1WXqO4BN_6TlFpCdcJduFHd6lNtKSIFXU'
       PYTHONUNBUFFERED: '1'
     steps:

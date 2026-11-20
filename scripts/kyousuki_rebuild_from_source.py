@@ -141,17 +141,27 @@ def render_episode_cut(source, mascot, record, destination, workdir):
     if top<80: raise RuntimeError("Unsupported source aspect")
     # Blurred full-height fill eliminates black bars. Contained foreground preserves
     # multiple subjects and facial expressions, without the portrait centre-crop loss.
+    watermark_fallback = record["sourceUploaderMid"] == SOURCE_BLACK
+    clean_foreground = (
+        # Clean the known uploader+platform bug from a small upper-right
+        # corner of the original footage. The cat is placed outside the
+        # picture to avoid hiding anyone's expression or the programme captions.
+        "[b]scale=1080:-2,setsar=1,"
+        "delogo=x=735:y=2:w=340:h=78:show=0,"
+        "delogo=x=830:y=558:w=245:h=48:show=0[fg];"
+        if watermark_fallback else "[b]scale=1080:-2,setsar=1[fg];"
+    )
     base=(
        "[0:v]fps=30,split=2[a][b];"
        "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
        "boxblur=16:2,eq=brightness=-0.35[bg];"
-       "[b]scale=1080:-2,setsar=1[fg];"
+       +clean_foreground+
        f"[bg][fg]overlay=0:{top}:shortest=1[scene];"
     )
-    if record["sourceUploaderMid"]==SOURCE_BLACK:
+    if watermark_fallback:
         filters=base+(
-          "[1:v]scale=176:176[mascot];"
-          f"[scene][mascot]overlay=W-w-20:{top+14}:shortest=1[decor];"
+          "[1:v]scale=140:140[mascot];"
+          f"[scene][mascot]overlay=W-w-28:{top-156}:shortest=1[decor];"
           f"[decor]ass=filename='{subtitles}'[v]"
         )
     else:
@@ -208,7 +218,7 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "oldDriveMp4Id":record["oldDriveMp4Id"],
          "oldDriveJsonId":record["oldDriveJsonId"],
          "cutStartSeconds":record["startSeconds"],"cutEndSeconds":record["endSeconds"],
-         "rebuildMethod":"unmodified_source_episode_ffmpeg_v3",
+         "rebuildMethod":"source_episode_ffmpeg_v4_corner_delogo_face_safe",
          "newMp4Sha256":hashed,"newSizeBytes":filename.stat().st_size,
          "fallbackMascot":record["sourceUploaderMid"]==SOURCE_BLACK,
          "manualPostedExcluded":False,"visualReviewEvidence":"raw-rebuild-proof/"+stem,
