@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from packages.kyousuki_researched_telop import (
-    VARIANTS, ass_color, break_rich, render_ass, spoken_caption
+    VARIANTS, ass_color, break_rich, render_ass, spoken_caption, telop_variant
 )
 
 class ResearchBasedTelopTests(unittest.TestCase):
@@ -44,6 +44,15 @@ class ResearchBasedTelopTests(unittest.TestCase):
                 self.assertEqual(result["variant"],variant)
                 self.assertLessEqual(result["hookRows"],2)
                 self.assertLessEqual(result["punchRows"],2)
+
+    def test_legacy_uniform_palette_is_replaced_with_full_three_variant_cycle(self):
+        sequence=[]
+        for ep,qty in ((2,6),(3,6),(4,5),(5,6)):
+            for idx in range(1,qty+1):
+                sequence.append(telop_variant(f"2026:スウォン:{ep}",idx))
+        self.assertEqual(len(sequence),23)
+        self.assertEqual(set(sequence),{0,1,2})
+        self.assertTrue(all(a!=b for a,b in zip(sequence,sequence[1:])))
 
     def test_long_subtitle_wraps_without_dropping_any_character(self):
         line="ちょっと、絵もいいよ。適当。適当でっていうか、伝わるなら。"
