@@ -78,9 +78,9 @@ export const Telop: React.FC<DesignProps> = (p) => {
   const c = TYPED_PALETTES[p.variant % TYPED_PALETTES.length];
 
   // Clip box: full canvas width, enlarged to 4:3 in "zoom" mode.
-  const clipAspect = c.frame === "zoom" ? Math.min(p.aspect, 4 / 3) : p.aspect;
+  const clipAspect = p.aspect; // Do not crop participants to 4:3.
   const clipH = Math.min(900, Math.round(1080 / clipAspect));
-  const clipTop = c.frame === "zoom" ? 600 : 660;
+  const clipTop = 560;
   const clipBottom = clipTop + clipH;
 
   const titleTop = 178;
@@ -113,25 +113,6 @@ export const Telop: React.FC<DesignProps> = (p) => {
   return (
     <AbsoluteFill style={{background: "#000", overflow: "hidden"}}>
       {/* Source as a quiet lead-in line, like the "もうさ.." / "今までは…" kicker above clip titles */}
-      {p.sourceTitle ? (
-        <div
-          style={{
-            position: "absolute",
-            top: Math.max(SAFE.top, titleBlockTop - 58),
-            left: SIDE + 20,
-            right: SIDE + 20,
-            textAlign: "center",
-            fontFamily: FONT.sans,
-            fontWeight: 800,
-            fontSize: 28,
-            color: "rgba(255,255,255,0.72)",
-            ...ellipsis,
-          }}
-        >
-          {p.sourceTitle}
-        </div>
-      ) : null}
-
       {/* Two-tone outlined headline: lines alternate between the two inks */}
       <div
         style={{
@@ -169,7 +150,7 @@ export const Telop: React.FC<DesignProps> = (p) => {
       <div style={{position: "absolute", top: clipTop, left: 0, width: 1080, height: clipH, overflow: "hidden", background: "#000"}}>
         <OffthreadVideo
           src={p.videoSrc}
-          style={{width: "100%", height: "100%", objectFit: c.frame === "zoom" ? "cover" : "contain"}}
+          style={{width: "100%", height: "100%", objectFit: "contain"}}
         />
       </div>
 
@@ -201,7 +182,7 @@ export const Telop: React.FC<DesignProps> = (p) => {
         <div
           style={{
             position: "absolute",
-            bottom: 1920 - clipBottom + 22,
+            bottom: 1920 - clipBottom + 35,
             left: SAFE.left,
             width: subW,
             textAlign: "center",
