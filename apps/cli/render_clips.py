@@ -383,7 +383,8 @@ def main():
             "durationInFrames": duration_frames,
             "reactionTimeline": reaction_timeline,
             "subtitleTimeline": subtitle_timeline,
-            "sourceVideoTitle": source_title,
+            "sourceVideoTitle": source_title,  # provenance only; never composited
+            "renderSpecVersion": 2,
         }
         design = designs.get(clip_path.name)
         if design:
