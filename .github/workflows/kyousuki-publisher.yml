@@ -2,6 +2,9 @@ name: Kyousuki approved stock publisher
 on:
   schedule:
     - cron: '47 0,12 * * *'
+  workflow_run:
+    workflows: ['Kirinuki Production Readiness']
+    types: [completed]
   workflow_dispatch:
     inputs:
       execute:
@@ -20,12 +23,13 @@ on:
       - 'packages/youtube_direct.py'
       - '.github/workflows/kyousuki-publisher.yml'
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && 'kyousuki-publisher-readonly-ci' || 'kirinuki-primary' }}
+  group: ${{ github.event_name == 'pull_request' && 'kyousuki-publisher-readonly-ci' || 'kyousuki-publisher' }}
   cancel-in-progress: false
 permissions:
   contents: read
 jobs:
   verify:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 6
     env:
@@ -57,7 +61,7 @@ jobs:
       - name: Read-only stock and destination readiness
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         env:
-          REQUIRE_READY: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.execute) }}
+          REQUIRE_READY: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.execute) || github.event_name == 'push' }}
         run: |
           if [ "$REQUIRE_READY" = true ]; then
             python -m scripts.kyousuki_publish --require-ready
@@ -66,7 +70,7 @@ jobs:
           fi
   publish:
     needs: verify
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.execute)) && vars.KYOUSUKI_AUTOPUBLISH_ENABLED == 'true' && vars.KYOUSUKI_CHANNEL_AUTHORIZED == 'true' && vars.KYOUSUKI_SOURCE_RIGHTS_APPROVED == 'true'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_run' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.execute)) && vars.KYOUSUKI_AUTOPUBLISH_ENABLED == 'true' && vars.KYOUSUKI_CHANNEL_AUTHORIZED == 'true' && vars.KYOUSUKI_SOURCE_RIGHTS_APPROVED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
