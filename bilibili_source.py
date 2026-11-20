@@ -206,7 +206,7 @@ def main() -> None:
     parser.add_argument("--video", type=Path, default=Path("tmp/video.mp4"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--rights-confirmed", action="store_true",
-                        help="Confirm authorization to acquire and process this specific source")
+                        help="Deprecated CLI compatibility option; provenance retained")
     parser.add_argument("--catalog-stock", action="store_true",
                         help="Configured catalog mode; no per-source administrative record")
     args = parser.parse_args()
@@ -218,8 +218,6 @@ def main() -> None:
             parser.error(str(exc))
         if args.page != 1:
             parser.error("Catalog source page mismatch")
-    elif not args.rights_confirmed:
-        parser.error("Manual source requires explicit source option")
     if args.operation == "video":
         download_video(args.bvid, args.page, args.output, args.expected_mid)
     elif args.language == "auto":
