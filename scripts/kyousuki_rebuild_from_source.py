@@ -289,7 +289,7 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "subtitleCount":layout["subtitleCount"],"designVersion":6,
          "hookText":re.sub(r"\*\*","",str(data.get("topRichText") or "")),
          "subtitleBottomMargin":int(1920-layout["spokenCaptionBottom"]),
-         "captionWrapped":True,"hookWrapped":True,"designVersion":6,
+         "captionWrapped":True,"hookWrapped":True,
          "template":"telop","variant":layout["variant"],
          "researchRef":"docs/design/README.md (2026-11-18)",
          "punchlineText":str(data.get("bottomRichText") or "").replace("**","")}
