@@ -1,0 +1,68 @@
+name: Kyousuki stock v2 migration
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/kyousuki_stock_migration.py'
+      - 'tests/test_kyousuki_stock_migration.py'
+      - '.github/workflows/kyousuki-stock-migration.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/kyousuki_stock_migration.py'
+      - '.github/workflows/kyousuki-stock-migration.yml'
+  workflow_dispatch:
+    inputs:
+      execute:
+        description: 'Promote only fully QA-passed pairs (otherwise audit only)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: kyousuki-stock-migration
+  cancel-in-progress: false
+permissions:
+  contents: read
+
+jobs:
+  migration-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+      GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+      GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+      KYOUSUKI_REVIEW_FOLDER_ID: '1yW0sZaPHLpW2cBeHeb5hgZMkKjpDzHvv'
+      KYOUSUKI_QUARANTINE_FOLDER_ID: '1WXqO4BN_6TlFpCdcJduFHd6lNtKSIFXU'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax and isolated migration contract
+        run: |
+          python -m py_compile scripts/kyousuki_stock_migration.py
+          python -m unittest discover -s tests -p 'test_kyousuki_stock_migration.py' -v
+      - name: Install Drive client
+        if: github.event_name != 'pull_request'
+        run: pip install --disable-pip-version-check google-api-python-client google-auth-httplib2 google-auth-oauthlib
+      - name: Audit and conditionally promote verified stock
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          EXTRA=()
+          if [[ "${{ github.event_name }}" == "push" || "${{ inputs.execute }}" == "true" ]]; then
+            EXTRA+=(--execute)
+          fi
+          python -m scripts.kyousuki_stock_migration \
+            --review-folder "$KYOUSUKI_REVIEW_FOLDER_ID" \
+            --quarantine-folder "$KYOUSUKI_QUARANTINE_FOLDER_ID" \
+            --stock-folder "$GDRIVE_PARENT_FOLDER_ID" \
+            "${EXTRA[@]}" | tee migration-result.log
+      - name: Attach migration verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kyousuki-v2-migration-check
+          path: migration-result.log
+          if-no-files-found: ignore
