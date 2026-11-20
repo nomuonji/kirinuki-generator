@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'scripts/kyousuki_rebuild_from_source.py'
+      - 'packages/kyousuki_researched_telop.py'
+      - 'tests/test_kyousuki_researched_telop.py'
+      - 'apps/remotion/src/VideoWithBands.tsx'
+      - 'apps/remotion/src/design/templates/Telop.tsx'
       - '.github/workflows/kyousuki-rebuild-from-source.yml'
   push:
     branches: [main]
@@ -33,8 +37,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Validate entrypoint
-        run: python -m py_compile scripts/kyousuki_rebuild_from_source.py
+      - name: Validate entrypoint and research design contract
+        run: |
+          python -m py_compile scripts/kyousuki_rebuild_from_source.py packages/kyousuki_researched_telop.py
+          python -m unittest discover -s tests -p test_kyousuki_researched_telop.py -v
       - uses: actions/setup-node@v4
         if: github.event_name == 'pull_request'
         with:
