@@ -1,5 +1,12 @@
 {
-  "clips": {},
+  "clips": {
+    "7c6061c8e548ae5d0ffd1921": {
+      "attemptedAt": "2026-11-20T02:51:50.144920+00:00",
+      "sourceId": "BV1DzW86hE4H",
+      "status": "uploading",
+      "title": "今日、好きになりました。 切り抜き"
+    }
+  },
   "lane": "kyousuki-manual-once",
   "sources": {
     "owner-requested-one-video-20261120": {
@@ -7,6 +14,6 @@
       "status": "attempted"
     }
   },
-  "updatedAt": "2026-11-20T02:51:49.175146+00:00",
+  "updatedAt": "2026-11-20T02:51:50.144938+00:00",
   "version": 1
 }
