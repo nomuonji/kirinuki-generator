@@ -194,49 +194,53 @@ def ass_file(subtitles, seconds, path, hook):
 
 
 def render_episode_cut(source, mascot, record, destination, workdir):
+    from packages.kyousuki_researched_telop import render_ass
     duration=record["endSeconds"]-record["startSeconds"]
     if duration<=0: raise ValueError("Invalid duration")
-    subtitles=workdir/"subs.ass"
-    count=ass_file(record["data"].get("subtitleTimeline") or [],duration,subtitles,
-                   record["data"].get("topRichText"))
-    stream=next((s for s in probe(source).get("streams",[]) if s.get("codec_type")=="video"),None)
+    stream=next((v for v in probe(source).get("streams",[]) if v.get("codec_type")=="video"),None)
     if stream is None: raise RuntimeError("Source video stream unavailable")
     iw,ih=int(stream.get("width") or 0),int(stream.get("height") or 0)
     if iw<640 or ih<360: raise RuntimeError("Source resolution too small")
     height=int(round((ih*1080/iw)/2)*2)
     top=int((1920-height)/2)-90
-    if top<80: raise RuntimeError("Unsupported source aspect")
-    # Blurred full-height fill eliminates black bars. Contained foreground preserves
-    # multiple subjects and facial expressions, without the portrait centre-crop loss.
-    watermark_fallback = record["sourceUploaderMid"] == SOURCE_BLACK
+    if top<160: raise RuntimeError("Unsupported source aspect")
+    props=record["data"]
+    subtitles=workdir/"telop.ass"
+    layout=render_ass(subtitles=props.get("subtitleTimeline") or [],
+          seconds=duration,output=subtitles,
+          hook=props.get("topRichText"),
+          punchline=props.get("bottomRichText"),
+          video_top=top,video_height=height,variant=props.get("variant") or 0,
+          reactions=props.get("reactionTimeline") or [])
+
+    # 2026-11-18 YouTube Studio research: black canvas, bold two-tone editorial
+    # hook, image dominant and uncropped, speech on clip bottom, punchline below.
+    # We only remove the source-video/repost title kicker, not authored commentary.
+    watermark_fallback=record["sourceUploaderMid"]==SOURCE_BLACK
     base=(
-       "[0:v]fps=30,split=2[a][b];"
-       "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
-       "boxblur=16:2,eq=brightness=-0.35[bg];"
-       "[b]scale=1080:-2,setsar=1[fg];"
-       f"[bg][fg]overlay=0:{top}:shortest=1[scene];"
+        "[0:v]fps=30,scale=1080:-2,setsar=1[fg];"
+        "color=c=black:s=1080x1920:r=30[bg];"
+        f"[bg][fg]overlay=0:{top}:shortest=1[scene];"
     )
     if watermark_fallback:
-        # The opaque cat's horizontal body hides the 320px-wide uploader
-        # imprint only along the first 96px of the landscape scene. No faces
-        # or subtitles are covered; no expensive per-frame inpainting.
         filters=base+(
-          "[1:v]format=rgba[mascot];"
-          f"[scene][mascot]overlay=W-w-2:{top}:shortest=1[decor];"
-          f"[decor]ass=filename='{subtitles}'[v]"
+            "[1:v]format=rgba[mascot];"
+            f"[scene][mascot]overlay=W-w-2:{top}:shortest=1[decor];"
+            f"[decor]ass=filename='{subtitles}'[v]"
         )
     else:
         filters=base+f"[scene]ass=filename='{subtitles}'[v]"
     cmd=["ffmpeg","-nostdin","-y","-loglevel","error",
          "-ss",str(record["startSeconds"]),"-i",str(source)]
-    if record["sourceUploaderMid"]==SOURCE_BLACK:
+    if watermark_fallback:
         cmd+=["-loop","1","-framerate","30","-i",str(mascot)]
     cmd+=["-filter_complex",filters,"-map","[v]","-map","0:a:0",
           "-t",str(duration),"-r","30","-c:v","libx264","-preset","ultrafast",
           "-crf","19","-pix_fmt","yuv420p","-c:a","aac","-b:a","160k",
           "-movflags","+faststart",str(destination)]
     run(cmd,timeout=1800)
-    return {"subtitleCount":count,"videoTop":top,"frameAspect":"9:16"}
+    return layout
+
 
 def stage_clip(drive, review_folder, source, mascot, record, workdir):
     epno=record["episodeKey"].rsplit(":",1)[-1]
@@ -279,13 +283,17 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "oldDriveMp4Id":record["oldDriveMp4Id"],
          "oldDriveJsonId":record["oldDriveJsonId"],
          "cutStartSeconds":record["startSeconds"],"cutEndSeconds":record["endSeconds"],
-         "rebuildMethod":"source_episode_ffmpeg_v5_hook_wrapped_high_subtitles",
+         "rebuildMethod":"source_episode_ffmpeg_v6_researched_telop",
          "newMp4Sha256":hashed,"newSizeBytes":filename.stat().st_size,
          "fallbackMascot":record["sourceUploaderMid"]==SOURCE_BLACK,
          "manualPostedExcluded":False,"visualReviewEvidence":"raw-rebuild-proof/"+stem,
-         "subtitleCount":layout["subtitleCount"],"designVersion":5,
+         "subtitleCount":layout["subtitleCount"],"designVersion":6,
          "hookText":re.sub(r"\*\*","",str(data.get("topRichText") or "")),
-         "subtitleBottomMargin":516,"captionWrapped":True}
+         "subtitleBottomMargin":int(1920-layout["spokenCaptionBottom"]),
+         "captionWrapped":True,"hookWrapped":True,
+         "template":"telop","variant":layout["variant"],
+         "researchRef":"docs/design/README.md (2026-11-18)",
+         "punchlineText":str(data.get("bottomRichText") or "").replace("**","")}
     # A v1 source cut may round up its final subtitle by a handful of frames.
     # Clamp the audit timeline to the actual re-rendered duration without
     # moving the start of a spoken line.
