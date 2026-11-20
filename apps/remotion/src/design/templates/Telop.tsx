@@ -161,6 +161,10 @@ export const Telop: React.FC<DesignProps> = (p) => {
         />
       </div>
 
+      {/* Keep original hardcoded broadcast subtitles from visually colliding
+          with the higher editorial captions. This plate stays below faces. */}
+      <div style={{position:"absolute",top:clipBottom-120,left:0,width:1080,
+        height:120,background:"rgba(0,0,0,0.82)"}} />
       {/* Reaction cut-in on the clip */}
       {reaction.entry ? (
         <div

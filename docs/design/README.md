@@ -31,7 +31,7 @@ even when the source is replayed with FFmpeg instead of Remotion:
 - Keep participants' full frame visible and the scene edge-to-edge; avoid
   unverified face-cutting zoom. To avoid dead letterbox filling most of the 9:16 frame, use a *very dark blurred copy of the original scene* behind the existing black-based telop hierarchy; no decorative title banner;
 - Put *spoken* subtitles over the lower edge of the scene (not below the visual),
-  readable in two or three lines; keep the *editorial punchline*
+  readable in two or three lines. Where the original broadcast already burns in Japanese subtitles, darken only the bottom 120px of the retained scene before drawing the higher caption, so text does not double; keep the *editorial punchline*
   (`bottomRichText`) underneath the scene in the safe viewing area;
 - Use `reactionTimeline` only where there is a real timestamped reaction.
   Do not invent reactions to satisfy a visual template;

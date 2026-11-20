@@ -219,19 +219,22 @@ def render_episode_cut(source, mascot, record, destination, workdir):
     watermark_fallback=record["sourceUploaderMid"]==SOURCE_BLACK
     base=(
         "[0:v]fps=30,split=2[a][b];"
-        "[a]scale=1080:1920:force_original_aspect_ratio=increase,"
-        "crop=1080:1920,boxblur=18:2,eq=brightness=-0.42[bg];"
+        "[a]scale=270:480:force_original_aspect_ratio=increase,"
+        "crop=270:480,boxblur=8:2,scale=1080:1920:flags=bicubic,"
+        "eq=brightness=-0.42[bg];"
         "[b]scale=1080:-2,setsar=1[fg];"
         f"[bg][fg]overlay=0:{top}:shortest=1[scene];"
+        f"[scene]drawbox=x=0:y={top+height-120}:w=1080:h=120:"
+        "color=black@0.82:t=fill[caption_safe];"
     )
     if watermark_fallback:
         filters=base+(
             "[1:v]format=rgba[mascot];"
-            f"[scene][mascot]overlay=W-w-2:{top}:shortest=1[decor];"
+            f"[caption_safe][mascot]overlay=W-w-2:{top}:shortest=1[decor];"
             f"[decor]ass=filename='{subtitles}'[v]"
         )
     else:
-        filters=base+f"[scene]ass=filename='{subtitles}'[v]"
+        filters=base+f"[caption_safe]ass=filename='{subtitles}'[v]"
     cmd=["ffmpeg","-nostdin","-y","-loglevel","error",
          "-ss",str(record["startSeconds"]),"-i",str(source)]
     if watermark_fallback:
@@ -285,14 +288,14 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "oldDriveMp4Id":record["oldDriveMp4Id"],
          "oldDriveJsonId":record["oldDriveJsonId"],
          "cutStartSeconds":record["startSeconds"],"cutEndSeconds":record["endSeconds"],
-         "rebuildMethod":"source_episode_ffmpeg_v7_researched_telop_soft_background",
+         "rebuildMethod":"source_episode_ffmpeg_v8_researched_telop_caption_plate",
          "newMp4Sha256":hashed,"newSizeBytes":filename.stat().st_size,
          "fallbackMascot":record["sourceUploaderMid"]==SOURCE_BLACK,
          "manualPostedExcluded":False,"visualReviewEvidence":"raw-rebuild-proof/"+stem,
-         "subtitleCount":layout["subtitleCount"],"designVersion":7,
+         "subtitleCount":layout["subtitleCount"],"designVersion":8,
          "hookText":re.sub(r"\*\*","",str(data.get("topRichText") or "")),
          "subtitleBottomMargin":int(1920-layout["spokenCaptionBottom"]),
-         "captionWrapped":True,"hookWrapped":True,"deadSpaceTreatment":"dark_source_blur",
+         "captionWrapped":True,"hookWrapped":True,"deadSpaceTreatment":"dark_source_blur","nativeCaptionPlatePx":120,
          "template":"telop","variant":layout["variant"],
          "legacyVariant":data.get("variant"),
          "researchRef":"docs/design/README.md (2026-11-18)",
