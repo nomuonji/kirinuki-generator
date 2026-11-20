@@ -32,6 +32,8 @@ def publication_item(metadata, folder, registry):
             or not str(migration.get("hookText") or "").strip()
             or migration.get("captionWrapped") is not True
             or migration.get("template") != "telop"
+            or metadata.get("variant") not in (0,1,2)
+            or migration.get("variant") != metadata.get("variant")
             or not str(migration.get("punchlineText") or "").strip()
             or not str(migration.get("researchRef") or "").startswith("docs/design/README.md")):
         return None

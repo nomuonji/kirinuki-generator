@@ -23,6 +23,29 @@ VARIANTS = (
      "hl": ("#FF5FA8", "#111111"), "punch": ("#FFFFFF", "#B45CFF")},
 )
 
+def telop_design(episode_key, clip_index):
+    """Replay the existing researched LRU rotation, never a fixed A→B→C loop.
+
+    The v1 stock incorrectly stored variant=1 for every one of 23 clips.
+    Save that as legacy evidence, and derive a stable design from the common
+    design_rotation.py generator and the canonical episode order.
+    """
+    from packages.design_rotation import pick_designs
+    ep=int(str(episode_key).rsplit(":",1)[-1])
+    offsets={2:0,3:6,4:12,5:17}
+    index=int(clip_index)
+    maximum={2:6,3:6,4:5,5:6}
+    if ep not in offsets or not 1<=index<=maximum[ep]:
+        raise ValueError("Unexpected canonical episode/clip for stock rotation")
+    position=offsets[ep]+index-1
+    return pick_designs([],23,seed="kyousuki-suwon-2026-v6",
+                        pool=("telop",))[position]
+
+
+def telop_variant(episode_key, clip_index):
+    return telop_design(episode_key,clip_index)["variant"]
+
+
 def ass_color(css):
     rgb=css.lstrip("#")
     if not re.fullmatch(r"[a-fA-F0-9]{6}",rgb):

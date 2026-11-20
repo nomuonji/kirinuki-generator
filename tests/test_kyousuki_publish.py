@@ -9,11 +9,11 @@ GRANT={"bvid":"BV1PwjzzVELc","page":1,"author":"fixture","mid":"123",
        "rightsEvidence":"synthetic fixture","processingAuthorized":True,"publicationAuthorized":True,
        "stockFolderId":FOLDER}
 REG={"accounts":[{"name":"fixture","mid":"123","priority":1}],"approvedSources":[GRANT]}
-META={"renderSpecVersion":2,
+META={"renderSpecVersion":2,"variant":0,
       "stockMigration":{"qaStatus":"pass","designVersion":6,
                         "rebuildMethod":"source_episode_ffmpeg_v6_researched_telop",
                         "hookText":"視聴者へのフック","captionWrapped":True,
-                        "template":"telop","punchlineText":"このシーンのオチ",
+                        "template":"telop","variant":0,"punchlineText":"このシーンのオチ",
                         "researchRef":"docs/design/README.md (2026-11-18)"},
       "kirinukiAudit":{"sourcePlatform":"bilibili","sourceContentId":GRANT["bvid"],"sourcePage":1,
        "sourceUploaderMid":"123","episodeKey":GRANT["episodeKey"],"officialEpisodeUrl":GRANT["officialEpisodeUrl"],"sourceVideoUrl":"https://www.bilibili.com/video/BV1PwjzzVELc/?p=1",
