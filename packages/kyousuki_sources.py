@@ -344,11 +344,11 @@ def public_catalog(mid, timeout=15):
 
 
 def catalog_discovery(reg, now, index_path=None, fetch=public_catalog):
-    """Read one bounded public archive for the verified priority-1 uploader.
+    """Inspect each configured account independently; group only exact recognized episode keys.
 
-    The catalog's account/episode metadata never creates a source grant.
-    The media adapter must independently verify uploader identity at acquisition.
-    Other accounts still have the pre-existing, index-only observation path.
+    Old uploads never suppress newer episodes from another account. Every provider
+    consumes at most one bounded public archive request; access failure is reported.
+    Metadata discovery does not authorize downloading or redistribution.
     """
     report = indexed_discovery(index_path, reg, now) if index_path else {
         "checkedAt": now.isoformat(), "accounts": reg["accounts"],
@@ -357,54 +357,62 @@ def catalog_discovery(reg, now, index_path=None, fetch=public_catalog):
         "autoAcquisitionAuthorized": bool(approval_records(reg))}
     report.update({"discoveryMode": "public_catalog", "status": "degraded",
                    "episodeGroups": {}, "candidateCount": 0,
-                   "reason": "Catalog metadata is not authorization; only documented source grants permit production."})
-    primary = min(reg["accounts"], key=lambda a: a["priority"])
-    mid = str(primary.get("mid") or "")
-    diagnostic = {"stage": "public_catalog", "provider": "uapipro",
-                  "account": primary["name"], "mid": mid}
-    report["diagnostics"].append(diagnostic)
-    if not mid.isdigit():
-        diagnostic.update(status="failed", reason="unverified_mid")
-        return report
-    try:
-        raw, remaining = fetch(mid)
-    except Exception as exc:
-        diagnostic.update(status="failed", error=type(exc).__name__,
-                          httpStatus=getattr(exc, "code", None))
-        return report
-    rows = {}
-    for r in raw:
-        if not isinstance(r, dict):
+                   "reason": "Catalog metadata is not authorization; source grants and frame QA are required."})
+    found = {}
+    successful = 0
+    for account in sorted(reg["accounts"], key=lambda a: a["priority"]):
+        mid = str(account.get("mid") or "")
+        diag = {"stage": "public_catalog", "provider": "uapipro",
+                "account": account["name"], "mid": mid}
+        report["diagnostics"].append(diag)
+        if not mid.isdigit():
+            diag.update(status="failed", reason="unverified_mid")
             continue
-        title = _clean(r.get("title"))
-        if not re.search(r"今天喜欢上你了|今天喜欢你了|今喜|今日好き", title):
+        try:
+            raw, remaining = fetch(mid)
+        except Exception as exc:
+            diag.update(status="failed", error=type(exc).__name__,
+                        httpStatus=getattr(exc, "code", None))
+            if getattr(exc, "code", None) in (401, 403, 412, 429):
+                break
             continue
-        if not FULL_EP.search(title) or EXTRAS.search(title):
-            continue
-        paid = r.get("is_ugc_pay", r.get("isugcpay"))
-        if r.get("state") != 0 or paid not in (0, False):
-            continue
-        stamp = r.get("publish_time", r.get("publishtime"))
-        duration = r.get("duration")
-        if type(duration) is not int or type(stamp) is bool:
-            continue
-        candidate = normalize({"bvid": r.get("bvid"), "title": title,
-                               "author": primary["name"], "mid": mid,
-                               "duration": duration, "pubdate": stamp}, primary, now)
-        if candidate:
-            candidate["metadataProvider"] = "uapipro"
-            candidate["identityStatus"] = "catalog_account_binding"
-            rows[candidate["bvid"]] = candidate
-    candidates = sorted(rows.values(), key=lambda r: (-datetime.fromisoformat(r["publishedAt"]).timestamp(), r["bvid"]))
-    for candidate in candidates:
+        successful += 1
+        accepted = 0
+        for r in raw:
+            if not isinstance(r, dict):
+                continue
+            title = _clean(r.get("title"))
+            if not re.search(r"今天喜欢上你了|今天喜欢你了|今喜|今日好き", title):
+                continue
+            if not FULL_EP.search(title) or EXTRAS.search(title):
+                continue
+            paid = r.get("is_ugc_pay", r.get("isugcpay"))
+            if r.get("state") != 0 or paid not in (0, False):
+                continue
+            stamp = r.get("publish_time", r.get("publishtime"))
+            duration = r.get("duration")
+            if type(duration) is not int or type(stamp) is bool:
+                continue
+            candidate = normalize({"bvid": r.get("bvid"), "title": title,
+                                   "author": account["name"], "mid": mid,
+                                   "duration": duration, "pubdate": stamp}, account, now)
+            if candidate:
+                candidate["metadataProvider"] = "uapipro"
+                candidate["identityStatus"] = "catalog_account_binding"
+                found[candidate["bvid"]] = candidate
+                accepted += 1
+        diag.update(status="ok", returnedRows=len(raw),
+                    acceptedRows=accepted, rateLimitRemaining=remaining)
+    for candidate in found.values():
         key = candidate["episodeKey"] or "unresolved:" + candidate["bvid"]
         report["episodeGroups"].setdefault(key, []).append(candidate)
-    report["candidateCount"] = len(candidates)
-    report["status"] = "ok" if candidates else "degraded"
-    report["latestCatalogCandidate"] = candidates[0] if candidates else None
-    diagnostic.update(status=report["status"], returnedRows=len(raw),
-                      acceptedRows=len(candidates), rateLimitRemaining=remaining)
+    for group in report["episodeGroups"].values():
+        group.sort(key=lambda c: (c["priority"], -datetime.fromisoformat(c["publishedAt"]).timestamp(), c["bvid"]))
+    report["candidateCount"] = len(found)
+    report["status"] = "ok" if successful and found else "degraded"
+    report["latestCatalogCandidate"] = max(found.values(), key=lambda c:c["publishedAt"]) if found else None
     return report
+
 
 
 def discover(reg=None, fetch=search, now=None):
