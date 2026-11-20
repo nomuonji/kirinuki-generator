@@ -1,5 +1,6 @@
 import React from "react";
-import {AbsoluteFill, staticFile} from "remotion";
+import {AbsoluteFill, staticFile, useVideoConfig} from "remotion";
+import {Telop} from "./design/templates/Telop";
 import {CleanShort} from "./CleanShort";
 import type {ReactionEntry, SubtitleEntry} from "./design/shared";
 
@@ -26,8 +27,24 @@ export type VideoWithBandsProps = {
 /** The composition ID stays stable, but every template now uses title-free media layout. */
 export const VideoWithBands: React.FC<VideoWithBandsProps> = (props) => {
   const safePath = props.videoFileName.split("\\").join("/").replace(/^public\//, "");
+  const {fps} = useVideoConfig();
   return (
     <AbsoluteFill lang="ja">
+      {props.template === "telop" && props.topRichText ? (
+        <Telop
+          videoSrc={staticFile(safePath)}
+          title={props.topRichText}
+          punchline={props.bottomRichText ?? ""}
+          sourceTitle=""
+          aspect={props.sourceAspect && props.sourceAspect > 0 ? props.sourceAspect : 16 / 9}
+          durationInFrames={props.durationInFrames}
+          fps={fps}
+          subtitles={props.subtitleTimeline ?? []}
+          reactions={props.reactionTimeline ?? []}
+          variant={props.variant ?? 0}
+          seed={props.designSeed ?? 0}
+        />
+      ) : (
       <CleanShort
         src={staticFile(safePath)}
         aspect={props.sourceAspect && props.sourceAspect > 0 ? props.sourceAspect : 16/9}
@@ -36,6 +53,7 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = (props) => {
         reactions={props.reactionTimeline ?? []}
         mascot={props.fallbackMascot}
       />
+      )}
     </AbsoluteFill>
   );
 };
