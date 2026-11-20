@@ -1,0 +1,45 @@
+name: Kyousuki one-time manually requested post
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/kyousuki-manual-once.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: kyousuki-owner-one-off-20261120
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  upload-one:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+      GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
+      GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+      YOUTUBE_DESTINATION_CHANNEL_ID: ${{ vars.KYOUSUKI_DESTINATION_CHANNEL_ID }}
+      YOUTUBE_CLIENT_ID: ${{ secrets.YT_CLIENT_ID_KYOUSUKI }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET_KYOUSUKI }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN_KYOUSUKI }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install YouTube, Drive and media verification dependencies
+        run: |
+          python -m pip install --disable-pip-version-check google-api-python-client google-auth-httplib2 google-auth-oauthlib requests python-dotenv pydantic
+          sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Validate one stock video, Drive and destination (no upload)
+        run: python -m scripts.manual_kyousuki_once --inspect
+      - name: Upload only the single manually requested video
+        run: python -m scripts.manual_kyousuki_once --upload-public
