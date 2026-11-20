@@ -18,8 +18,8 @@ from scripts.kyousuki_stock_migration import children, verified_move
 
 STOCK="1Y0XEnzTMpQbBvQVD8Uzfc6xbZYRU6ss8"
 ARCHIVE="1PKiO60pDRirU2GIgnT46jojvRaWjW31_"
-REVIEW11="1eSmzp7VRhV-BxUQFbJBvlba_8xqsAI-P"
-REVIEW12="1T0KaUeGw2XB70Hskh4aXwzlmA9cGP_X6"
+REVIEW11="1Ukc-B9gs26VuO-6Hbq_0EcjLxso54GGF"
+REVIEW12="1NdqPyXaQqwk1dF0f-rqEs3xvaEYjNXbU"
 LEDGER="kyousuki_v5_hook_stock_migration.json"
 MANUAL_VIDEO="posted_manual_7c6061c8e548ae5d0ffd1921.mp4"
 EXPECTED={
@@ -34,7 +34,7 @@ SOURCES={
     4:"BV1DzW86hE4H",
     5:"BV11GsK6RE2u",
 }
-RENDERER="source_episode_ffmpeg_v5_hook_wrapped_high_subtitles"
+RENDERER="source_episode_ffmpeg_v5_wrapped_hook_and_subtitles"
 EP_RE=re.compile(r"^kyousuki_v2_ep([2-5])_clip_\d{3}\.mp4$")
 HEX=re.compile(r"^[a-f0-9]{64}$")
 
@@ -109,6 +109,7 @@ def preflight(drive, manifest):
             newmg.get("mediaIntegrityQa")!="pass" or
             newmg.get("subtitleBottomMargin")!=516 or
             newmg.get("captionWrapped") is not True or
+            newmg.get("hookWrapped") is not True or
             not str(newmg.get("hookText") or "").strip()):
             raise RuntimeError("Unreviewed or wrong editorial design: "+name)
         if (newmg.get("newMp4Sha256")!=approvals[name]["sha256"] or
