@@ -5,6 +5,10 @@ on:
     paths:
       - 'scripts/kyousuki_rebuild_from_source.py'
       - '.github/workflows/kyousuki-rebuild-from-source.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/kyousuki-rebuild-from-source.yml'
   workflow_dispatch:
 
 concurrency:
@@ -21,7 +25,7 @@ jobs:
       GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
       GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
       GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-      KYOUSUKI_REVIEW_FOLDER_ID: '11W4KuH3Tdzi7vzVE857vNKqcxG0vrehO'
+      KYOUSUKI_REVIEW_FOLDER_ID: '1Zx5WPuPVY5XkATC16nsmJzZO07qpOuda'
       KYOUSUKI_QUARANTINE_FOLDER_ID: '1WXqO4BN_6TlFpCdcJduFHd6lNtKSIFXU'
       PYTHONUNBUFFERED: '1'
     steps:
