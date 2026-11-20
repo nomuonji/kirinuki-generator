@@ -18,8 +18,8 @@ from scripts.kyousuki_stock_migration import children, verified_move
 
 STOCK="1Y0XEnzTMpQbBvQVD8Uzfc6xbZYRU6ss8"
 ARCHIVE="1wynQnpMGs76fRU9Ifkr-zaRs_IIOX7-Z"
-REVIEW11="1dyWOKU48Xbw6fpyIhPdSEvoF7b2N-1wp"
-REVIEW12="1PFm_HmuHQRn7oIXatftaYCKpAXXbOz9N"
+REVIEW11="1skhCXoCVzkPhYUYhkklYvy1V90Ft2ygY"
+REVIEW12="1WE_yDi_snejVrYBtbxhJCaozTXXrc7MP"
 LEDGER="kyousuki_v6_researched_telop_stock_migration.json"
 MANUAL_VIDEO="posted_manual_7c6061c8e548ae5d0ffd1921.mp4"
 EXPECTED={
@@ -112,6 +112,8 @@ def preflight(drive, manifest):
             newmg.get("template") != "telop" or
             not str(newmg.get("punchlineText") or "").strip() or
             not str(newmg.get("researchRef") or "").startswith("docs/design/README.md") or
+            newmg.get("variant") != fresh.get("variant") or
+            newmg.get("template") != fresh.get("template") or
             not str(newmg.get("hookText") or "").strip()):
             raise RuntimeError("Unreviewed or wrong editorial design: "+name)
         if (newmg.get("newMp4Sha256")!=approvals[name]["sha256"] or
