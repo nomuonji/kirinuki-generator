@@ -29,8 +29,8 @@ const OriginalMascot: React.FC = () => (
 export const CleanShort: React.FC<CleanShortProps> = (p) => {
   useFontsReady(["900 64px 'Noto Sans JP'"], p.subtitles.map(s => s.text).join(""));
   const isVertical = p.aspect < 0.85;
-  const videoTop = isVertical ? 0 : 226;
-  const videoHeight = isVertical ? 1920 : 1468;
+  const videoTop = isVertical ? 0 : 360;
+  const videoHeight = isVertical ? 1920 : 1120;
   const sub = useSubtitle(p.subtitles);
   const reaction = useReaction(p.reactions);
   const characters = sub.entry ? [...sub.entry.text].length : 0;
@@ -39,9 +39,12 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
   // No top banner, episode label, source title, Chinese repost title or bottom headline.
   return (
     <AbsoluteFill style={{backgroundColor:"#080b15", overflow:"hidden"}}>
-      <AbsoluteFill style={{background:"linear-gradient(160deg,#111827,#202d3d 55%,#111827)"}} />
+      <AbsoluteFill style={{overflow:"hidden",backgroundColor:"#151923"}}>
+        <OffthreadVideo muted src={p.src} style={{width:"100%",height:"100%",
+          objectFit:"cover",filter:"blur(65px) brightness(0.36)",transform:"scale(1.15)"}} />
+      </AbsoluteFill>
       <div style={{position:"absolute",left:0,top:videoTop,width:1080,height:videoHeight,overflow:"hidden"}}>
-        <OffthreadVideo src={p.src} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center center"}}/>
+        <OffthreadVideo src={p.src} style={{width:"100%",height:"100%",objectFit:"contain",objectPosition:"center center"}}/>
       </div>
       {reaction.entry && (
         <div style={{position:"absolute",top:videoTop+225,left:SAFE.left,right:210,
@@ -60,7 +63,7 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
         </div>
       )}
       {showMascot && (
-        <div style={{position:"absolute",top:videoTop+(p.mascot?.insetTop ?? 44),
+        <div style={{position:"absolute",top:videoTop+(p.mascot?.insetTop ?? (isVertical ? 44 : 282)),
           right:p.mascot?.right ?? 58,width:p.mascot?.size ?? 126,height:p.mascot?.size ?? 126,
           filter:"drop-shadow(0 4px 8px rgba(0,0,0,.46))"}}>
           <OriginalMascot />
