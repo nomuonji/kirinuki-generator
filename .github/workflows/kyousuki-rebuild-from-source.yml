@@ -5,11 +5,6 @@ on:
     paths:
       - 'scripts/kyousuki_rebuild_from_source.py'
       - '.github/workflows/kyousuki-rebuild-from-source.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/kyousuki_rebuild_from_source.py'
-      - '.github/workflows/kyousuki-rebuild-from-source.yml'
   workflow_dispatch:
 
 concurrency:
