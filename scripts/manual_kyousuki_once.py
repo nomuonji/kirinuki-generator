@@ -103,6 +103,11 @@ def main():
     youtube, playlist = auth_youtube()
     ledger = GitHubLedger("kyousuki-manual-once")
     ledger.load()
+    one_shot = "owner-requested-one-video-20261120"
+    prior = ledger.data["sources"].get(one_shot)
+    if prior:
+        print("MANUAL_KYOUSUKI_RESULT already_attempted", json.dumps(prior), flush=True)
+        return
     existing = owned_videos(youtube, playlist, limit=250)
     used = {fingerprint_of(video) for video in existing}
     stock = list_clip_files(drive, folder)
@@ -118,6 +123,8 @@ def main():
         print("MANUAL_KYOUSUKI_RESULT inspect_success", flush=True)
         return
 
+    # Lock this owner request before attempting any upload. Retries never pick a second clip.
+    ledger.set_source(one_shot, key=key, status="attempted")
     # Record the attempt before network IO: re-running may only reconcile.
     ledger.set_clip(key, status="uploading", attemptedAt=__import__("datetime").datetime.now(
         __import__("datetime").timezone.utc).isoformat(), sourceId=bvid, title=title)
