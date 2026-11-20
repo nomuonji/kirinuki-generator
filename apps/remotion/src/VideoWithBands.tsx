@@ -32,6 +32,7 @@ export const VideoWithBands: React.FC<VideoWithBandsProps> = (props) => {
         src={staticFile(safePath)}
         aspect={props.sourceAspect && props.sourceAspect > 0 ? props.sourceAspect : 16/9}
         subtitles={props.subtitleTimeline ?? []}
+        editorialHook={props.topRichText}
         reactions={props.reactionTimeline ?? []}
         mascot={props.fallbackMascot}
       />

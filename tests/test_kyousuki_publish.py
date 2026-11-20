@@ -9,7 +9,11 @@ GRANT={"bvid":"BV1PwjzzVELc","page":1,"author":"fixture","mid":"123",
        "rightsEvidence":"synthetic fixture","processingAuthorized":True,"publicationAuthorized":True,
        "stockFolderId":FOLDER}
 REG={"accounts":[{"name":"fixture","mid":"123","priority":1}],"approvedSources":[GRANT]}
-META={"renderSpecVersion":2,"kirinukiAudit":{"sourcePlatform":"bilibili","sourceContentId":GRANT["bvid"],"sourcePage":1,
+META={"renderSpecVersion":2,
+      "stockMigration":{"qaStatus":"pass","designVersion":5,
+                        "rebuildMethod":"source_episode_ffmpeg_v5_hook_high_subtitles",
+                        "hookText":"視聴者へのフック"},
+      "kirinukiAudit":{"sourcePlatform":"bilibili","sourceContentId":GRANT["bvid"],"sourcePage":1,
        "sourceUploaderMid":"123","episodeKey":GRANT["episodeKey"],"officialEpisodeUrl":GRANT["officialEpisodeUrl"],"sourceVideoUrl":"https://www.bilibili.com/video/BV1PwjzzVELc/?p=1",
        "permissionVerified":True,"transformativeUseVerified":True,"publicPublishingAuthorized":True,
        "publicationSha256":"a"*64,"approvedCandidateDigest":"b"*64,"media":{"sizeBytes":100001},
@@ -29,6 +33,14 @@ class PublicationTests(unittest.TestCase):
         item=copy.deepcopy(META)
         item["kirinukiAudit"]["sourceUploaderMid"]="999"
         self.assertIsNone(publication_item(item,FOLDER,REG))
+    def test_rejects_wrong_design_until_hook_and_caption_upgrade(self):
+        old=copy.deepcopy(META)
+        old["stockMigration"]["designVersion"]=4
+        self.assertIsNone(publication_item(old,FOLDER,REG))
+        old=copy.deepcopy(META)
+        old["stockMigration"]["hookText"]=""
+        self.assertIsNone(publication_item(old,FOLDER,REG))
+
     def test_destination_receipt_requires_actual_marker_and_exact_slot(self):
         item=publication_item(META,FOLDER,REG)
         self.assertIsNotNone(item)
