@@ -768,6 +768,11 @@ def main():
             source_provenance.update(sourceUploaderMid=catalog_mid,
                 episodeKey=episode_key(os.environ.get("SOURCE_VIDEO_TITLE","")),
                 selectionMode="catalog", permissionVerified=False, publicPublishingAuthorized=False)
+        # Visual fallback is per source, not a global channel preference.
+        if str(source_provenance.get("sourceUploaderMid") or "") == "3690992020490662":
+            os.environ["KYOUSUKI_FALLBACK_MASCOT"] = "1"
+        else:
+            os.environ.pop("KYOUSUKI_FALLBACK_MASCOT", None)
         # These audit fields report verification status; selection does not assert a license.
 
     # --- 1. Path Definitions ---
