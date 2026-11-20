@@ -213,9 +213,20 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
          "fallbackMascot":record["sourceUploaderMid"]==SOURCE_BLACK,
          "manualPostedExcluded":False,"visualReviewEvidence":"raw-rebuild-proof/"+stem,
          "subtitleCount":layout["subtitleCount"]}
+    # A v1 source cut may round up its final subtitle by a handful of frames.
+    # Clamp the audit timeline to the actual re-rendered duration without
+    # moving the start of a spoken line.
+    timeline=[]
+    last_frame=int(secs*30)
+    for sub in data.get("subtitleTimeline") or []:
+        clean=dict(sub)
+        if int(clean.get("startFrame",0))>=last_frame: continue
+        clean["endFrame"]=min(last_frame,int(clean.get("endFrame",last_frame)))
+        if clean["endFrame"]>int(clean.get("startFrame",0)):
+            timeline.append(clean)
     meta={"renderSpecVersion":2,"videoFileName":stem+".mp4",
           "kirinukiAudit":audit,"stockMigration":mig,
-          "subtitleTimeline":data.get("subtitleTimeline") or [],
+          "subtitleTimeline":timeline,
           "reactionTimeline":data.get("reactionTimeline") or []}
     side=workdir/(stem+".json")
     side.write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding="utf-8")
