@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "sourceRunId": 44714084222,
+  "items": [
+    {
+      "name": "kyousuki_v2_ep4_clip_001.mp4",
+      "sha256": "d56f5aad202ce7ef18957d0532027d40a05c8e2ce494a61a0f9e46dea8e93902",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep4_clip_002.mp4",
+      "sha256": "2d29fda1530b53bf5c6c8093238f954fa56feafab174f2e3086f5bde395d8244",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep4_clip_003.mp4",
+      "sha256": "e177e6d3a73ea538c0fb2d3523ebb980cee1251f52bc6d8c101d5e4a9d2a1105",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep4_clip_004.mp4",
+      "sha256": "e7d5626d81a735ab4f700b0050d8a3b3d23f8155032e56e93ff533dc1ea4c6ff",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep4_clip_005.mp4",
+      "sha256": "753f6ad2acd3972db332565ac0bb4fc0a6e6d629dd4b277fa186dbc188eb2b22",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_001.mp4",
+      "sha256": "046e5d0c69837071d3aa0f7d48fba8c1ca05d08ca5c55feaad624d51284f4d57",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_002.mp4",
+      "sha256": "898691f6843198e4926c1c25d4e71a5bb4ce7ccdd1c338d3fa1761c7bba21361",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_003.mp4",
+      "sha256": "71ffc2b4fa6f6d555ae7be0ff62c6fded88f1d19eeefb26f918ca99894434e81",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_004.mp4",
+      "sha256": "b39fc23ea050a8b883f231add5ee017dfcc0a1a81a73f72cc0f7bfafd8b47a88",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_005.mp4",
+      "sha256": "e13ecc7b98deeebe2672599fac48a4ccda11de4b7617d3c7f86cd7fbdd6c047a",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    },
+    {
+      "name": "kyousuki_v2_ep5_clip_006.mp4",
+      "sha256": "4a925a53ceb8fff28006b07a0b0befe5d045fb024321785232a6e51ce3382058",
+      "visualQa": "pass",
+      "screenshots": [
+        "beginning.png",
+        "middle.png",
+        "end.png"
+      ],
+      "reviewedBy": "GPT-6 (frame-by-frame visual inspection)",
+      "evidenceArtifactUrl": "https://github.com/nomuonji/kirinuki-generator/actions/runs/44714084222/artifacts/14619830493",
+      "notes": "Source framing retained; no residual uploader/Bilibili watermark or face/subtitle obstruction in 3 sampled frames. Audio, frame and metadata QA clear."
+    }
+  ]
+}
