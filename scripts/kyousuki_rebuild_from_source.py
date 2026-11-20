@@ -194,7 +194,7 @@ def ass_file(subtitles, seconds, path, hook):
 
 
 def render_episode_cut(source, mascot, record, destination, workdir):
-    from packages.kyousuki_researched_telop import render_ass, telop_variant
+    from packages.kyousuki_researched_telop import render_ass, telop_variant, telop_design
     duration=record["endSeconds"]-record["startSeconds"]
     if duration<=0: raise ValueError("Invalid duration")
     stream=next((v for v in probe(source).get("streams",[]) if v.get("codec_type")=="video"),None)
@@ -309,6 +309,8 @@ def stage_clip(drive, review_folder, source, mascot, record, workdir):
     meta={"renderSpecVersion":2,"videoFileName":stem+".mp4",
           "template":"telop","variant":layout["variant"],
           "legacyDesignVariant":data.get("variant"),
+          "designSeed":telop_design(record["episodeKey"],record["index"])["designSeed"],
+          "legacyDesignSeed":data.get("designSeed"),
           "topRichText":data.get("topRichText"),"bottomRichText":data.get("bottomRichText"),
           "kirinukiAudit":audit,"stockMigration":mig,
           "subtitleTimeline":timeline,
