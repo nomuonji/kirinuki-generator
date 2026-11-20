@@ -79,7 +79,7 @@ def promote(drive,stock,review,quarantine,manifest):
             raise RuntimeError("Source QA/provenance mismatch for "+name+": "+",".join(errors))
         metadata=item.get("metadata") or {}
         migration=metadata.get("stockMigration") or {}
-        if (migration.get("rebuildMethod")!="source_episode_ffmpeg_v4_corner_delogo_face_safe"
+        if (migration.get("rebuildMethod")!="source_episode_ffmpeg_v4_catbadge_face_safe"
                 or migration.get("newMp4Sha256")!=approvals[name]["sha256"]):
             raise RuntimeError("Unexpected renderer or hash "+name)
         migration["qaStatus"]="pass"
