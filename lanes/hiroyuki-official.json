@@ -227,13 +227,16 @@
         "width": 1080
       },
       "overflowSha256": "616e336324ada496dfc8633b8e99a21bb4a5ac84d7c89929e248718c454f5122",
+      "privacyStatus": "private",
       "publishAt": "2026-11-21T11:00:00Z",
       "releasedAt": "2026-11-20T07:40:34.629856+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 7417.17,
-      "status": "uploading",
-      "title": "経営者の父に聞く自立の話"
+      "status": "verification_pending",
+      "title": "経営者の父に聞く自立の話",
+      "uploadedAt": "2026-11-21T07:40:08.034630+00:00",
+      "videoId": "8W_OMabPoEU"
     },
     "4e554921fa0b117f30cdbb47": {
       "attemptedAt": "2026-11-07T19:00:52.990412+00:00",
@@ -1349,6 +1352,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-21T07:40:04.480990+00:00",
+  "updatedAt": "2026-11-21T07:40:08.034669+00:00",
   "version": 1
 }
