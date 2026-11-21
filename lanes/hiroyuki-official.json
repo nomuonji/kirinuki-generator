@@ -295,7 +295,7 @@
       "videoId": "Cjhq2zuy7a4"
     },
     "575fdb064cb70821bde167f2": {
-      "attemptedAt": "2026-11-19T21:35:02.259767+00:00",
+      "attemptedAt": "2026-11-21T07:40:12.949406+00:00",
       "confidence": 0.86,
       "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
       "design": {
@@ -317,11 +317,12 @@
         "width": 1080
       },
       "overflowSha256": "f76f80ac2b41cf1dab6567737d652583659ca30724066d35d55af202c4996838",
+      "publishAt": "2026-11-26T03:00:00Z",
       "releasedAt": "2026-11-20T07:40:34.629896+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 1146.3,
-      "status": "overflow",
+      "status": "uploading",
       "title": "AIが全生産しても物価は下がらない"
     },
     "61b9f7843fab6bc5e64eaaf6": {
@@ -1352,6 +1353,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-21T07:40:09.138014+00:00",
+  "updatedAt": "2026-11-21T07:40:12.949417+00:00",
   "version": 1
 }
