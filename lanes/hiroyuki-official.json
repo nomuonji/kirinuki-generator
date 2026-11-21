@@ -323,7 +323,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 1146.3,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "AIが全生産しても物価は下がらない",
       "uploadedAt": "2026-11-21T07:40:16.400814+00:00",
       "videoId": "13imG3SSQ1A"
@@ -1356,6 +1356,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-21T07:40:16.400853+00:00",
+  "updatedAt": "2026-11-21T07:40:17.369586+00:00",
   "version": 1
 }
