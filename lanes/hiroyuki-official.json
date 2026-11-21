@@ -205,7 +205,7 @@
       "videoId": "XIVOpjkvDf8"
     },
     "4630b991c816c20c4c311120": {
-      "attemptedAt": "2026-11-19T21:56:14.815595+00:00",
+      "attemptedAt": "2026-11-21T07:40:04.480979+00:00",
       "confidence": 0.84,
       "description": "元動画から抜粋した切り抜きです。発言の前後の文脈は元動画をご確認ください。",
       "design": {
@@ -227,11 +227,12 @@
         "width": 1080
       },
       "overflowSha256": "616e336324ada496dfc8633b8e99a21bb4a5ac84d7c89929e248718c454f5122",
+      "publishAt": "2026-11-21T11:00:00Z",
       "releasedAt": "2026-11-20T07:40:34.629856+00:00",
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 7417.17,
-      "status": "overflow",
+      "status": "uploading",
       "title": "経営者の父に聞く自立の話"
     },
     "4e554921fa0b117f30cdbb47": {
@@ -1348,6 +1349,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-21T07:38:26.381550+00:00",
+  "updatedAt": "2026-11-21T07:40:04.480990+00:00",
   "version": 1
 }
