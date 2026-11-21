@@ -233,7 +233,7 @@
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 7417.17,
-      "status": "verification_pending",
+      "status": "scheduled",
       "title": "経営者の父に聞く自立の話",
       "uploadedAt": "2026-11-21T07:40:08.034630+00:00",
       "videoId": "8W_OMabPoEU"
@@ -1352,6 +1352,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-21T07:40:08.034669+00:00",
+  "updatedAt": "2026-11-21T07:40:09.138014+00:00",
   "version": 1
 }
