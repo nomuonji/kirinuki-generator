@@ -122,12 +122,12 @@
         "sizeBytes": 29975885,
         "width": 1080
       },
-      "privacyStatus": "private",
-      "publishAt": "2026-11-22T03:00:00Z",
+      "privacyStatus": "public",
+      "publishAt": null,
       "sourceChannelId": "UC0yQ2h4gQXmVUFWZSqlMVOA",
       "sourceVideoId": "J6zIxwaSdo0",
       "start": 5480.95,
-      "status": "scheduled",
+      "status": "published",
       "title": "古リモ偽装はIPアドレスでバレる",
       "uploadedAt": "2026-11-19T21:46:22.242703+00:00",
       "videoId": "HIwd5hBtcJs"
@@ -1356,6 +1356,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-21T19:42:01.109703+00:00",
+  "updatedAt": "2026-11-22T07:20:40.984447+00:00",
   "version": 1
 }
