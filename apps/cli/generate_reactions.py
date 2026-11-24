@@ -157,6 +157,113 @@ def _build_bulk_prompt(
     return textwrap.dedent(prompt).strip()
 
 
+
+def _build_editorial_single_prompt(transcript_lines: List[str], duration: float, limit: int) -> str:
+    return (
+        "You are the editor of a Japanese short-form video, NOT a viewer or a mascot. "
+        "Write selective on-screen editorial comments that sharpen the opening, "
+        "mark a genuine turning point or give a restrained payoff. "
+        "The two-tone headline and spoken subtitles already exist; DO NOT repeat them.\n"
+        f"Clip length: {duration:.2f} seconds. Maximum {min(3, limit)} comments.\n"
+        "Timed transcript (clip-relative seconds):\n" + "\n".join(transcript_lines) + "\n"
+        'Return JSON only: {"reactions":[{"startTimeSec":number,"durationSec":number,'
+        '"text":string,"triggerText":string,"role":"hook|turn|payoff"}]}.\n'
+        "Rules: Each triggerText MUST be a verbatim substring (at least four characters) "
+        "of one transcript line, without the timestamp. Set startTimeSec near the END "
+        "of that utterance; software will finally align it to the end + 0.18s. "
+        "Never display a comment before its cause is heard. "
+        "Keep text <=18 Japanese characters in ONE line; 1.3-3.0 seconds. "
+        "Use 1-3 comments at DIFFERENT dramatic beats, not at fixed intervals. "
+        "If there is no worthwhile beat or supporting transcript, use an empty list. "
+        "Opening comments should create curiosity without spoiling later dialogue. "
+        "No clickbait, invented claims, fake viewer attribution, fabricated quotes, "
+        "sexual insinuation, participant insults, or empty hype such as 'やばすぎ'. "
+        "Stay natural and specific to what was actually said. Do not output commentary outside JSON."
+    )
+
+
+def _build_editorial_bulk_prompt(clip_payloads: List[dict[str, Any]], limit: int) -> str:
+    sections = []
+    for payload in clip_payloads:
+        sections.append(f'Clip {payload["clip_id"]} ({payload["duration"]:.2f}s):')
+        sections.extend(payload["lines"])
+        sections.append("")
+    return (
+        "You are the editor, NOT a viewer or a mascot. Create subtle, precisely timed "
+        "Japanese editorial comments for each short video. There is already a two-tone hook, "
+        "spoken subtitles and final punchline: NEVER echo these or compete with dialogue.\n"
+        + "\n".join(sections)
+        + '\nOutput JSON only: {"clips":[{"clipId":string,"reactions":['
+        '{"startTimeSec":number,"durationSec":number,"text":string,'
+        '"triggerText":string,"role":"hook|turn|payoff"}]}]}.\n'
+        + f"Up to {min(3, limit)} comments per clip; empty arrays are preferred to filler. "
+        "Select actual changes in stakes, feelings, contradictions, or reveals; "
+        "do not insert comments at mechanically equal intervals. "
+        "Each triggerText MUST be a verbatim 4+ character substring of a transcript line. "
+        "Start at the END of that utterance (aligner will use end + 0.18s), "
+        "never before the line is heard. Use unique, non-overlapping beats. "
+        "Each text is ONE line <=18 Japanese characters, lasting 1.3-3.0 seconds. "
+        "A hook comment may deepen curiosity but must not spoil the eventual payoff. "
+        "No fabricated viewer comments, allegations, quotes, personal attacks, "
+        "sexual innuendo or generic 'やばい' hype. If unsupported, return no comments."
+    )
+
+
+def _sanitize_editorial_entries(
+    raw_entries: Any, *, max_reactions: int, clip_duration: float,
+    segments: List[dict[str, Any]] | None,
+) -> List[dict[str, Any]]:
+    """Only publish comments with an exact transcript anchor, on the correct beat."""
+    if not isinstance(raw_entries, list) or not segments:
+        return []
+    def compact(value: str) -> str:
+        return re.sub(r"\s+", "", value)
+    candidates = []
+    for entry in raw_entries:
+        if not isinstance(entry, dict):
+            continue
+        text = str(entry.get("text") or "").strip()
+        trigger = compact(str(entry.get("triggerText") or "").strip())
+        if not (1 <= len(text) <= 18) or "\n" in text or len(trigger) < 4:
+            continue
+        if re.search(r"(?:^|\s)(?:@|#)|編集コメント|視聴者コメント", text):
+            continue
+        try:
+            requested = float(entry.get("startTimeSec", 0))
+            duration = float(entry.get("durationSec", 2.0))
+        except (TypeError, ValueError):
+            continue
+        if not (0 <= requested < clip_duration) or not (1.0 <= duration <= 3.5):
+            continue
+        matches = [seg for seg in segments if trigger in compact(str(seg.get("text") or ""))]
+        if not matches:
+            continue
+        anchor = min(matches, key=lambda seg: abs(
+            float(seg["start"]) + float(seg["duration"]) - requested
+        ))
+        cue_end = float(anchor["start"]) + float(anchor["duration"])
+        # Reject wildly incorrect cues rather than sliding a reaction to an unrelated line.
+        if abs(requested - cue_end) > 2.5:
+            continue
+        start = max(0.0, cue_end + 0.18)
+        if start + 1.0 > clip_duration:
+            continue
+        candidates.append((start, min(duration, clip_duration - start), text, trigger))
+    candidates.sort(key=lambda x: x[0])
+    result = []
+    last_end = -0.45
+    for start, duration, text, trigger in candidates:
+        if start < last_end + 0.45:
+            continue
+        result.append({
+            "startTimeSec": round(start, 3), "durationSec": round(duration, 3),
+            "text": text, "emotion": "editorial", "triggerText": trigger,
+        })
+        last_end = start + duration
+        if len(result) >= min(3, max_reactions):
+            break
+    return result
+
 def _candidate_texts(response: Any) -> List[str]:
     texts: List[str] = []
 
@@ -294,7 +401,11 @@ def _sanitize_reaction_entries(
     max_reactions: int,
     clip_duration: float,
     segments: List[dict[str, Any]] | None = None,
+    editorial_comments: bool = False,
 ) -> List[dict[str, Any]]:
+    if editorial_comments:
+        return _sanitize_editorial_entries(raw_entries, max_reactions=max_reactions,
+                                           clip_duration=clip_duration, segments=segments)
     if not isinstance(raw_entries, list):
         print("  -> Warning: Missing or invalid 'reactions' list; falling back to empty list.", file=sys.stderr)
         return []
@@ -386,6 +497,7 @@ def _sanitize_bulk_reactions(
     payload: dict[str, Any],
     clip_meta: Dict[str, dict[str, Any]],
     max_reactions: int,
+    editorial_comments: bool = False,
 ) -> Dict[str, List[dict[str, Any]]]:
     clips = payload.get("clips")
     if not isinstance(clips, list):
@@ -409,6 +521,7 @@ def _sanitize_bulk_reactions(
             max_reactions=max_reactions,
             clip_duration=duration,
             segments=clip_meta[clip_id].get("segments"),
+            editorial_comments=editorial_comments,
         )
         sanitized[clip_id] = reactions
 
@@ -425,6 +538,7 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("--output-dir", help="Directory for per-clip reaction JSON when generating in bulk.")
     parser.add_argument("--clip-candidates", help="Path to clip_candidates.json for bulk generation.")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="OpenCode Go model ID.")
+    parser.add_argument("--editorial-comments", action="store_true", help="Produce transcript-grounded editing comments, not mascot reactions.")
     parser.add_argument("--max-reactions", type=int, default=8, help="Max reactions to request per clip.")
     parser.add_argument("--character-name", default="Kirinuki Friend", help="Name of the reaction character.")
     parser.add_argument("--tone", help="Optional short description of the character tone.")
@@ -462,13 +576,9 @@ def main(argv: List[str] | None = None) -> int:
             parser.error("No transcript segments remain after clipping.")
         clip_duration = args.end_sec - args.start_sec
         transcript_lines = _format_segments(window_segments)
-        prompt = _build_single_prompt(
-            args.character_name,
-            transcript_lines,
-            clip_duration,
-            args.max_reactions,
-            args.tone,
-        )
+        prompt = (_build_editorial_single_prompt(transcript_lines, clip_duration, args.max_reactions)
+                  if args.editorial_comments else _build_single_prompt(
+                      args.character_name, transcript_lines, clip_duration, args.max_reactions, args.tone))
         try:
             response_payload = _call_model(args.model, prompt)
             reactions = _sanitize_reaction_entries(
@@ -476,6 +586,7 @@ def main(argv: List[str] | None = None) -> int:
                 max_reactions=max(1, args.max_reactions),
                 clip_duration=clip_duration,
                 segments=window_segments,
+                editorial_comments=args.editorial_comments,
             )
         except Exception as exc:
             parser.error(f"OpenCode Go API error: {exc}")
@@ -546,12 +657,9 @@ def main(argv: List[str] | None = None) -> int:
     if not clip_payloads:
         parser.error("No valid clips found in candidates file.")
 
-    prompt = _build_bulk_prompt(
-        args.character_name,
-        clip_payloads,
-        max(1, args.max_reactions),
-        args.tone,
-    )
+    prompt = (_build_editorial_bulk_prompt(clip_payloads, max(1, args.max_reactions))
+              if args.editorial_comments else _build_bulk_prompt(
+                  args.character_name, clip_payloads, max(1, args.max_reactions), args.tone))
 
     try:
         response_payload = _call_model(args.model, prompt)
@@ -559,6 +667,7 @@ def main(argv: List[str] | None = None) -> int:
             response_payload,
             clip_meta,
             max(1, args.max_reactions),
+            editorial_comments=args.editorial_comments,
         )
     except Exception as exc:
         parser.error(f"OpenCode Go API error: {exc}")

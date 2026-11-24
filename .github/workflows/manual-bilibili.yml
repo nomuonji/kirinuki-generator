@@ -88,4 +88,4 @@ jobs:
           # translation stage is added. Never burn Chinese as Japanese dialogue.
           options=()
           if [ "$SUB_LANGUAGE" = ja ]; then options+=(--subs); fi
-          python run_all.py "$BVID" --source-platform bilibili --bilibili-page "$PAGE" --bilibili-subtitle-lang "$SUB_LANGUAGE" --source-rights-confirmed "${options[@]}" --reaction
+          python run_all.py "$BVID" --source-platform bilibili --bilibili-page "$PAGE" --bilibili-subtitle-lang "$SUB_LANGUAGE" --source-rights-confirmed "${options[@]}"

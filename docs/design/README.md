@@ -47,6 +47,31 @@ even when the source is replayed with FFmpeg instead of Remotion:
 Observed examples support the *format*, not guaranteed reach. Public performance
 still requires YouTube retention / stayed-to-watch measurements.
 
+## Timed editorial comments (new clips)
+
+Normal `run_all.py` production now requests **one to three short editorial comments**
+per clip (unless `--no-editorial-comments` is specified). This reuses the existing
+`clip_XXX_reactions.json` / `reactionTimeline` contract and **does not**
+rewrite published or approved stock. `--reaction` continues to request the legacy
+mascot wording instead of the editorial style.
+
+The comment generator must use an exact `triggerText` substring from a timed
+transcript line. The validator sets display time to **that line's end + 0.18 s**,
+rejects invented or mistimed anchors, suppresses overlapping comments, caps
+comments at three and permits an empty result instead of boilerplate. Roles
+(hook / turning point / payoff) are an **editing plan**, not fixed timestamps.
+A comment must be a new observation, not a duplicate of the existing rich
+hook, subtitles or bottom punchline. Do not imply that the text is an actual
+YouTube viewer comment: its overlay is visibly labeled `編集コメント`.
+
+The standard Remotion Telop renderer displays a short translucent comment card;
+the fast FFmpeg ASS renderer uses the same cue timeline and an explicitly
+labeled boxed style. Both leave the existing title-free, two-tone hook and
+spoken-caption layer intact. Before authorizing new uploads, inspect frame
+captures at each chosen cue, verifying face visibility and spoken text readability.
+This is a visual editing hypothesis; retention improvement must be measured
+with the channel's actual Shorts analytics, not assumed.
+
 ## ひろゆき lane: `ronpa` (debate / news caption layout)
 
 ![ronpa variants](ronpa.jpg)

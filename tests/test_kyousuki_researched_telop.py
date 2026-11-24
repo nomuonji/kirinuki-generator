@@ -34,6 +34,24 @@ class ResearchBasedTelopTests(unittest.TestCase):
             self.assertIn(r"\N",text)
             self.assertIn(ass_color(VARIANTS[0]["hl"][0]),text)
 
+    def test_editorial_comment_is_visibly_attributed_in_ffmpeg(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "timed.ass"
+            render_ass(
+                subtitles=[{"startFrame":0,"endFrame":120,"text":"最初は友達だと思ってた"}],
+                seconds=5, output=path, video_top=566, video_height=608,
+                hook="変わっていく**距離**", punchline="これが**本音**",
+                reactions=[
+                    {"startFrame":55,"durationInFrames":66,
+                     "text":"ここから変わる？","emotion":"editorial"},
+                ],
+            )
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("Style: EditorComment", content)
+            self.assertIn("編集コメント", content)
+            self.assertIn("ここから変わる？", content)
+            self.assertIn("Dialogue: 2,0:00:01.83,0:00:04.03,EditorComment", content)
+
     def test_long_hook_and_all_three_variants_fit_safe_bounds(self):
         for variant in range(3):
             with self.subTest(variant=variant), tempfile.TemporaryDirectory() as temp:

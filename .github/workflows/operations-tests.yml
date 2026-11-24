@@ -13,6 +13,11 @@ on:
       - 'packages/opencode_go.py'
       - 'packages/gemini_quota.py'
       - 'tests/test_gemini_quota.py'
+      - 'tests/test_editorial_comments.py'
+      - 'tests/test_kyousuki_researched_telop.py'
+      - 'packages/kyousuki_researched_telop.py'
+      - 'apps/remotion/src/design/templates/Telop.tsx'
+      - 'apps/remotion/src/CleanShort.tsx'
       - 'tests/test_quality_gate.py'
       - 'tests/test_opencode_go.py'
       - 'apps/cli/generate_reactions.py'
@@ -77,11 +82,20 @@ jobs:
           python-version: '3.11'
       - name: Compile changed Python modules
         run: |
-          python -m py_compile             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/opencode_go.py             packages/gemini_quota.py             apps/cli/generate_reactions.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py             scripts/kirinuki_readiness.py             scripts/private_render_smoke.py
+          python -m py_compile             packages/kyousuki_researched_telop.py             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/opencode_go.py             packages/gemini_quota.py             apps/cli/generate_reactions.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py             scripts/kirinuki_readiness.py             scripts/private_render_smoke.py
       - name: Install direct publisher test dependencies
         run: python -m pip install --disable-pip-version-check requests google-api-python-client google-auth-httplib2 google-auth-oauthlib pydantic python-dotenv
       - name: Run operations unit tests
-        run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish tests.test_youtube_direct tests.test_readiness tests.test_opencode_go tests.test_gemini_quota tests.test_design_rotation
+        run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish tests.test_youtube_direct tests.test_readiness tests.test_opencode_go tests.test_gemini_quota tests.test_design_rotation tests.test_editorial_comments tests.test_kyousuki_researched_telop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/remotion/package-lock.json
+      - name: Typecheck Remotion editorial overlays
+        run: |
+          npm ci --prefix apps/remotion --ignore-scripts
+          ./apps/remotion/node_modules/.bin/tsc --noEmit -p apps/remotion/tsconfig.json
       - name: Verify direct workflow safely stays inactive without authorization
         run: |
           python -m scripts.autonomous_direct --plan-only --plan-output /tmp/kirinuki-plan.json
