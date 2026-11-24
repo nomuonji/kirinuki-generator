@@ -81,4 +81,5 @@ jobs:
           RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
           OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AMD_TOKENLAB_API_KEY: ${{ secrets.AMD_TOKENLAB_API_KEY }}
         run: python run_all.py "$VIDEO_ID" --subs
