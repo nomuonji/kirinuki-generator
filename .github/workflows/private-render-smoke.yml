@@ -63,6 +63,20 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
           python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Check AI generation before downloading the source
+        run: |
+          python - <<'PY'
+          import json
+          from packages.opencode_go import generate_chat_completion
+          response = generate_chat_completion(
+              None, ['Output only JSON.', 'Return exactly {"ok":true}.'],
+              generation_config={"temperature": 0},
+              request_options={"timeout": 60, "attempts": 2},
+          )
+          if json.loads(response.text).get("ok") is not True:
+              raise RuntimeError("AI preflight returned an unexpected response")
+          print("AI_PREFLIGHT_MODEL=" + response.model)
+          PY
       - name: Install Remotion and browser
         working-directory: apps/remotion
         run: |
