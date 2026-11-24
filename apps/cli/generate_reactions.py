@@ -532,12 +532,12 @@ def _sanitize_bulk_reactions(
     return sanitized
 
 def main(argv: List[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Generate mascot reaction timelines via OpenCode Go.")
+    parser = argparse.ArgumentParser(description="Generate mascot reactions or transcript-grounded editorial comments.")
     parser.add_argument("--transcript", required=True, help="Path to transcript JSON (list of segments).")
     parser.add_argument("--output", help="Output JSON path when generating a single clip timeline.")
     parser.add_argument("--output-dir", help="Directory for per-clip reaction JSON when generating in bulk.")
     parser.add_argument("--clip-candidates", help="Path to clip_candidates.json for bulk generation.")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="OpenCode Go model ID.")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="Legacy model ID (Gemini uses GEMINI_MODEL).")
     parser.add_argument("--editorial-comments", action="store_true", help="Produce transcript-grounded editing comments, not mascot reactions.")
     parser.add_argument("--max-reactions", type=int, default=8, help="Max reactions to request per clip.")
     parser.add_argument("--character-name", default="Kirinuki Friend", help="Name of the reaction character.")
@@ -562,9 +562,16 @@ def main(argv: List[str] | None = None) -> int:
     single_mode = args.start_sec is not None or args.end_sec is not None or args.output is not None
 
     api_key = args.api_key or os.getenv("OPENCODE_GO_API_KEY") or os.getenv("OPENCODE_API_KEY")
-    if not api_key:
-        parser.error("OpenCode Go API key missing. Set OPENCODE_GO_API_KEY or pass --api-key.")
-    os.environ["OPENCODE_GO_API_KEY"] = api_key
+    provider = (os.getenv("KIRINUKI_AI_PROVIDER", "auto").strip().lower() or "auto")
+    gemini_ready = bool(os.getenv("GEMINI_API_KEY", "").strip())
+    if provider == "gemini" and not gemini_ready:
+        parser.error("GEMINI_API_KEY is required when KIRINUKI_AI_PROVIDER=gemini.")
+    if provider == "opencode_go" and not api_key:
+        parser.error("OPENCODE_GO_API_KEY is required when KIRINUKI_AI_PROVIDER=opencode_go.")
+    if provider == "auto" and not (gemini_ready or api_key):
+        parser.error("Set GEMINI_API_KEY or OPENCODE_GO_API_KEY to generate comments.")
+    if api_key:
+        os.environ["OPENCODE_GO_API_KEY"] = api_key
 
     if single_mode:
         if args.start_sec is None or args.end_sec is None:

@@ -11,6 +11,7 @@ on:
       - 'packages/operations.py'
       - 'packages/quality_gate.py'
       - 'packages/opencode_go.py'
+      - 'packages/gemini_api.py'
       - 'packages/gemini_quota.py'
       - 'tests/test_gemini_quota.py'
       - 'tests/test_editorial_comments.py'
@@ -20,6 +21,7 @@ on:
       - 'apps/remotion/src/CleanShort.tsx'
       - 'tests/test_quality_gate.py'
       - 'tests/test_opencode_go.py'
+      - 'tests/test_gemini_provider.py'
       - 'apps/cli/generate_reactions.py'
       - 'packages/publish_scheduler.py'
       - 'packages/github_ledger.py'
@@ -42,6 +44,7 @@ on:
       - 'packages/operations.py'
       - 'packages/quality_gate.py'
       - 'packages/opencode_go.py'
+      - 'packages/gemini_api.py'
       - 'packages/gemini_quota.py'
       - 'tests/test_gemini_quota.py'
       - 'apps/cli/generate_reactions.py'
@@ -60,6 +63,7 @@ on:
       - 'packages/segmentation_gemini/client.py'
       - 'tests/test_quality_gate.py'
       - 'tests/test_opencode_go.py'
+      - 'tests/test_gemini_provider.py'
       - 'configs/video_concept_hiroyuki.md'
       - 'packages/shared/gdrive.py'
       - 'apps/cli/generate_clips.py'
@@ -82,11 +86,11 @@ jobs:
           python-version: '3.11'
       - name: Compile changed Python modules
         run: |
-          python -m py_compile             packages/kyousuki_researched_telop.py             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/opencode_go.py             packages/gemini_quota.py             apps/cli/generate_reactions.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py             scripts/kirinuki_readiness.py             scripts/private_render_smoke.py
+          python -m py_compile             packages/kyousuki_researched_telop.py             packages/operations.py             packages/shared/gdrive.py             youtube_watcher.py             run_all.py             download_video.py             apps/cli/generate_clips.py             packages/quality_gate.py             packages/opencode_go.py             packages/gemini_api.py             packages/gemini_quota.py             apps/cli/generate_reactions.py             packages/publish_scheduler.py             packages/github_ledger.py             packages/youtube_direct.py             scripts/autonomous_direct.py             scripts/kirinuki_readiness.py             scripts/private_render_smoke.py
       - name: Install direct publisher test dependencies
         run: python -m pip install --disable-pip-version-check requests google-api-python-client google-auth-httplib2 google-auth-oauthlib pydantic python-dotenv
       - name: Run operations unit tests
-        run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish tests.test_youtube_direct tests.test_readiness tests.test_opencode_go tests.test_gemini_quota tests.test_design_rotation tests.test_editorial_comments tests.test_kyousuki_researched_telop
+        run: python -m unittest -v tests.test_operations tests.test_quality_gate tests.test_direct_publish tests.test_youtube_direct tests.test_readiness tests.test_opencode_go tests.test_gemini_provider tests.test_gemini_quota tests.test_design_rotation tests.test_editorial_comments tests.test_kyousuki_researched_telop
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

@@ -156,6 +156,7 @@ jobs:
           KYOUSUKI_APPROVALS_JSON: ${{ secrets.KYOUSUKI_APPROVALS_JSON }}
           RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
           OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GDRIVE_CLIENT_SECRET_JSON: ${{ secrets.GDRIVE_CLIENT_SECRET_JSON }}
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
         run: python youtube_watcher.py

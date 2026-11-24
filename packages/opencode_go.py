@@ -116,12 +116,21 @@ def generate_chat_completion(
     notify=print,
     http_post=None,
 ):
-    """Generate text through OpenCode Go with bounded transient-error retries.
+    """Generate text via Gemini (when configured) or legacy OpenCode Go.
 
-    Gemini-only response schemas are intentionally not forwarded. Callers already
-    instruct the model to return JSON, which is parsed and independently validated
-    by the existing pipeline before a clip can proceed.
+    The caller-side editorial and JSON validation remains unchanged.
     """
+    provider = os.environ.get("KIRINUKI_AI_PROVIDER", "auto").strip().lower() or "auto"
+    if provider not in {"auto", "gemini", "opencode_go"}:
+        raise ValueError("KIRINUKI_AI_PROVIDER must be auto, gemini, or opencode_go")
+    if provider == "gemini" or (provider == "auto" and os.environ.get("GEMINI_API_KEY", "").strip()):
+        from packages.gemini_api import generate_gemini_completion
+        return generate_gemini_completion(
+            contents, generation_config=generation_config,
+            request_options=request_options, attempts=attempts,
+            sleep=sleep, notify=notify, http_post=http_post,
+        )
+
     api_key = (
         os.environ.get("OPENCODE_GO_API_KEY")
         or os.environ.get("OPENCODE_API_KEY")
