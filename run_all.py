@@ -702,7 +702,12 @@ def main():
     parser.add_argument(
         "--reaction",
         action="store_true",
-        help="Generate reaction timelines and assets for each clip before rendering.",
+        help="Use the legacy mascot reactions instead of default editorial comments.",
+    )
+    parser.add_argument(
+        "--no-editorial-comments",
+        action="store_true",
+        help="Disable default transcript-grounded editorial comments.",
     )
     parser.add_argument(
         "--reaction-character",
@@ -1146,21 +1151,33 @@ def main():
         if not validated_receipt(clips_dir):
             raise RuntimeError("Refusing to render clips without a valid editorial approval receipt")
 
-        # --- 5.5 Generate Reaction Timelines (optional) ---
-        if args.reaction:
+        # --- 5.5 Transcript-grounded editorial comments (default), or legacy mascot reactions ---
+        if args.reaction or not args.no_editorial_comments:
             candidates_path = clips_dir / "clip_candidates.json"
             if not candidates_path.exists():
-                raise RuntimeError("Requested --reaction but clip_candidates.json is missing.")
+                raise RuntimeError("Comment generation requires clip_candidates.json.")
 
-            cmd_reaction = [
-                sys.executable, "-m", "apps.cli.generate_reactions",
-                "--transcript", str(transcript_path),
-                "--clip-candidates", str(candidates_path),
-                "--output-dir", str(clips_dir),
-                "--max-reactions", str(max(1, args.reaction_max)),
-                "--character-name", args.reaction_character,
-            ]
-            run_command(cmd_reaction, "Generating reactions for all clips", timeout=STAGE_TIMEOUTS["reactions"])
+            # Sidecars are part of the resumable clip bundle; do not bill the model twice.
+            clip_ids = [f"clip_{i:03d}" for i, _ in enumerate(
+                json.loads(candidates_path.read_text(encoding="utf-8")), start=1
+            )]
+            missing = [cid for cid in clip_ids
+                       if not (clips_dir / f"{cid}_reactions.json").exists()]
+            if missing:
+                cmd_reaction = [
+                    sys.executable, "-m", "apps.cli.generate_reactions",
+                    "--transcript", str(transcript_path),
+                    "--clip-candidates", str(candidates_path),
+                    "--output-dir", str(clips_dir),
+                    "--max-reactions", str(max(1, args.reaction_max if args.reaction else 3)),
+                    "--character-name", args.reaction_character,
+                ]
+                if not args.reaction:
+                    cmd_reaction.append("--editorial-comments")
+                run_command(cmd_reaction, "Generating timed clip comments",
+                            timeout=STAGE_TIMEOUTS["reactions"])
+            else:
+                print("Using existing timed-comment/reaction sidecars (resume-safe)")
 
         clips_state: dict = state["clips"]
 
