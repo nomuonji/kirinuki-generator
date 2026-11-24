@@ -406,7 +406,7 @@ class DirectLane:
         command([sys.executable, "-m", "apps.cli.generate_reactions",
                  "--transcript", str(transcript),
                  "--clip-candidates", str(clip_dir / "clip_candidates.json"),
-                 "--output-dir", str(clip_dir), "--max-reactions", "3",
+                 "--output-dir", str(clip_dir), "--max-reactions", "3", "--editorial-comments",
                  "--model", os.environ.get("REACTION_MODEL", os.environ.get("OPENCODE_GO_MODEL", "deepseek-v4.1-flash"))],
                 timeout=1400)
         from packages.design_rotation import history_from_ledger
