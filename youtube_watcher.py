@@ -811,7 +811,7 @@ def main():
             "UCj14-CcW0idWlvh3kQp683A": "configs/video_concept_hiroyuki.md",
         }
         concept_file = os.environ.get("KIRINUKI_CONCEPT_FILE") or channel_concepts.get(channel_id)
-        command = [sys.executable, "run_all.py", video_id, "--subs", "--reaction"]
+        command = [sys.executable, "run_all.py", video_id, "--subs"]
         if candidate.get("sourcePlatform") == "bilibili":
             command = [sys.executable, "run_all.py", candidate["bvid"], "--source-platform", "bilibili",
                        "--bilibili-page", str(candidate["page"]), "--bilibili-subtitle-lang", "auto",
