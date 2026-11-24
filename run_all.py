@@ -1129,25 +1129,6 @@ def main():
                 clips_stage["done"] = True
                 persist_state()
 
-        if clips_stage.get("done") and clips_dir.exists():
-            manifest = build_clips_manifest(clips_dir)
-            if manifest:
-                manifest_payload = json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8")
-                file_id = upload_json_data(
-                    drive_service,
-                    drive_parent_id,
-                    f"clips_manifest_{args.video_id}.json",
-                    manifest_payload,
-                    clips_manifest_info.get("fileId") if clips_manifest_info else None,
-                )
-                clips_manifest_info = {
-                    "fileId": file_id,
-                    "updatedAt": _utc_now_iso(),
-                }
-                artifacts["clipsManifest"] = clips_manifest_info
-                clips_manifest = manifest
-                persist_state()
-
         if not validated_receipt(clips_dir):
             raise RuntimeError("Refusing to render clips without a valid editorial approval receipt")
 
@@ -1178,6 +1159,26 @@ def main():
                             timeout=STAGE_TIMEOUTS["reactions"])
             else:
                 print("Using existing timed-comment/reaction sidecars (resume-safe)")
+
+        # Persist reaction/editorial-comment sidecars together with the clip bundle.
+        if clips_stage.get("done") and clips_dir.exists():
+            manifest = build_clips_manifest(clips_dir)
+            if manifest:
+                manifest_payload = json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8")
+                file_id = upload_json_data(
+                    drive_service,
+                    drive_parent_id,
+                    f"clips_manifest_{args.video_id}.json",
+                    manifest_payload,
+                    clips_manifest_info.get("fileId") if clips_manifest_info else None,
+                )
+                clips_manifest_info = {
+                    "fileId": file_id,
+                    "updatedAt": _utc_now_iso(),
+                }
+                artifacts["clipsManifest"] = clips_manifest_info
+                clips_manifest = manifest
+                persist_state()
 
         clips_state: dict = state["clips"]
 
