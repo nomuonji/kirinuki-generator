@@ -35,7 +35,7 @@ burn-in. Equivalent local invocation:
 
 ```bash
 # Both folder variables must point to the same dedicated review-only folder.
-python run_all.py YOUR_BV_ID --source-platform bilibili --bilibili-page 1 --bilibili-subtitle-lang ja --source-rights-confirmed --subs --reaction
+python run_all.py YOUR_BV_ID --source-platform bilibili --bilibili-page 1 --bilibili-subtitle-lang ja --source-rights-confirmed --subs
 ```
 
 The per-part/per-language state key is namespaced and clip audit identifies
