@@ -121,15 +121,44 @@ def generate_chat_completion(
     The caller-side editorial and JSON validation remains unchanged.
     """
     provider = os.environ.get("KIRINUKI_AI_PROVIDER", "auto").strip().lower() or "auto"
-    if provider not in {"auto", "gemini", "opencode_go"}:
-        raise ValueError("KIRINUKI_AI_PROVIDER must be auto, gemini, or opencode_go")
-    if provider == "gemini" or (provider == "auto" and os.environ.get("GEMINI_API_KEY", "").strip()):
-        from packages.gemini_api import generate_gemini_completion
-        return generate_gemini_completion(
+    if provider not in {"auto", "gemini", "tokenlab", "opencode_go"}:
+        raise ValueError("KIRINUKI_AI_PROVIDER must be auto, gemini, tokenlab, or opencode_go")
+
+    tokenlab_key = os.environ.get("AMD_TOKENLAB_API_KEY", "").strip()
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+
+    if provider == "tokenlab" or (provider == "auto" and not gemini_key and tokenlab_key):
+        from packages.tokenlab_api import generate_tokenlab_completion
+        return generate_tokenlab_completion(
             contents, generation_config=generation_config,
             request_options=request_options, attempts=attempts,
             sleep=sleep, notify=notify, http_post=http_post,
         )
+
+    if provider == "gemini" or (provider == "auto" and gemini_key):
+        from packages.gemini_api import GeminiAPIError, generate_gemini_completion
+        try:
+            return generate_gemini_completion(
+                contents, generation_config=generation_config,
+                request_options=request_options, attempts=attempts,
+                sleep=sleep, notify=notify, http_post=http_post,
+            )
+        except GeminiAPIError as exc:
+            message = str(exc).lower()
+            transient = (
+                "network failure" in message
+                or "all retryable options" in message
+                or any(f"http {status}" in message for status in (408, 429, 500, 502, 503, 504))
+            )
+            if not transient or not tokenlab_key:
+                raise
+            notify("Gemini exhausted its transient retries; switching to AMD Token Lab.")
+            from packages.tokenlab_api import generate_tokenlab_completion
+            return generate_tokenlab_completion(
+                contents, generation_config=generation_config,
+                request_options=request_options, attempts=attempts,
+                sleep=sleep, notify=notify, http_post=http_post,
+            )
 
     api_key = (
         os.environ.get("OPENCODE_GO_API_KEY")
