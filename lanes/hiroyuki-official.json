@@ -1176,10 +1176,10 @@
       "title": "「イケメンが女を殴る理由。」Tripel Karmelietを呑みながら"
     },
     "2pnqE4CFFNU": {
-      "attemptedAt": "2026-11-24T22:44:11.561836+00:00",
-      "failure": "CalledProcessError",
-      "failures": 1,
-      "status": "processing",
+      "attemptedAt": "2026-11-24T23:19:08.342221+00:00",
+      "failure": "StageTimeout",
+      "failures": 2,
+      "status": "failed",
       "title": "ロシア、NATOと戦争するってよ。渋生ビールを吞みながら"
     },
     "2zED6c6zgx4": {
@@ -1363,6 +1363,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-24T22:44:11.561848+00:00",
+  "updatedAt": "2026-11-24T23:19:08.342246+00:00",
   "version": 1
 }
