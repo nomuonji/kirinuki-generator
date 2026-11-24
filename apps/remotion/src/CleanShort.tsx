@@ -62,9 +62,21 @@ export const CleanShort: React.FC<CleanShortProps> = (p) => {
         </div>
       )}
       {reaction.entry && (
-        <div style={{position:"absolute",top:videoTop+225,left:SAFE.left,right:210,
-          fontFamily:FONT.sans,fontSize:50,fontWeight:900,color:"#fff",
-          textShadow:"0 3px 8px #000, 0 0 7px #000",lineHeight:1.2}}>
+        <div style={{
+          position:"absolute",top:videoTop+225,left:SAFE.left,
+          right:reaction.entry.emotion==="editorial" ? 150 : 210,
+          fontFamily:FONT.sans,fontSize:reaction.entry.emotion==="editorial" ? 44 : 50,
+          fontWeight:900,color:"#fff",lineHeight:1.2,
+          textShadow:"0 3px 8px #000, 0 0 7px #000",
+          ...(reaction.entry.emotion==="editorial" ? {
+            border:"3px solid rgba(255,255,255,.9)",
+            borderRadius:22,background:"rgba(13,16,24,.91)",
+            padding:"16px 22px",width:"fit-content",maxWidth:730,
+          } : {}),
+        }}>
+          {reaction.entry.emotion==="editorial" && (
+            <div style={{fontSize:22,color:"#FFD966",letterSpacing:3,marginBottom:5}}>編集コメント</div>
+          )}
           {reaction.entry.text}
         </div>
       )}
