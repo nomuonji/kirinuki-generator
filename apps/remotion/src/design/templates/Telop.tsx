@@ -106,6 +106,7 @@ export const Telop: React.FC<DesignProps> = (p) => {
   const punchSize = fitRich(p.punchline, punchW, punchH, {max: 76, min: 40, lineHeight: 1.2, widthFactor: 1.08});
 
   const reaction = useReaction(p.reactions);
+  const editorial = reaction.entry?.emotion === "editorial";
   const reactionIn = reaction.entry ? spring({frame: reaction.local, fps: p.fps, config: {damping: 10, stiffness: 240}}) : 0;
   const reactionSize = reaction.entry ? Math.max(38, Math.min(60, Math.floor(560 / Math.max(1, [...reaction.entry.text].length)))) : 0;
   const tilt = p.seed % 2 ? -6 : 6;
@@ -181,10 +182,29 @@ export const Telop: React.FC<DesignProps> = (p) => {
             transformOrigin: "left center",
             opacity: entryOpacity(reaction.local, reaction.length, 6),
             ...inkStyle(c.reaction, reactionSize, 0.18),
+            ...(editorial ? {
+              padding: "16px 22px 18px",
+              maxWidth: 750,
+              borderRadius: 22,
+              border: "3px solid rgba(255,255,255,.9)",
+              background: "rgba(13,16,24,.91)",
+              boxShadow: "0 7px 22px rgba(0,0,0,.55)",
+              color: "#fff",
+              fontSize: 44,
+              WebkitTextStroke: "0px",
+              transform: `translateY(${Math.round((1 - reactionIn) * 28)}px)`,
+              filter: "none",
+            } as React.CSSProperties : {}),
             ...jpWrap,
           }}
         >
-          {reaction.entry.text}
+          {editorial ? (
+            <div>
+              <div style={{fontSize: 22, color: "#FFD966", letterSpacing: 3,
+                           marginBottom: 5, fontWeight: 800}}>編集コメント</div>
+              {reaction.entry.text}
+            </div>
+          ) : reaction.entry.text}
         </div>
       ) : null}
 
