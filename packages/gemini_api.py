@@ -64,9 +64,15 @@ def generate_gemini_completion(
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not key:
         raise RuntimeError("GEMINI_API_KEY is not set; set this secret to use Gemini")
-    model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
-    if not re.fullmatch(r"[a-zA-Z0-9._-]+", model):
-        raise ValueError("Invalid GEMINI_MODEL identifier")
+    primary_model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
+    # Degrade to cheaper, stable Flash models only for retryable capacity/quota errors.
+    # Authentication, malformed responses and safety refusals remain hard failures.
+    fallbacks = os.environ.get("GEMINI_FALLBACK_MODELS", "gemini-3.6-flash,gemini-3.5-flash-lite")
+    models = list(dict.fromkeys(
+        [primary_model] + [name.strip() for name in fallbacks.split(",") if name.strip()]
+    ))
+    if any(not re.fullmatch(r"[a-zA-Z0-9._-]+", model) for model in models):
+        raise ValueError("Invalid Gemini model identifier")
     timeout_cap = max(30, int(os.environ.get("OPENCODE_GO_MAX_TIMEOUT_SECONDS", "180")))
     timeout = timeout_cap
     configured_attempts = attempts
@@ -80,37 +86,41 @@ def generate_gemini_completion(
     max_attempts = max(1, min(3, configured_attempts))
     post = http_post or requests.post
     payload = _make_payload(contents, generation_config)
-    url = f"{_ENDPOINT}/{model}:generateContent"
     headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
-    for attempt in range(max_attempts):
-        try:
-            response = post(url, headers=headers, json=payload, timeout=timeout)
-        except requests.RequestException as exc:
-            if attempt + 1 == max_attempts:
-                raise GeminiAPIError(f"Gemini network failure ({type(exc).__name__})") from exc
-            sleep(min(2 ** (attempt + 1), 8))
-            continue
-        status = int(getattr(response, "status_code", 0) or 0)
-        if status in _TRANSIENT and attempt + 1 < max_attempts:
-            notify(f"Gemini temporary HTTP {status}; retry {attempt + 2}/{max_attempts}")
-            sleep(min(2 ** (attempt + 1), 8))
-            continue
-        if status < 200 or status >= 300:
-            raise GeminiAPIError(f"Gemini API returned HTTP {status}; model={model}")
-        try:
-            data = response.json()
-        except (ValueError, AttributeError) as exc:
-            raise GeminiAPIError("Gemini API returned invalid JSON") from exc
-        candidates = data.get("candidates") if isinstance(data, dict) else None
-        if not isinstance(candidates, list) or not candidates:
-            raise GeminiAPIError("Gemini returned no candidates (possibly safety-blocked)")
-        candidate = candidates[0]
-        if not isinstance(candidate, dict):
-            raise GeminiAPIError("Gemini returned a malformed candidate")
-        content = candidate.get("content") or {}
-        parts = content.get("parts", []) if isinstance(content, dict) else []
-        answer = "".join(str(p["text"]) for p in parts if isinstance(p, dict) and isinstance(p.get("text"), str)).strip()
-        if not answer:
-            raise GeminiAPIError(f"Gemini returned empty text (finishReason={candidate.get('finishReason')})")
-        return SimpleNamespace(text=answer, raw=data, model=model)
-    raise GeminiAPIError("Gemini request exhausted retries")
+    for model_index, model in enumerate(models):
+        url = f"{_ENDPOINT}/{model}:generateContent"
+        for attempt in range(max_attempts):
+            try:
+                response = post(url, headers=headers, json=payload, timeout=timeout)
+            except requests.RequestException as exc:
+                if attempt + 1 == max_attempts:
+                    raise GeminiAPIError(f"Gemini network failure ({type(exc).__name__})") from exc
+                sleep(min(2 ** (attempt + 1), 8))
+                continue
+            status = int(getattr(response, "status_code", 0) or 0)
+            if status in _TRANSIENT and attempt + 1 < max_attempts:
+                notify(f"Gemini temporary HTTP {status}; retry {attempt + 2}/{max_attempts}")
+                sleep(min(2 ** (attempt + 1), 8))
+                continue
+            if status in _TRANSIENT and model_index + 1 < len(models):
+                notify(f"Gemini model {model} returned HTTP {status}; falling back to {models[model_index+1]}")
+                break
+            if status < 200 or status >= 300:
+                raise GeminiAPIError(f"Gemini API returned HTTP {status}; model={model}")
+            try:
+                data = response.json()
+            except (ValueError, AttributeError) as exc:
+                raise GeminiAPIError("Gemini API returned invalid JSON") from exc
+            candidates = data.get("candidates") if isinstance(data, dict) else None
+            if not isinstance(candidates, list) or not candidates:
+                raise GeminiAPIError("Gemini returned no candidates (possibly safety-blocked)")
+            candidate = candidates[0]
+            if not isinstance(candidate, dict):
+                raise GeminiAPIError("Gemini returned a malformed candidate")
+            content = candidate.get("content") or {}
+            parts = content.get("parts", []) if isinstance(content, dict) else []
+            answer = "".join(str(p["text"]) for p in parts if isinstance(p, dict) and isinstance(p.get("text"), str)).strip()
+            if not answer:
+                raise GeminiAPIError(f"Gemini returned empty text (finishReason={candidate.get('finishReason')})")
+            return SimpleNamespace(text=answer, raw=data, model=model)
+    raise GeminiAPIError("Gemini models exhausted all retryable options")

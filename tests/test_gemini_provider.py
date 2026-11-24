@@ -67,6 +67,27 @@ class GeminiProviderTests(unittest.TestCase):
                 with self.assertRaisesRegex(GeminiAPIError, "HTTP 403"):
                     generate_chat_completion(None, "transcript", attempts=1)
                 
+    def test_falls_back_to_second_flash_model_only_on_capacity_error(self):
+        with patch.dict(os.environ, {
+            "GEMINI_API_KEY": "test-key",
+            "GEMINI_FALLBACK_MODELS": "gemini-3.6-flash,gemini-3.5-flash-lite",
+        }, clear=True):
+            with patch("packages.gemini_api.requests.post",
+                       side_effect=[Response(status=503), Response(status=503), Response()]) as post:
+                result = generate_chat_completion(None, "transcript", attempts=2,
+                                                  sleep=lambda n: None, notify=lambda m: None)
+        self.assertEqual(result.model, "gemini-3.6-flash")
+        self.assertEqual(post.call_count, 3)
+        self.assertIn("gemini-3.8-flash", post.call_args_list[0].args[0])
+        self.assertIn("gemini-3.6-flash", post.call_args_list[2].args[0])
+
+    def test_no_fallback_on_auth_failure(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}, clear=True):
+            with patch("packages.gemini_api.requests.post", return_value=Response(status=403)) as post:
+                with self.assertRaisesRegex(GeminiAPIError, "HTTP 403"):
+                    generate_chat_completion(None, "transcript", attempts=2)
+        self.assertEqual(post.call_count, 1)
+
     def test_bounded_gemini_retry_for_transient_error(self):
         with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}, clear=True):
             with patch("packages.gemini_api.requests.post",
