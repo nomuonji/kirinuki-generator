@@ -111,6 +111,11 @@ Output JSON only."""
 
     all_props: List[ClipCandidate] = []
     chunk_chars = int(os.environ.get("OPENCODE_GO_PROPOSAL_CHUNK_CHARS", "12000"))
+    provider = os.environ.get("KIRINUKI_AI_PROVIDER", "auto").strip().lower() or "auto"
+    if provider in {"auto", "gemini"} and os.environ.get("GEMINI_API_KEY", "").strip():
+        # Prefer modest request sizes on Gemini free/low-quota projects;
+        # the independent clip QA still enforces boundaries and payoff quality.
+        chunk_chars = min(chunk_chars, max(1600, int(os.environ.get("GEMINI_PROPOSAL_CHUNK_CHARS", "3200"))))
     for chunk in _chunks(items, max_chars=chunk_chars):
         resp = generate_chat_completion(
             OPENCODE_GO_MODEL,

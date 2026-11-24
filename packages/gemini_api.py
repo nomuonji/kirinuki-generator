@@ -42,7 +42,7 @@ def _make_payload(contents: Any, generation_config: Any) -> dict[str, Any]:
         raise ValueError("Gemini request requires non-empty user text")
     cfg: dict[str, Any] = {
         "responseMimeType": "application/json",
-        "maxOutputTokens": max(256, min(65536, int(os.environ.get("GEMINI_MAX_OUTPUT_TOKENS", "8192")))),
+        "maxOutputTokens": max(256, min(65536, int(os.environ.get("GEMINI_MAX_OUTPUT_TOKENS", "4096")))),
     }
     temperature = _config_value(generation_config, "temperature")
     if temperature is not None:

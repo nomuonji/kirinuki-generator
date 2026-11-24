@@ -68,8 +68,16 @@ jobs:
           python - <<'PY'
           import json
           from packages.opencode_go import generate_chat_completion
+          # Approximate real segmentation input size before fetching a 400 MB source.
+          sample = "".join(
+              f"[{i*4:.2f}->{(i+1)*4:.2f}] "
+              "政治について議論する人が、一つの論点を説明してから相手の反論を受け止めます。\\n"
+              for i in range(45)
+          )
           response = generate_chat_completion(
-              None, ['Output only JSON.', 'Return exactly {"ok":true}.'],
+              None,
+              ['Return only a JSON object after reading the following transcript.',
+               sample + '\\nReturn exactly {"ok":true}.'],
               generation_config={"temperature": 0},
               request_options={"timeout": 60, "attempts": 2},
           )
