@@ -88,6 +88,12 @@
       "uploadedAt": "2026-11-20T22:52:34.569687+00:00",
       "videoId": "7o90R6Owarw"
     },
+    "974f029e35cb7d1ccbdaf0ae": {
+      "attemptedAt": "2026-11-25T21:59:52.699137+00:00",
+      "publishAt": "2026-11-27T11:00:00Z",
+      "sourceId": "episode-2f175b92f08e888453530325",
+      "status": "uploading"
+    },
     "a4e862708b7986fb338f8761": {
       "attemptedAt": "2026-11-25T21:40:41.456362+00:00",
       "publishAt": "2026-12-02T03:00:00Z",
@@ -147,6 +153,6 @@
   },
   "lane": "kyousuki-approved-stock",
   "sources": {},
-  "updatedAt": "2026-11-25T21:40:46.565503+00:00",
+  "updatedAt": "2026-11-25T21:59:52.699154+00:00",
   "version": 1
 }
