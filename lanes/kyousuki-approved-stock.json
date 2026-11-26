@@ -100,7 +100,9 @@
       "attemptedAt": "2026-11-26T08:13:32.695333+00:00",
       "publishAt": "2026-11-28T11:00:00Z",
       "sourceId": "episode-2f175b92f08e888453530325",
-      "status": "uploading"
+      "status": "verification_pending",
+      "uploadedAt": "2026-11-26T08:13:36.360293+00:00",
+      "videoId": "DsMyy5OTwi8"
     },
     "a4e862708b7986fb338f8761": {
       "attemptedAt": "2026-11-25T21:40:41.456362+00:00",
@@ -161,6 +163,6 @@
   },
   "lane": "kyousuki-approved-stock",
   "sources": {},
-  "updatedAt": "2026-11-26T08:13:32.695352+00:00",
+  "updatedAt": "2026-11-26T08:13:36.360334+00:00",
   "version": 1
 }
