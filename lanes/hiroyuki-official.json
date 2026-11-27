@@ -1221,10 +1221,10 @@
       "title": "「なぜ遅刻をするのに開始時間を設定してしまうのか？」Domaine De La Valliere Cidre"
     },
     "6SKLx5J9Nio": {
-      "attemptedAt": "2026-11-27T21:35:44.598846+00:00",
+      "attemptedAt": "2026-11-27T22:15:39.307609+00:00",
       "failure": "download",
       "failures": 0,
-      "status": "processing",
+      "status": "failed",
       "title": "台所日本酒造り2作目"
     },
     "EXUXJaPlKmE": {
@@ -1370,6 +1370,6 @@
       "title": "約束の時間は守らないが約束は守る。Ega beerを飲みながら"
     }
   },
-  "updatedAt": "2026-11-27T21:35:44.598863+00:00",
+  "updatedAt": "2026-11-27T22:15:39.307630+00:00",
   "version": 1
 }
